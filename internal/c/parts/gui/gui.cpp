@@ -72,7 +72,7 @@ static void gui_free_tokens(char **tokens) {
     free(tokens);
 }
 
-/// @brief This function cleans single and double quotes from a string and replaces those with 0x00B4 and 0x00A8. Currently a stopgap solution
+/// @brief This function cleans single and double quotes from a string. Currently a stopgap solution for tinyfiledialogs limitation
 /// @param string The string that needs to be cleaned. This cannot be NULL. The string will be modified!
 /// @param len The length of the string. This is needed so that this can work with both qbs and c-strings
 static void gui_sanitize_string(char *string, size_t len) {
@@ -89,16 +89,16 @@ static void gui_sanitize_string(char *string, size_t len) {
             break;
 #else
             // On non-Windows OSes we replace quotes and backticks with whitespaces
-        case 34: // "
-            string[i] = ' ';
+        case 34:            // "
+            string[i] = 32; // ' '
             break;
 
-        case 39: // '
-            string[i] = ' ';
+        case 39:            // '
+            string[i] = 32; // ' '
             break;
 
-        case 96: // `
-            string[i] = ' ';
+        case 96:            // `
+            string[i] = 32; // ' '
             break;
 #endif
         }
