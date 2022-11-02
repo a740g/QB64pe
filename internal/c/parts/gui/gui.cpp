@@ -72,6 +72,18 @@ static void gui_free_tokens(char **tokens) {
     free(tokens);
 }
 
+/// @brief This function cleans a qbs of single and double quotes and replaces those with 0x00B4 and 0x00A8. Currently a stopgap solution
+/// @param string The string that needs to be cleaned. This cannot be NULL. The string will be modified!
+/// @param len The length of the string. This is needed so that this can work with both qbs and c-strings
+static void gui_sanitize_string(char *string, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (string[i] == 39)      // '
+            string[i] = 180;      // ´
+        else if (string[i] == 34) // "
+            string[i] = 168;      // ¨
+    }
+}
+
 /// @brief Shows a system notification (on Windows this will be an action center notification)
 /// @param qbsTitle [OPTIONAL] Title of the notification
 /// @param qbsMessage [OPTIONAL] The message that will be displayed
@@ -105,6 +117,9 @@ void sub__guiNotifyPopup(qbs *qbsTitle, qbs *qbsMessage, qbs *qbsIconType, int32
         qbs_set(aIconType, qbs_add(qbsIconType, qbs_new_txt_len("\0", 1)));
     else
         qbs_set(aIconType, qbs_new_txt("info")); // info if not passed
+
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+    gui_sanitize_string((char *)aMessage->chr, aMessage->len);
 
     tinyfd_notifyPopup((const char *)aTitle->chr, (const char *)aMessage->chr, (const char *)aIconType->chr);
 }
@@ -142,6 +157,9 @@ int32_t func__guiMessageBox(qbs *qbsTitle, qbs *qbsMessage, qbs *qbsDialogType, 
 
     if (!passed)
         nDefaultButton = 1; // 1 for ok/yes
+
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+    gui_sanitize_string((char *)aMessage->chr, aMessage->len);
 
     return tinyfd_messageBox((const char *)aTitle->chr, (const char *)aMessage->chr, (const char *)aDialogType->chr, (const char *)aIconType->chr,
                              nDefaultButton);
@@ -181,6 +199,9 @@ void sub__guiMessageBox(qbs *qbsTitle, qbs *qbsMessage, qbs *qbsIconType, int32_
     else
         qbs_set(aIconType, qbs_new_txt("info")); // info if not passed
 
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+    gui_sanitize_string((char *)aMessage->chr, aMessage->len);
+
     tinyfd_messageBox((const char *)aTitle->chr, (const char *)aMessage->chr, "ok", (const char *)aIconType->chr, 1);
 }
 
@@ -219,6 +240,10 @@ qbs *func__guiInputBox(qbs *qbsTitle, qbs *qbsMessage, qbs *qbsDefaultInput, int
         sDefaultInput = (char *)aDefaultInput->chr;
     }
 
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+    gui_sanitize_string((char *)aMessage->chr, aMessage->len);
+    gui_sanitize_string((char *)aDefaultInput->chr, aDefaultInput->len);
+
     auto sInput = tinyfd_inputBox((const char *)aTitle->chr, (const char *)aMessage->chr, (const char *)sDefaultInput);
 
     // Create a new qbs and then copy the string to it
@@ -252,6 +277,8 @@ qbs *func__guiSelectFolderDialog(qbs *qbsTitle, qbs *qbsDefaultPath, int32_t pas
     else
         qbs_set(aDefaultPath, qbs_new_txt_len("\0", 1));
 
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+
     auto sFolder = tinyfd_selectFolderDialog((const char *)aTitle->chr, (const char *)aDefaultPath->chr);
 
     // Create a new qbs and then copy the string to it
@@ -283,6 +310,8 @@ uint32_t func__guiColorChooserDialog(qbs *qbsTitle, uint32_t nDefaultRGB, int32_
     lRGB[0] = IMAGE_GET_BGRA_RED(nDefaultRGB);
     lRGB[1] = IMAGE_GET_BGRA_GREEN(nDefaultRGB);
     lRGB[2] = IMAGE_GET_BGRA_BLUE(nDefaultRGB);
+
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
 
     // On cancel, return 0 (i.e. no color, no alpha, nothing). Else, return color with alpha set to 255
     return !tinyfd_colorChooser((const char *)aTitle->chr, nullptr, lRGB, lRGB) ? 0 : IMAGE_MAKE_BGRA(lRGB[0], lRGB[1], lRGB[2], 0xFF);
@@ -333,6 +362,8 @@ qbs *func__guiOpenFileDialog(qbs *qbsTitle, qbs *qbsDefaultPathAndFile, qbs *qbs
     int32_t aNumOfFilterPatterns;
     auto psaFilterPatterns = gui_tokenize((const char *)aFilterPatterns->chr, &aNumOfFilterPatterns); // get the number of file filters & count
 
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+
     auto sFileName = tinyfd_openFileDialog((const char *)aTitle->chr, (const char *)aDefaultPathAndFile->chr, aNumOfFilterPatterns, psaFilterPatterns,
                                            (const char *)sSingleFilterDescription, nAllowMultipleSelects);
 
@@ -381,6 +412,8 @@ qbs *func__guiSaveFileDialog(qbs *qbsTitle, qbs *qbsDefaultPathAndFile, qbs *qbs
     int32_t aNumOfFilterPatterns;
     auto psaFilterPatterns = gui_tokenize((const char *)aFilterPatterns->chr, &aNumOfFilterPatterns); // get the number of file filters & count
 
+    gui_sanitize_string((char *)aTitle->chr, aTitle->len);
+
     auto sFileName = tinyfd_saveFileDialog((const char *)aTitle->chr, (const char *)aDefaultPathAndFile->chr, aNumOfFilterPatterns, psaFilterPatterns,
                                            (const char *)sSingleFilterDescription);
 
@@ -399,7 +432,23 @@ qbs *func__guiSaveFileDialog(qbs *qbsTitle, qbs *qbsDefaultPathAndFile, qbs *qbs
 /// @param title The dialog box title
 /// @param type The type of dialog box (see tinyfd_messageBox)
 /// @return returns the value retured by tinyfd_messageBox
-int gui_alert(const char *message, const char *title, const char *type) { return tinyfd_messageBox(title, message, type, "error", 1); }
+int gui_alert(const char *message, const char *title, const char *type) {
+    char *aTitle = !title ? nullptr : strdup(title);
+    char *aMessage = !message ? nullptr : strdup(message);
+
+    if (aMessage)
+        gui_sanitize_string(aMessage, strlen(aMessage));
+
+    if (aTitle)
+        gui_sanitize_string(aTitle, strlen(aTitle));
+
+    auto result = tinyfd_messageBox(aTitle, aMessage, type, "error", 1);
+
+    free(aMessage);
+    free(aTitle);
+
+    return result;
+}
 
 /// @brief This is used internally by libqb to show warning and failure messages
 /// @param fmt A string that contains a printf style format
@@ -453,10 +502,18 @@ bool gui_alert(const char *fmt, ...) {
 
 // This exists because InForm calls it directly.
 // It only supports the "MB_OK" and "MB_YESNO" options
-int MessageBox(int ignore, char *message, char *title, int type) {
+int MessageBox(int ignore, const char *message, const char *title, int type) {
+    char *aTitle = !title ? nullptr : strdup(title);
+    char *aMessage = !message ? nullptr : strdup(message);
     const char *msgType;
     const char *icon;
     int yesret;
+
+    if (aMessage)
+        gui_sanitize_string(aMessage, strlen(aMessage));
+
+    if (aTitle)
+        gui_sanitize_string(aTitle, strlen(aTitle));
 
     switch (type & 0b00000111) {
     case MB_YESNO:
@@ -473,7 +530,10 @@ int MessageBox(int ignore, char *message, char *title, int type) {
         break;
     }
 
-    int result = tinyfd_messageBox(title, message, msgType, icon, 1 /* OK/Yes */);
+    int result = tinyfd_messageBox(aTitle, aMessage, msgType, icon, 1 /* OK/Yes */);
+
+    free(aMessage);
+    free(aTitle);
 
     switch (result) {
     case 1:
