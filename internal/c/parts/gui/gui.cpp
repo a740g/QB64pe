@@ -72,15 +72,36 @@ static void gui_free_tokens(char **tokens) {
     free(tokens);
 }
 
-/// @brief This function cleans a qbs of single and double quotes and replaces those with 0x00B4 and 0x00A8. Currently a stopgap solution
+/// @brief This function cleans single and double quotes from a string and replaces those with 0x00B4 and 0x00A8. Currently a stopgap solution
 /// @param string The string that needs to be cleaned. This cannot be NULL. The string will be modified!
 /// @param len The length of the string. This is needed so that this can work with both qbs and c-strings
 static void gui_sanitize_string(char *string, size_t len) {
     for (size_t i = 0; i < len; i++) {
-        if (string[i] == 39)      // '
-            string[i] = 180;      // ´
-        else if (string[i] == 34) // "
-            string[i] = 168;      // ¨
+        switch (string[i]) {
+#ifdef QB64_WINDOWS
+            // On Windows we replace quotes with something that looks similar
+        case 34:             // "
+            string[i] = 168; // ¨
+            break;
+
+        case 39:             // '
+            string[i] = 180; // ´
+            break;
+#else
+            // On non-Windows OSes we replace quotes and backticks with whitespaces
+        case 34: // "
+            string[i] = ' ';
+            break;
+
+        case 39: // '
+            string[i] = ' ';
+            break;
+
+        case 96: // `
+            string[i] = ' ';
+            break;
+#endif
+        }
     }
 }
 
