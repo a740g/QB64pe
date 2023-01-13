@@ -37,6 +37,7 @@
 //-----------------------------------------------------------------------------------------------------
 // This is returned to the caller if something goes wrong while loading the image
 #define INVALID_IMAGE_HANDLE -1
+#define REQUIREMENT_STRING_MEMORY "MEMORY"
 //-----------------------------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------------------------------
@@ -58,7 +59,7 @@
 // FORWARD DECLARATIONS
 //-----------------------------------------------------------------------------------------------------
 // These should be replaced with appropriate header files when Matt finishes cleaning up libqb
-void sub__freeimage(int32, int32);         // Not declared in libqb.h
+void sub__freeimage(int32, int32); // Not declared in libqb.h
 
 extern img_struct *img;        // Required by func__loadimage
 extern img_struct *write_page; // Required by func__loadimage
@@ -86,6 +87,33 @@ static uint8_t *image_decode(const char *fileName, int *xOut, int *yOut) {
     if (!pixels) {
         // If dr_pcx failed to load, then use stb_image
         pixels = stbi_load(fileName, xOut, yOut, &compOut, 4);
+        IMAGE_DEBUG_PRINT("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
+        if (!pixels)
+            return nullptr; // Return NULL if all attempts failed
+    }
+
+    IMAGE_DEBUG_CHECK(compOut > 2); // Returned component should always be 3 or more
+
+    return pixels;
+}
+
+/// @brief Decodes an image file from memory using the dr_pcx & stb_image libraries
+/// @param data The raw pointer to the file in memory
+/// @param size The size of the file in memory
+/// @param xOut Out: width in pixels. This cannot be NULL
+/// @param yOut Out: height in pixels. This cannot be NULL
+/// @return A pointer to the raw pixel data in RGBA format or NULL on failure
+static uint8_t *image_decode_from_memory(const void *data, size_t size, int *xOut, int *yOut) {
+    auto compOut = 0;
+
+    IMAGE_DEBUG_PRINT("Loading image from memory");
+
+    // Attempt to load file as a PCX first using dr_pcx
+    auto pixels = drpcx_load_memory(data, size, DRPCX_FALSE, xOut, yOut, &compOut, 4);
+    IMAGE_DEBUG_PRINT("Image dimensions (dr_pcx) = (%i, %i)", *xOut, *yOut);
+    if (!pixels) {
+        // If dr_pcx failed to load, then use stb_image
+        pixels = stbi_load_from_memory((stbi_uc const *)data, size, xOut, yOut, &compOut, 4);
         IMAGE_DEBUG_PRINT("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
         if (!pixels)
             return nullptr; // Return NULL if all attempts failed
@@ -257,18 +285,34 @@ static void image_remap_palette(uint8_t *src, int w, int h, uint32_t *src_pal, u
 /// <param name="bpp">Mode: 32=32bpp, 33=hardware acclerated 32bpp, 256=8bpp or 257=8bpp without palette remap</param>
 /// <param name="passed">How many parameters were passed?</param>
 /// <returns>Valid LONG image handle values that are less than -1 or -1 on failure</returns>
-int32_t func__loadimage(qbs *fileName, int32_t bpp, int32_t passed) {
+int32_t func__loadimage(qbs *fileName, int32_t bpp, qbs *requirements, int32_t passed) {
     // QB string that we'll need null terminate the filename
     static qbs *fileNameZ = nullptr;
+    static qbs *reqs = nullptr;
 
-    if (new_error)
+    if (new_error || !fileName->len)
         return 0;
 
     if (!fileNameZ)
         fileNameZ = qbs_new(0, 0);
 
+    if (!reqs)
+        reqs = qbs_new(0, 0);
+
+    IMAGE_DEBUG_PRINT("passed = %X", passed);
+
     auto isHardware = false;
     auto dontRemapPalette = false;
+    auto fromMemory = false;
+
+    if ((passed & 4) && requirements->len) {
+        IMAGE_DEBUG_PRINT("Parsing requirements");
+
+        qbs_set(reqs, qbs_ucase(requirements)); // Convert tmp str to perm str
+
+        if (func_instr(1, reqs, qbs_new_txt(REQUIREMENT_STRING_MEMORY), 1))
+            fromMemory = true;
+    }
 
     // Handle special cases
     if (bpp == 33) {
@@ -296,13 +340,17 @@ int32_t func__loadimage(qbs *fileName, int32_t bpp, int32_t passed) {
         IMAGE_DEBUG_PRINT("BPP was not spcified. Defaulting to 32bpp");
     }
 
-    qbs_set(fileNameZ, qbs_add(fileName, qbs_new_txt_len("\0", 1))); // s1 = filename + CHR$(0)
-    if (fileNameZ->len == 1)
-        return INVALID_IMAGE_HANDLE; // Return invalid handle if null length string
-
     int x, y;
+    uint8_t *pixels;
+
     // Try to load the image
-    auto pixels = image_decode((const char *)fileNameZ->chr, &x, &y);
+    if (fromMemory) {
+        pixels = image_decode_from_memory(fileName->chr, fileName->len, &x, &y);
+    } else {
+        qbs_set(fileNameZ, qbs_add(fileName, qbs_new_txt_len("\0", 1))); // s1 = filename + CHR$(0)
+        pixels = image_decode((const char *)fileNameZ->chr, &x, &y);
+    }
+
     if (!pixels)
         return INVALID_IMAGE_HANDLE; // Return invalid handle if loading the image failed
 
