@@ -305,7 +305,7 @@ int32_t func__loadimage(qbs *fileName, int32_t bpp, qbs *requirements, int32_t p
     auto dontRemapPalette = false;
     auto fromMemory = false;
 
-    if ((passed & 4) && requirements->len) {
+    if ((passed & 2) && requirements->len) {
         IMAGE_DEBUG_PRINT("Parsing requirements");
 
         qbs_set(reqs, qbs_ucase(requirements)); // Convert tmp str to perm str
