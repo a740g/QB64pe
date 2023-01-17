@@ -71,7 +71,7 @@ static uint8_t *image_decode_from_file(const char *fileName, int *xOut, int *yOu
             return nullptr; // Return NULL if all attempts failed
     }
 
-    IMAGE_DEBUG_CHECK(compOut > 3);
+    IMAGE_DEBUG_CHECK(compOut > 2);
 
     return pixels;
 }
@@ -98,7 +98,7 @@ static uint8_t *image_decode_from_memory(const void *data, size_t size, int *xOu
             return nullptr; // Return NULL if all attempts failed
     }
 
-    IMAGE_DEBUG_CHECK(compOut > 3);
+    IMAGE_DEBUG_CHECK(compOut > 2);
 
     return pixels;
 }
@@ -278,7 +278,7 @@ int32_t func__loadimage(qbs *fileName, int32_t bpp, qbs *requirements, int32_t p
     auto isRemapPalette = true;    // should the palette be re-mapped to the QB64 default palette?
 
     // Handle special cases and set the above flags if required
-    IMAGE_DEBUG_PRINT("bpp = 0x%X", bpp);
+    IMAGE_DEBUG_PRINT("bpp = 0x%X, passed = 0x%X", bpp, passed);
     if (passed & 1) {
         if (bpp == 33) { // hardware image?
             isHardwareImage = true;
