@@ -2065,7 +2065,7 @@ id.Dependency = DEPENDENCY_AUDIO_OUT ' QB64-PE library dependency
 id.subfunc = 1 ' 1 = function, 2 = sub
 id.callname = "func__sndnew" ' C/C++ function name
 id.args = 3 ' number of arguments "passed"
-id.arg = MKL$(LONGTYPE - ISPOINTER) + MKL$(LONGTYPE - ISPOINTER) + MKL$(LONGTYPE - ISPOINTER) + MKL$(LONGTYPE - ISPOINTER) ' arguments & types
+id.arg = MKL$(LONGTYPE - ISPOINTER) + MKL$(LONGTYPE - ISPOINTER) + MKL$(LONGTYPE - ISPOINTER) ' arguments & types
 id.ret = LONGTYPE - ISPOINTER ' return type for functions
 id.hr_syntax = "_SNDNEW(frames&, channels&, bits&)" ' syntax help
 regid
