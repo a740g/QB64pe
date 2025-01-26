@@ -26085,66 +26085,122 @@ error:
     return b;
 }
 
-void GLUT_key_ascii(int32 key, int32 down) {
+void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool pressed) {
 #ifdef QB64_GLUT
-    static int32 v;
+    int32_t vk = -1;
 
-    static int32 mod;
-    mod = glutGetModifiers(); // shift=1, control=2, alt=4
+    switch (key) {
+    case GLUT_KEY_F1:
+        vk = 0x3B00;
+        break;
+    case GLUT_KEY_F2:
+        vk = 0x3C00;
+        break;
+    case GLUT_KEY_F3:
+        vk = 0x3D00;
+        break;
+    case GLUT_KEY_F4:
+        vk = 0x3E00;
+        break;
+    case GLUT_KEY_F5:
+        vk = 0x3F00;
+        break;
+    case GLUT_KEY_F6:
+        vk = 0x4000;
+        break;
+    case GLUT_KEY_F7:
+        vk = 0x4100;
+        break;
+    case GLUT_KEY_F8:
+        vk = 0x4200;
+        break;
+    case GLUT_KEY_F9:
+        vk = 0x4300;
+        break;
+    case GLUT_KEY_F10:
+        vk = 0x4400;
+        break;
+    case GLUT_KEY_F11:
+        vk = 0x8500;
+        break;
+    case GLUT_KEY_F12:
+        vk = 0x8600;
+        break;
+    case GLUT_KEY_LEFT:
+        vk = 0x4B00;
+        break;
+    case GLUT_KEY_UP:
+        vk = 0x4800;
+        break;
+    case GLUT_KEY_RIGHT:
+        vk = 0x4D00;
+        break;
+    case GLUT_KEY_DOWN:
+        vk = 0x5000;
+        break;
+    case GLUT_KEY_PAGE_UP:
+        vk = 0x4900;
+        break;
+    case GLUT_KEY_PAGE_DOWN:
+        vk = 0x5100;
+        break;
+    case GLUT_KEY_HOME:
+        vk = 0x4700;
+        break;
+    case GLUT_KEY_END:
+        vk = 0x4F00;
+        break;
+    case GLUT_KEY_INSERT:
+        vk = 0x5200;
+        break;
+    case GLUT_KEY_SHIFT_L:
+        vk = VK + QBVK_LSHIFT;
+        break;
+    case GLUT_KEY_SHIFT_R:
+        vk = VK + QBVK_RSHIFT;
+        break;
+    case GLUT_KEY_CONTROL_L:
+        vk = VK + QBVK_LCTRL;
+        break;
+    case GLUT_KEY_CONTROL_R:
+        vk = VK + QBVK_RCTRL;
+        break;
+    case GLUT_KEY_ALT_L:
+        vk = VK + QBVK_LALT;
+        break;
+    case GLUT_KEY_ALT_R:
+        vk = VK + QBVK_RALT;
+        break;
+    }
 
-#    ifndef CORE_FREEGLUT
-    /*
-        if (mod&GLUT_ACTIVE_SHIFT){
-        keydown_vk(VK+QBVK_LSHIFT);
-        }else{
-        keyup_vk(VK+QBVK_LSHIFT);
+    if (vk != -1) {
+        if (pressed) {
+            keydown_vk(vk);
+        } else {
+            keyup_vk(vk);
         }
 
-        if (mod&GLUT_ACTIVE_CTRL){
-        keydown_vk(VK+QBVK_LCTRL);
-        }else{
-        keyup_vk(VK+QBVK_LCTRL);
-        }
-
-        if (mod&GLUT_ACTIVE_ALT){
-        keydown_vk(VK+QBVK_LALT);
-        }else{
-        keyup_vk(VK+QBVK_LALT);
-        }
-    */
-#    endif
+        return;
+    }
 
     // Note: The following is required regardless of whether FREEGLUT is/isn't being used
     // #ifdef CORE_FREEGLUT
     // Is CTRL key down? If so, unencode character (applying shift as required)
-    if (mod & 2) {
-        // if (key==127){ //Removed: Might clash with CTRL+DELETE
-        // key=8;
-        // goto ctrl_mod;
-        //}//127
-        // if (key==3){//CTRL+(BREAK|SCROLL-LOCK)
-        // if (down) keydown_vk(VK+QBVK_BREAK); else keyup_vk(VK+QBVK_BREAK);
-        // return;
-        //}
+    if (modifiers & GLUT_MODIFIER_CONTROL) {
         if (key == 10) {
             key = 13;
-            goto ctrl_mod;
-        } // 10
-        if ((key >= 1) && (key <= 26)) {
-            if (mod & 1)
+        } else if ((key >= 1) && (key <= 26)) {
+            if (modifiers & GLUT_MODIFIER_SHIFT) {
                 key = key - 1 + 65;
-            else
+            } else {
                 key = key - 1 + 97; // assume caps lock off
-            goto ctrl_mod;
-        } // 1-26
+            }
+        }
     }
-ctrl_mod:
-    // #endif
 
 #    ifdef QB64_MACOSX
-
+    // RGFW_TODO: Check if this is really necessary
     // swap DEL and backspace keys
-
     if (key == 8) {
         key = 127;
     } else {
@@ -26152,174 +26208,24 @@ ctrl_mod:
             key = 8;
         }
     }
-
 #    endif
 
     if (key == 127) { // delete
-        if (down)
+        if (pressed) {
             keydown_vk(0x5300);
-        else
+        } else {
             keyup_vk(0x5300);
+        }
+
         return;
     }
-    if (down)
+
+    if (pressed) {
         keydown_ascii(key);
-    else
+    } else {
         keyup_ascii(key);
+    }
 #endif
-}
-
-void GLUT_KEYBOARD_FUNC(unsigned char key, int x, int y) {
-
-    // glutPostRedisplay();
-
-    // qbs_print(qbs_str(key),0);
-    // qbs_print(qbs_str((int32)glutGetModifiers()),1);
-
-    GLUT_key_ascii(key, 1);
-}
-
-void GLUT_KEYBOARDUP_FUNC(unsigned char key, int x, int y) {
-    GLUT_key_ascii(key, 0);
-}
-
-void GLUT_key_special(int32 key, int32 down) {
-#ifdef QB64_GLUT
-#    ifndef CORE_FREEGLUT
-    /*
-        static int32 mod;
-        mod=glutGetModifiers();//shift=1, control=2, alt=4
-        if (mod&GLUT_ACTIVE_SHIFT){
-        keydown_vk(VK+QBVK_LSHIFT);
-        }else{
-        keyup_vk(VK+QBVK_LSHIFT);
-        }
-
-        if (mod&GLUT_ACTIVE_CTRL){
-        keydown_vk(VK+QBVK_LCTRL);
-        }else{
-        keyup_vk(VK+QBVK_LCTRL);
-        }
-
-        if (mod&GLUT_ACTIVE_ALT){
-        keydown_vk(VK+QBVK_LALT);
-        }else{
-        keyup_vk(VK+QBVK_LALT);
-        }
-    */
-#    endif
-
-    static int32 vk;
-    vk = -1;
-    if (key == GLUT_KEY_F1) {
-        vk = 0x3B00;
-    }
-    if (key == GLUT_KEY_F2) {
-        vk = 0x3C00;
-    }
-    if (key == GLUT_KEY_F3) {
-        vk = 0x3D00;
-    }
-    if (key == GLUT_KEY_F4) {
-        vk = 0x3E00;
-    }
-    if (key == GLUT_KEY_F5) {
-        vk = 0x3F00;
-    }
-    if (key == GLUT_KEY_F6) {
-        vk = 0x4000;
-    }
-    if (key == GLUT_KEY_F7) {
-        vk = 0x4100;
-    }
-    if (key == GLUT_KEY_F8) {
-        vk = 0x4200;
-    }
-    if (key == GLUT_KEY_F9) {
-        vk = 0x4300;
-    }
-    if (key == GLUT_KEY_F10) {
-        vk = 0x4400;
-    }
-    if (key == GLUT_KEY_F11) {
-        vk = 0x8500;
-    }
-    if (key == GLUT_KEY_F12) {
-        vk = 0x8600;
-    }
-    if (key == GLUT_KEY_LEFT) {
-        vk = 0x4B00;
-    }
-    if (key == GLUT_KEY_UP) {
-        vk = 0x4800;
-    }
-    if (key == GLUT_KEY_RIGHT) {
-        vk = 0x4D00;
-    }
-    if (key == GLUT_KEY_DOWN) {
-        vk = 0x5000;
-    }
-    if (key == GLUT_KEY_PAGE_UP) {
-        vk = 0x4900;
-    }
-    if (key == GLUT_KEY_PAGE_DOWN) {
-        vk = 0x5100;
-    }
-    if (key == GLUT_KEY_HOME) {
-        vk = 0x4700;
-    }
-    if (key == GLUT_KEY_END) {
-        vk = 0x4F00;
-    }
-    if (key == GLUT_KEY_INSERT) {
-        vk = 0x5200;
-    }
-
-#    ifdef CORE_FREEGLUT
-    if (key == 112) {
-        vk = VK + QBVK_LSHIFT;
-    }
-    if (key == 113) {
-        vk = VK + QBVK_RSHIFT;
-    }
-    if (key == 114) {
-        vk = VK + QBVK_LCTRL;
-    }
-    if (key == 115) {
-        vk = VK + QBVK_RCTRL;
-    }
-    if (key == 116) {
-        vk = VK + QBVK_LALT;
-    }
-    if (key == 117) {
-        vk = VK + QBVK_RALT;
-    }
-#    endif
-
-    if (vk != -1) {
-#    ifdef QB64_WINDOWS
-        if (!func__hasfocus() && !(keyheld(vk) && !down))
-            return;
-#    endif
-
-        if (down)
-            keydown_vk(vk);
-        else
-            keyup_vk(vk);
-    }
-
-#endif
-}
-
-void GLUT_SPECIAL_FUNC(int key, int x, int y) {
-
-    // qbs_print(qbs_str((int32)glutGetModifiers()),1);
-
-    GLUT_key_special(key, 1);
-}
-
-void GLUT_SPECIALUP_FUNC(int key, int x, int y) {
-    GLUT_key_special(key, 0);
 }
 
 static int64_t lastTick = 0;
@@ -26373,6 +26279,7 @@ void GLUT_IDLEFUNC() {
             deltaTick += ((double)1000 / max_fps);
     }
 
+    // RGFW_TODO: We may not need this anymore
     glutPostRedisplay();
 #endif
 }

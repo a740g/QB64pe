@@ -31,7 +31,6 @@
 // core
 #    ifdef QB64_GUI
 #        ifdef QB64_GLUT
-#            define CORE_FREEGLUT
 #            include <GL/glew.h>
 #            include <GL/glext.h>
 #            include <RGFW.h>

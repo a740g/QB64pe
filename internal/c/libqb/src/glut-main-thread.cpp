@@ -2,6 +2,7 @@
 #include "libqb-common.h"
 
 #include <GL/glew.h>
+#include <RGFW.h>
 #include <list>
 #include <queue>
 #include <stdint.h>
@@ -10,18 +11,10 @@
 #include <unistd.h>
 #include <unordered_map>
 
-// note: MacOSX uses Apple's GLUT not FreeGLUT
-#ifdef QB64_MACOSX
-#    include <GLUT/glut.h>
-#else
-#    define CORE_FREEGLUT
-#    include <GL/freeglut.h>
-#endif
-
-#include "logging.h"
 #include "completion.h"
 #include "glut-thread.h"
 #include "gui.h"
+#include "logging.h"
 #include "mac-key-monitor.h"
 #include "mac-mouse-support.h"
 #include "mutex.h"
@@ -43,12 +36,8 @@ void GLUT_MOUSE_FUNC(int glut_button, int state, int x, int y);
 void GLUT_MOTION_FUNC(int x, int y);
 void GLUT_PASSIVEMOTION_FUNC(int x, int y);
 void GLUT_RESHAPE_FUNC(int width, int height);
-
 void GLUT_IDLEFUNC();
-
-#ifdef CORE_FREEGLUT
 void GLUT_MOUSEWHEEL_FUNC(int wheel, int direction, int x, int y);
-#endif
 
 static void glutWarning(const char *fmt, va_list lst) {
     // This keeps FreeGlut from dumping warnings to console
@@ -58,11 +47,8 @@ static void glutWarning(const char *fmt, va_list lst) {
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut(int argc, char **argv) {
-#ifdef CORE_FREEGLUT
     glutInitWarningFunc(glutWarning);
     glutInitErrorFunc(glutWarning);
-#endif
-
     glutInit(&argc, argv);
 
     mac_register_key_handler();
@@ -106,10 +92,7 @@ static void initialize_glut(int argc, char **argv) {
     glutMotionFunc(GLUT_MOTION_FUNC);
     glutPassiveMotionFunc(GLUT_PASSIVEMOTION_FUNC);
     glutReshapeFunc(GLUT_RESHAPE_FUNC);
-
-#ifdef CORE_FREEGLUT
     glutMouseWheelFunc(GLUT_MOUSEWHEEL_FUNC);
-#endif
 
     macMouseInit();
 }

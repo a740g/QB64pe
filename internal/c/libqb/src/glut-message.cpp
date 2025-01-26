@@ -1,18 +1,11 @@
 
 #include "libqb-common.h"
 
+#include <RGFW.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-// note: MacOSX uses Apple's GLUT not FreeGLUT
-#ifdef QB64_MACOSX
-#    include <GLUT/glut.h>
-#else
-#    define CORE_FREEGLUT
-#    include <GL/freeglut.h>
-#endif
 
 #include "glut-message.h"
 #include "mac-mouse-support.h"
