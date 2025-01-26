@@ -5742,8 +5742,8 @@ uint16 *reg16[8];
 uint32 *reg32[8];
 uint16 *segreg[8];
 
-int32 a32;
-int32 b32; // size of data to read/write in bits is 32
+int32 emu_a32;
+int32 emu_b32; // size of data to read/write in bits is 32
 
 uint32 sib() {
     static uint32 i; // sib byte
@@ -5813,7 +5813,7 @@ uint8 *rm8() {
         return reg8[i & 7];
         break;
     case 0:
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return seg + cpu.ax;
@@ -5870,7 +5870,7 @@ uint8 *rm8() {
         }
         break;
     case 1:
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return seg + ((uint16)(cpu.eax + *(int8 *)ip++));
@@ -5928,7 +5928,7 @@ uint8 *rm8() {
         }
         break;
     case 2:
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return seg + ((uint16)(cpu.eax + *(uint32 *)((ip += 4) - 4)));
@@ -6000,7 +6000,7 @@ uint16 *rm16() {
         break;
     case 0:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint16 *)(seg + cpu.ax);
@@ -6058,7 +6058,7 @@ uint16 *rm16() {
         break;
     case 1:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint16 *)(seg + ((uint16)(cpu.eax + *(int8 *)ip++)));
@@ -6117,7 +6117,7 @@ uint16 *rm16() {
         break;
     case 2:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint16 *)(seg + ((uint16)(cpu.eax + *(uint32 *)((ip += 4) - 4))));
@@ -6189,7 +6189,7 @@ uint32 *rm32() {
         break;
     case 0:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint32 *)(seg + cpu.ax);
@@ -6247,7 +6247,7 @@ uint32 *rm32() {
         break;
     case 1:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint32 *)(seg + ((uint16)(cpu.eax + *(int8 *)ip++)));
@@ -6306,7 +6306,7 @@ uint32 *rm32() {
         break;
     case 2:
         ip++;
-        if (a32) {
+        if (emu_a32) {
             switch (i & 7) {
             case 0:
                 return (uint32 *)(seg + ((uint16)(cpu.eax + *(uint32 *)((ip += 4) - 4))));
@@ -6403,8 +6403,8 @@ void cpu_call() {
     seg_gs_ptr = (uint8 *)cmem + cpu.gs * 16;
 
 next_opcode:
-    b32 = 0;
-    a32 = 0;
+    emu_b32 = 0;
+    emu_a32 = 0;
     seg = seg_ds_ptr;
     seg_bp = seg_ss_ptr;
 
@@ -6412,7 +6412,7 @@ next_opcode:
 
     // read any prefixes
     if (i == 0x66) {
-        b32 = 1;
+        emu_b32 = 1;
         i = *ip++;
     }
     if (i == 0x26) {
@@ -6440,7 +6440,7 @@ next_opcode:
         i = *ip++;
     }
     if (i == 0x67) {
-        a32 = 1;
+        emu_a32 = 1;
         i = *ip++;
     }
 
@@ -6457,7 +6457,7 @@ next_opcode:
                 *rm8() = *reg8[r];
                 break;
             case 0x89: // /r r/m16(32),r16(32)
-                if (b32)
+                if (emu_b32)
                     *rm32() = *reg32[r];
                 else
                     *rm16() = *reg16[r];
@@ -6466,7 +6466,7 @@ next_opcode:
                 *reg8[r] = *rm8();
                 break;
             case 0x8B: // /r r16(32),r/m16(32)
-                if (b32)
+                if (emu_b32)
                     *reg32[r] = *rm32();
                 else
                     *reg16[r] = *rm16();
@@ -6499,7 +6499,7 @@ next_opcode:
             ip += 2;
             break;
         case 0xA1: // (e)ax,moffs16(32)
-            if (b32) {
+            if (emu_b32) {
                 cpu.eax = *(uint32 *)(seg + *(uint16 *)ip);
                 ip += 2;
             } else {
@@ -6512,7 +6512,7 @@ next_opcode:
             ip += 2;
             break;
         case 0xA3: // moffs16(32),(e)ax
-            if (b32) {
+            if (emu_b32) {
                 *(uint32 *)(seg + *(uint16 *)ip) = cpu.eax;
                 ip += 2;
             } else {
@@ -6528,7 +6528,7 @@ next_opcode:
         goto done;
     }
     if (i >= 0xB8 && i <= 0xBF) { // +rw(rd) reg16(32),imm16(32)
-        if (b32) {
+        if (emu_b32) {
             *reg32[op_r] = *(uint32 *)ip;
             ip += 4;
         } else {
@@ -6543,7 +6543,7 @@ next_opcode:
         goto done;
     }
     if (i == 0xC7) { // r/m16(32),imm16(32)
-        if (b32) {
+        if (emu_b32) {
             uint32p = rm32();
             *uint32p = *(uint32 *)ip;
             ip += 4;
@@ -6573,7 +6573,7 @@ next_opcode:
 
     // push
     if (i == 0xFF) {
-        if (b32) {
+        if (emu_b32) {
             *((uint32 *)(seg_ss_ptr + (cpu.sp -= 4))) = *rm32();
         } else {
             *((uint16 *)(seg_ss_ptr + (cpu.sp -= 2))) = *rm16();
@@ -6581,7 +6581,7 @@ next_opcode:
         goto done;
     }
     if (i >= 0x50 && i <= 0x57) { //+ /r r16(32)
-        if (b32) {
+        if (emu_b32) {
             *((uint32 *)(seg_ss_ptr + (cpu.sp -= 4))) = *reg32[op_r];
         } else {
             *((uint16 *)(seg_ss_ptr + (cpu.sp -= 2))) = *reg16[op_r];
@@ -6593,7 +6593,7 @@ next_opcode:
         goto done;
     }
     if (i == 0x68) { // imm16(32)
-        if (b32) {
+        if (emu_b32) {
             *((uint32 *)(seg_ss_ptr + (cpu.sp -= 4))) = *(uint32 *)ip;
             ip += 4;
         } else {
@@ -6621,7 +6621,7 @@ next_opcode:
 
     // pop
     if (i == 0x8F) {
-        if (b32) {
+        if (emu_b32) {
             *rm32() = *((uint32 *)(seg_ss_ptr - 4 + (cpu.sp += 4)));
         } else {
             *rm16() = *((uint16 *)(seg_ss_ptr - 2 + (cpu.sp += 2)));
@@ -6629,7 +6629,7 @@ next_opcode:
         goto done;
     }
     if (i >= 0x58 && i <= 0x5F) { //+rw(d) r16(32)
-        if (b32) {
+        if (emu_b32) {
             *reg32[op_r] = *((uint32 *)(seg_ss_ptr - 4 + (cpu.sp += 4)));
         } else {
             *reg16[op_r] = *((uint16 *)(seg_ss_ptr - 2 + (cpu.sp += 2)));

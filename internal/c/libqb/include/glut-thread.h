@@ -1,6 +1,23 @@
 #ifndef INCLUDE_LIBQB_GLUT_THREAD_H
 #define INCLUDE_LIBQB_GLUT_THREAD_H
 
+#include <RGFW.h>
+
+enum {
+    GLUT_CURSOR_NONE = -1,
+    GLUT_CURSOR_LEFT_ARROW = RGFW_mouseArrow,
+    GLUT_CURSOR_INFO = RGFW_mousePointingHand,
+    GLUT_CURSOR_TEXT = RGFW_mouseIbeam,
+    GLUT_CURSOR_CROSSHAIR = RGFW_mouseCrosshair,
+    GLUT_CURSOR_UP_DOWN = RGFW_mouseResizeNS,
+    GLUT_CURSOR_LEFT_RIGHT = RGFW_mouseResizeEW,
+    GLUT_CURSOR_TOP_LEFT_CORNER = RGFW_mouseResizeNESW,
+    GLUT_CURSOR_TOP_RIGHT_CORNER = RGFW_mouseResizeNWSE,
+    GLUT_CURSOR_WAIT = RGFW_mouseNotAllowed,
+    GLUT_CURSOR_HELP = RGFW_mouseNormal,
+    GLUT_CURSOR_CYCLE = RGFW_mouseResizeAll
+};
+
 // Called to potentially setup GLUT before starting the program.
 void libqb_glut_presetup(int argc, char **argv);
 

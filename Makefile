@@ -341,13 +341,9 @@ ifneq ($(filter y,$(DEP_HTTP)),)
 	LICENSE_IN_USE += libcurl
 endif
 
-ifneq ($(OS),osx)
-	EXE_LIBS += $(QB_CORE_LIB) $(GLEW_OBJS)
+EXE_LIBS += $(QB_CORE_LIB)
 
-	LICENSE_IN_USE += freeglut
-else
-	EXE_LIBS += $(GLEW_OBJS)
-endif
+LICENSE_IN_USE += freeglut
 
 ifeq ($(OS),win)
 	LICENSE_IN_USE += mingw-base-runtime libstdc++
@@ -360,7 +356,7 @@ ifeq ($(OS),win)
 
 	ifneq ($(filter y,$(DEP_CONSOLE_ONLY)),)
 		CXXFLAGS := $(filter-out -DFREEGLUT_STATIC,$(CXXFLAGS))
-		EXE_LIBS := $(filter-out $(QB_CORE_LIB) $(GLEW_OBJS),$(EXE_LIBS))
+		EXE_LIBS := $(filter-out $(QB_CORE_LIB),$(EXE_LIBS))
 
 		LICENSE_IN_USE := $(filter-out freeglut,$(LICENSE_IN_USE))
 	else
