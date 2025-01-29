@@ -8,16 +8,9 @@
 #include <unistd.h>
 
 #include "glut-message.h"
-#include "mac-mouse-support.h"
 
 void glut_message_set_cursor::execute() {
-    if (style == GLUT_CURSOR_NONE) {
-        glutSetCursor(style);
-        macMouseAssociateMouseAndMouseCursorPosition(false);
-    } else {
-        macMouseAssociateMouseAndMouseCursorPosition(true);
-        glutSetCursor(style);
-    }
+    glutSetCursor(style);
 }
 
 void glut_message_warp_pointer::execute() {

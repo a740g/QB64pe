@@ -39,6 +39,8 @@
 
 #    ifdef QB64_WINDOWS
 
+#        include <winsock2.h>
+
 #        ifndef QB64_GUI
 #            undef int64 // definition of int64 from os.h conflicts with a definition within windows.h, temporarily undefine then redefine
 #            include <windows.h>

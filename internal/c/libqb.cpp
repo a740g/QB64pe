@@ -37,7 +37,6 @@
 #include "image.h"
 #include "keyhandler.h"
 #include "logging.h"
-#include "mac-mouse-support.h"
 #include "mem.h"
 #include "mutex.h"
 #include "qblist.h"
@@ -22790,7 +22789,7 @@ void showvalue(__int64 v) {
 // Referenced: http://johnnie.jerrata.com/winsocktutorial/
 // Much of the unix sockets code based on http://beej.us/guide/bgnet/
 #ifdef QB64_WINDOWS
-#    include <winsock2.h>
+// winsock2.h must be included before windows.h
 WSADATA wsaData;
 WORD sockVersion;
 #else
@@ -28143,12 +28142,16 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 #    endif
 }
 
-void GLUT_MOUSE_FUNC(int glut_button, int state, int x, int y) {
+static int mouseLastX = 0, mouseLastY = 0;
+
+void GLUT_MOUSE_FUNC(uint32_t button, bool isPressed, double scroll) {
 #    ifdef QB64_GLUT
-    if (state == GLUT_DOWN)
-        GLUT_MouseButton_Down(glut_button + 1, x, y);
-    if (state == GLUT_UP)
-        GLUT_MouseButton_Up(glut_button + 1, x, y);
+    (void)scroll; // RGFW_TODO: Implement proper mouse wheel support
+    if (isPressed) {
+        GLUT_MouseButton_Down(button + 1, mouseLastX, mouseLastY);
+    } else {
+        GLUT_MouseButton_Up(button + 1, mouseLastX, mouseLastY);
+    }
 #    endif
 }
 
@@ -28157,8 +28160,9 @@ void GLUT_MOTION_FUNC(int x, int y) {
     int32 i, last_i;
     int32 xrel, yrel;
 
-    // This is used to save the last mouse position which is then paired with the mouse wheel event on macOS
-    macMouseUpdatePosition(x, y);
+    // This is used to save the last mouse position which is then paired with the button events
+    mouseLastX = x;
+    mouseLastY = y;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
 

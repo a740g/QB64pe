@@ -4,6 +4,7 @@
 #include <GL/glew.h>
 #include <RGFW.h>
 #include <list>
+#include <mutex>
 #include <queue>
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,7 +17,6 @@
 #include "gui.h"
 #include "logging.h"
 #include "mac-key-monitor.h"
-#include "mac-mouse-support.h"
 #include "mutex.h"
 #include "thread.h"
 
@@ -25,6 +25,155 @@
 extern uint8_t *window_title;
 extern int32_t framebufferobjects_supported;
 extern int32_t screen_hide;
+
+class QB64PEWindow {
+  public:
+    bool Initialize(uint32_t width = WIDTH_DEFAULT, uint32_t height = HEIGHT_DEFAULT, const char *title = TITLE_DEFAULT) {
+        if (window) {
+            libqb_log_error("Window already created, cannot create another window");
+        } else {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
+            if (window) {
+                libqb_log_trace("Window created (%u x %u)", width, height);
+
+                return true;
+            } else {
+                libqb_log_error("Failed to create window");
+            }
+        }
+
+        return false;
+    }
+
+    void ShutDown() {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_close(window);
+            window = nullptr;
+
+            libqb_log_trace("Window closed");
+        } else {
+            libqb_log_error("Window not created, cannot close it");
+        }
+    }
+
+    bool IsCreated() {
+        return window != nullptr;
+    }
+
+    void SetTitle(const char *title) {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_setName(window, title);
+
+            libqb_log_trace("Window title set to '%s'", title);
+        } else {
+            libqb_log_error("Window not created, cannot set title");
+        }
+    }
+
+    void SetFullscreen(bool fullscreen) {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            if (fullscreen) {
+                RGFW_window_maximize(window);
+                RGFW_window_setBorder(window, false);
+
+                libqb_log_trace("Window set to fullscreen");
+            } else {
+                RGFW_window_restore(window);
+                RGFW_window_setBorder(window, true);
+
+                libqb_log_trace("Window set to windowed");
+            }
+        } else {
+            libqb_log_error("Window not created, cannot set fullscreen");
+        }
+    }
+
+    void Maximize() {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_maximize(window);
+
+            libqb_log_trace("Window maximized");
+        } else {
+            libqb_log_error("Window not created, cannot maximize");
+        }
+    }
+
+    void Minimize() {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_minimize(window);
+
+            libqb_log_trace("Window minimized");
+        } else {
+            libqb_log_error("Window not created, cannot minimize");
+        }
+    }
+
+    void Restore() {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_restore(window);
+
+            libqb_log_trace("Window restored");
+        } else {
+            libqb_log_error("Window not created, cannot restore");
+        }
+    }
+
+    void Resize(uint32_t width, uint32_t height) {
+        if (window) {
+            std::lock_guard<std::mutex> lock(windowMutex);
+            RGFW_window_resize(window, RGFW_AREA(width, height));
+
+            libqb_log_trace("Window resized (%u x %u)", width, height);
+        } else {
+            libqb_log_error("Window not created, cannot resize");
+        }
+    }
+
+    void SwapBuffers() {
+        if (window) {
+            RGFW_window_swapBuffers(window);
+        } else {
+            libqb_log_error("Window not created, cannot swap buffers");
+        }
+    }
+
+    static QB64PEWindow &Instance() {
+        static QB64PEWindow instance;
+
+        libqb_log_trace("Returning window instance");
+
+        return instance;
+    }
+
+  private:
+    static const uint32_t FLAGS_DEFAULT = RGFW_windowAllowDND | RGFW_windowCenter | RGFW_windowScaleToMonitor;
+    static const uint32_t WIDTH_DEFAULT = 640u;
+    static const uint32_t HEIGHT_DEFAULT = 400u;
+    static constexpr auto TITLE_DEFAULT = "Untitled";
+
+    QB64PEWindow() : window(nullptr), flags(FLAGS_DEFAULT) {}
+
+    ~QB64PEWindow() {
+        ShutDown();
+    }
+
+    QB64PEWindow(const QB64PEWindow &) = delete;
+    QB64PEWindow &operator=(const QB64PEWindow &) = delete;
+    QB64PEWindow(QB64PEWindow &&) = delete;
+    QB64PEWindow &operator=(QB64PEWindow &&) = delete;
+
+    RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future
+    RGFW_windowFlags flags;
+    RGFW_point mouseLastPosition;
+    mutable std::mutex windowMutex;
+};
 
 void MAIN_LOOP(void *);
 void GLUT_KEYBOARD_FUNC(unsigned char key, int x, int y);
@@ -43,6 +192,25 @@ static void glutWarning(const char *fmt, va_list lst) {
     // This keeps FreeGlut from dumping warnings to console
     (void)fmt;
     (void)lst;
+}
+
+void glutReshapeWindow(uint32_t width, uint32_t height) {
+    // RGFW_TODO: GLUT runs in the GLUT main loop
+    QB64PEWindow::Instance().Resize(width, height);
+}
+
+void glutFullScreen() {
+    // RGFW_TODO: GLUT runs in the GLUT main loop
+    QB64PEWindow::Instance().SetFullscreen(true);
+}
+
+void glutPostRedisplay() {
+    libqb_log_error("glutPostRedisplay() called, but not implemented");
+    exit(EXIT_FAILURE);
+}
+
+void glutSwapBuffers() {
+    QB64PEWindow::Instance().SwapBuffers();
 }
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()

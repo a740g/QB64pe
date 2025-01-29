@@ -148,6 +148,12 @@ enum {
     GLUT_KEY_KP_RETURN = RGFW_KP_Return
 };
 
+// GLUT emulation functions
+void glutPostRedisplay();
+void glutReshapeWindow(uint32_t width, uint32_t height);
+void glutFullScreen();
+void glutSwapBuffers();
+
 // Called to potentially setup GLUT before starting the program.
 void libqb_glut_presetup(int argc, char **argv);
 
