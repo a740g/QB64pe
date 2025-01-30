@@ -16,7 +16,6 @@
 #include "glut-thread.h"
 #include "gui.h"
 #include "logging.h"
-#include "mac-key-monitor.h"
 #include "mutex.h"
 #include "thread.h"
 
@@ -218,8 +217,6 @@ static void initialize_glut(int argc, char **argv) {
     glutInitWarningFunc(glutWarning);
     glutInitErrorFunc(glutWarning);
     glutInit(&argc, argv);
-
-    mac_register_key_handler();
 
 #ifdef QB64_WINDOWS
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);

@@ -401,11 +401,6 @@ EXE_OBJS := $(QBLIB) $(EXE_OBJS)
 $(QB_QBX_OBJ): $(QB_QBX_SRC)
 	$(CXX) $(CXXFLAGS) $< -c -o $@
 
-ifeq ($(OS),osx)
-%.o: %.mm
-	$(CXX) $(CXXFLAGS) $< -c -o $@
-endif
-
 $(PATH_INTERNAL_TEMP)/embedded.o: $(PATH_INTERNAL_TEMP)/embedded.cpp
 	$(CXX) $(CXXFLAGS) $< -c -o $@
 
@@ -440,4 +435,3 @@ endif
 endif
 
 -include ./tests/build.mk
-
