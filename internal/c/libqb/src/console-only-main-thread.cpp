@@ -11,7 +11,7 @@
 // This file is for Console-Only programs. They never invoke GLUT so the setup
 // here is much simpler.
 
-// FIXME: PUt this definition somewhere else
+// FIXME: Put this definition somewhere else
 void MAIN_LOOP(void *);
 
 void libqb_glut_presetup(int argc, char **argv) {

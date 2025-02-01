@@ -42,14 +42,39 @@ class QB64PEWindow {
         CYCLE = RGFW_mouseResizeAll
     };
 
-    bool Initialize(uint32_t width = WIDTH_DEFAULT, uint32_t height = HEIGHT_DEFAULT, const char *title = TITLE_DEFAULT) {
+    enum Flags : uint32_t {
+        NO_INIT_API = RGFW_windowNoInitAPI,
+        NO_BORDER = RGFW_windowNoBorder,
+        NO_RESIZE = RGFW_windowNoResize,
+        ALLOW_DND = RGFW_windowAllowDND,
+        HIDE_MOUSE = RGFW_windowHideMouse,
+        FULLSCREEN = RGFW_windowFullscreen,
+        TRANSPARENT = RGFW_windowTransparent,
+        CENTER = RGFW_windowCenter,
+        OPENGL_SOFTWARE = RGFW_windowOpenglSoftware,
+        COCOA_CHDIR_TO_RES = RGFW_windowCocoaCHDirToRes,
+        SCALE_TO_MONITOR = RGFW_windowScaleToMonitor,
+        HIDE = RGFW_windowHide
+    };
+
+    static const auto FLAGS_DEFAULT = Flags::ALLOW_DND | Flags::SCALE_TO_MONITOR;
+    static const auto WIDTH_DEFAULT = 640u;
+    static const auto HEIGHT_DEFAULT = 400u;
+    static constexpr auto TITLE_DEFAULT = "Untitled";
+
+    typedef RGFW_point Point2D;
+    typedef RGFW_area Size2D;
+
+    bool Initialize(const char *title = TITLE_DEFAULT, uint32_t flags = FLAGS_DEFAULT, uint32_t width = WIDTH_DEFAULT, uint32_t height = HEIGHT_DEFAULT) {
         std::lock_guard<std::mutex> lock(windowMutex);
 
         if (window) {
-            libqb_log_error("Window already created, cannot create another window"); // sure we can, but not in this version
+            libqb_log_error("Window already created, cannot create another window"); // sure we can, maybe we'll use it a future version of QB64-PE
         } else {
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
+                RGFW_window_makeCurrent(window);
+
                 libqb_log_trace("Window created (%u x %u)", width, height);
 
                 return true;
@@ -59,10 +84,6 @@ class QB64PEWindow {
         }
 
         return false;
-    }
-
-    bool Initialize(const char *title) {
-        return Initialize(WIDTH_DEFAULT, HEIGHT_DEFAULT, title);
     }
 
     void ShutDown() {
@@ -184,7 +205,7 @@ class QB64PEWindow {
         }
     }
 
-    std::pair<int32_t, int32_t> GetPosition() const {
+    Point2D GetPosition() const {
         if (window) {
             return {window->r.x, window->r.y};
         } else {
@@ -194,14 +215,14 @@ class QB64PEWindow {
         return {0, 0};
     }
 
-    std::pair<uint32_t, uint32_t> GetSize() const {
+    Size2D GetSize() const {
         if (window) {
-            return {window->r.w, window->r.h};
+            return {uint32_t(window->r.w), uint32_t(window->r.h)};
         } else {
             libqb_log_error("Window not created, cannot get size");
         }
 
-        return {0, 0};
+        return {0u, 0u};
     }
 
     void Focus() const {
@@ -232,16 +253,16 @@ class QB64PEWindow {
             if (style == MouseCursorStyle::NONE) {
                 {
                     std::lock_guard<std::mutex> lock(windowMutex);
-                    RGFW_window_mouseHold(window, RGFW_AREA(0, 0));
                     RGFW_window_showMouse(window, false);
+                    RGFW_window_mouseHold(window, RGFW_AREA(0, 0));
                 }
 
                 libqb_log_trace("Mouse cursor grabbed & hidden");
             } else {
                 {
                     std::lock_guard<std::mutex> lock(windowMutex);
-                    RGFW_window_mouseUnhold(window);
                     RGFW_window_showMouse(window, true);
+                    RGFW_window_mouseUnhold(window);
                     RGFW_window_setMouseStandard(window, RGFW_mouseIcons(style));
                 }
 
@@ -249,6 +270,19 @@ class QB64PEWindow {
             }
         } else {
             libqb_log_error("Window not created, cannot set mouse cursor");
+        }
+    }
+
+    void MoveMouse(int32_t x, int32_t y) const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                RGFW_window_moveMouse(window, RGFW_POINT(x, y));
+            }
+
+            libqb_log_trace("Mouse moved to (%d, %d)", x, y);
+        } else {
+            libqb_log_error("Window not created, cannot move mouse");
         }
     }
 
@@ -269,11 +303,6 @@ class QB64PEWindow {
     }
 
   private:
-    static const uint32_t FLAGS_DEFAULT = RGFW_windowAllowDND | RGFW_windowScaleToMonitor;
-    static const uint32_t WIDTH_DEFAULT = 640u;
-    static const uint32_t HEIGHT_DEFAULT = 400u;
-    static constexpr auto TITLE_DEFAULT = "Untitled";
-
     QB64PEWindow() : window(nullptr), flags(FLAGS_DEFAULT) {}
 
     ~QB64PEWindow() {
@@ -330,27 +359,32 @@ void glutSwapBuffers() {
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
-    if (window_title) {
-        if (!QB64PEWindow::Instance().Initialize(reinterpret_cast<char *>(window_title))) {
-            gui_alert("Failed to initialize window");
-            exit(EXIT_FAILURE);
-        }
-    } else {
-        if (!QB64PEWindow::Instance().Initialize()) {
-            gui_alert("Failed to initialize window");
-            exit(EXIT_FAILURE);
-        }
-    }
+    auto windowTitle = (window_title ? reinterpret_cast<const char *>(window_title) : QB64PEWindow::TITLE_DEFAULT);
+    auto windowFlags = QB64PEWindow::FLAGS_DEFAULT | (screen_hide ? QB64PEWindow::Flags::HIDE : 0);
 
-    // RGFW_TODO: this needs to be implemented - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
+    if (!QB64PEWindow::Instance().Initialize(windowTitle, windowFlags)) {
+        gui_alert("Failed to initialize window");
+        exit(EXIT_FAILURE);
+    }
 
     auto err = glewInit();
     if (GLEW_OK != err) {
-        gui_alert((char *)glewGetErrorString(err));
+        gui_alert(reinterpret_cast<const char *>(glewGetErrorString(err)));
+        exit(EXIT_FAILURE);
     }
 
-    if (glewIsSupported("GL_EXT_framebuffer_object"))
+    if (GLEW_EXT_framebuffer_object) {
         framebufferobjects_supported = 1;
+
+        libqb_log_trace("GLEW_EXT_framebuffer_object supported");
+    }
+
+    // RGFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
+    RGFW_setGLSamples(4);
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glutDisplayFunc(GLUT_DISPLAY_REQUEST);
 
@@ -436,4 +470,92 @@ void libqb_exit(int exitcode) {
         exit(exitcode);
 
     libqb_glut_exit_program(exitcode);
+}
+
+static libqb_mutex *glut_msg_queue_lock = libqb_mutex_new();
+static std::queue<glut_message *> glut_msg_queue;
+
+// These values from GLUT are read on every process of the msg queue. Calls to
+// libqb_glut_get() can then read from these values directly rather than wait
+// for the GLUT thread to process the command.
+static int glut_window_x, glut_window_y;
+static int glut_window_border_width, glut_window_header_height;
+
+bool libqb_queue_glut_message(glut_message *msg) {
+    if (!libqb_is_glut_up()) {
+        msg->finish();
+        return false;
+    }
+
+    libqb_mutex_guard guard(glut_msg_queue_lock);
+
+    glut_msg_queue.push(msg);
+
+    return true;
+}
+
+void libqb_process_glut_queue() {
+    libqb_mutex_guard guard(glut_msg_queue_lock);
+
+    glut_window_x = glutGet(GLUT_WINDOW_X);
+    glut_window_y = glutGet(GLUT_WINDOW_Y);
+    glut_window_border_width = glutGet(GLUT_WINDOW_BORDER_WIDTH);
+    glut_window_header_height = glutGet(GLUT_WINDOW_HEADER_HEIGHT);
+
+    while (!glut_msg_queue.empty()) {
+        glut_message *msg = glut_msg_queue.front();
+        glut_msg_queue.pop();
+
+        msg->execute();
+
+        msg->finish();
+    }
+}
+
+void libqb_glut_set_cursor(int style) {
+    QB64PEWindow::Instance().SetMouseCursor(QB64PEWindow::MouseCursorStyle(style));
+}
+
+void libqb_glut_warp_pointer(int x, int y) {
+    QB64PEWindow::Instance().MoveMouse(x, y);
+}
+
+int libqb_glut_get(int id) {
+    if (is_static_glut_value(id)) {
+        libqb_mutex_guard guard(glut_msg_queue_lock);
+        return __get_static_glut_value(id);
+    }
+
+    glut_message_get msg(id);
+
+    libqb_queue_glut_message(&msg);
+    msg.wait_for_response();
+
+    return msg.response_value;
+}
+
+void libqb_glut_iconify_window() {
+    libqb_queue_glut_message(new glut_message_iconify_window());
+}
+
+void libqb_glut_position_window(int x, int y) {
+    libqb_queue_glut_message(new glut_message_position_window(x, y));
+}
+
+void libqb_glut_show_window() {
+    libqb_queue_glut_message(new glut_message_show_window());
+}
+
+void libqb_glut_hide_window() {
+    libqb_queue_glut_message(new glut_message_hide_window());
+}
+
+void libqb_glut_set_window_title(const char *title) {
+    libqb_queue_glut_message(new glut_message_set_window_title(title));
+}
+
+void libqb_glut_exit_program(int exitcode) {
+    QB64PEWindow::Instance().ShutDown();
+
+    exit(exitcode);
 }
