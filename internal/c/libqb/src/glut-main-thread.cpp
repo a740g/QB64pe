@@ -57,7 +57,7 @@ class QB64PEWindow {
         HIDE = RGFW_windowHide
     };
 
-    static const auto FLAGS_DEFAULT = Flags::ALLOW_DND | Flags::CENTER;
+    static const auto FLAGS_DEFAULT = Flags::ALLOW_DND;
     static const auto WIDTH_DEFAULT = 640u;
     static const auto HEIGHT_DEFAULT = 400u;
     static constexpr auto TITLE_DEFAULT = "Untitled";

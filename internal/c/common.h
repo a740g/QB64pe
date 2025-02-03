@@ -32,7 +32,13 @@
 #    ifdef QB64_GUI
 #        ifdef QB64_GLUT
 #            include <GL/glew.h>
-#            include <GL/glext.h>
+#            ifdef QB64_MACOSX
+#                include <OpenGL/gl.h>
+#                include <OpenGL/glext.h>
+#            else
+#                include <GL/gl.h>
+#                include <GL/glext.h>
+#            endif
 #            include <RGFW.h>
 #        endif
 #    endif
