@@ -14,14 +14,9 @@
 // FIXME: Put this definition somewhere else
 void MAIN_LOOP(void *);
 
-void libqb_glut_presetup(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-}
+void libqb_glut_presetup() {}
 
-void libqb_start_main_thread(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+void libqb_start_main_thread() {
     // Because GLUT is not used, we can just run MAIN_LOOP without creating a
     // new thread for it.
     MAIN_LOOP(NULL);
@@ -32,8 +27,6 @@ void libqb_start_glut_thread() {}
 bool libqb_is_glut_up() {
     return false;
 }
-
-void libqb_process_glut_queue() {}
 
 void libqb_glut_set_cursor(int style) {
     (void)style;

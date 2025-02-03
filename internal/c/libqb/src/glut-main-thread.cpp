@@ -57,23 +57,32 @@ class QB64PEWindow {
         HIDE = RGFW_windowHide
     };
 
-    static const auto FLAGS_DEFAULT = Flags::ALLOW_DND | Flags::SCALE_TO_MONITOR;
+    static const auto FLAGS_DEFAULT = Flags::ALLOW_DND | Flags::CENTER;
     static const auto WIDTH_DEFAULT = 640u;
     static const auto HEIGHT_DEFAULT = 400u;
     static constexpr auto TITLE_DEFAULT = "Untitled";
 
     typedef RGFW_point Point2D;
-    typedef RGFW_area Size2D;
+    typedef RGFW_area Area2D;
+
+    typedef void (*CallbackResize)(int32_t, int32_t);
+    typedef void (*CallbackDisplay)();
+    typedef void (*CallbackIdle)();
+    typedef void (*CallbackKeyboard)(uint8_t, uint8_t, bool);
+    typedef void (*CallbackMouseButton)(uint8_t, bool, double);
+    typedef void (*CallbackMouseMotion)(int32_t, int32_t);
 
     bool Initialize(const char *title = TITLE_DEFAULT, uint32_t flags = FLAGS_DEFAULT, uint32_t width = WIDTH_DEFAULT, uint32_t height = HEIGHT_DEFAULT) {
         std::lock_guard<std::mutex> lock(windowMutex);
 
         if (window) {
-            libqb_log_error("Window already created, cannot create another window"); // sure we can, maybe we'll use it a future version of QB64-PE
+            libqb_log_error("Window already created, cannot create another window"); // RGFW_TODO: sure we can, maybe we'll use it a future version of QB64-PE
         } else {
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
                 RGFW_window_makeCurrent(window);
+
+                window->userPtr = this;
 
                 libqb_log_trace("Window created (%u x %u)", width, height);
 
@@ -140,6 +149,19 @@ class QB64PEWindow {
         }
     }
 
+    bool IsFullscreen() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return RGFW_window_isFullscreen(window);
+            }
+        } else {
+            libqb_log_error("Window not created, cannot check fullscreen");
+        }
+
+        return false;
+    }
+
     void Maximize() const {
         if (window) {
             {
@@ -151,6 +173,19 @@ class QB64PEWindow {
         } else {
             libqb_log_error("Window not created, cannot maximize");
         }
+    }
+
+    bool IsMaximized() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return RGFW_window_isMaximized(window);
+            }
+        } else {
+            libqb_log_error("Window not created, cannot check maximized");
+        }
+
+        return false;
     }
 
     void Minimize() const {
@@ -166,6 +201,19 @@ class QB64PEWindow {
         }
     }
 
+    bool IsMinimized() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return RGFW_window_isMinimized(window);
+            }
+        } else {
+            libqb_log_error("Window not created, cannot check minimized");
+        }
+
+        return false;
+    }
+
     void Restore() const {
         if (window) {
             {
@@ -177,6 +225,45 @@ class QB64PEWindow {
         } else {
             libqb_log_error("Window not created, cannot restore");
         }
+    }
+
+    void Show() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                RGFW_window_show(window);
+            }
+
+            libqb_log_trace("Window focused");
+        } else {
+            libqb_log_error("Window not created, cannot set focus");
+        }
+    }
+
+    void Hide() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                RGFW_window_hide(window);
+            }
+
+            libqb_log_trace("Window hidden");
+        } else {
+            libqb_log_error("Window not created, cannot hide");
+        }
+    }
+
+    bool IsHidden() const {
+        if (window) {
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return RGFW_window_isHidden(window);
+            }
+        } else {
+            libqb_log_error("Window not created, cannot check hidden");
+        }
+
+        return false;
     }
 
     void Resize(uint32_t width, uint32_t height) const {
@@ -207,7 +294,10 @@ class QB64PEWindow {
 
     Point2D GetPosition() const {
         if (window) {
-            return {window->r.x, window->r.y};
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return {window->r.x, window->r.y};
+            }
         } else {
             libqb_log_error("Window not created, cannot get position");
         }
@@ -215,9 +305,12 @@ class QB64PEWindow {
         return {0, 0};
     }
 
-    Size2D GetSize() const {
+    Area2D GetSize() const {
         if (window) {
-            return {uint32_t(window->r.w), uint32_t(window->r.h)};
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return {uint32_t(window->r.w), uint32_t(window->r.h)};
+            }
         } else {
             libqb_log_error("Window not created, cannot get size");
         }
@@ -225,22 +318,16 @@ class QB64PEWindow {
         return {0u, 0u};
     }
 
-    void Focus() const {
-        if (window) {
-            {
-                std::lock_guard<std::mutex> lock(windowMutex);
-                RGFW_window_show(window);
-            }
-
-            libqb_log_trace("Window focused");
-        } else {
-            libqb_log_error("Window not created, cannot set focus");
-        }
+    Area2D GetScreenSize() const {
+        return RGFW_getScreenSize();
     }
 
     uintptr_t GetHandle() const {
         if (window) {
-            return reinterpret_cast<uintptr_t>(window->src.window);
+            {
+                std::lock_guard<std::mutex> lock(windowMutex);
+                return reinterpret_cast<uintptr_t>(window->src.window);
+            }
         } else {
             libqb_log_error("Window not created, cannot get handle");
         }
@@ -294,16 +381,110 @@ class QB64PEWindow {
         }
     }
 
+    void PostRedisplay() {
+        ++redisplayCounter;
+    }
+
+    void SetWindowResizeFunction(CallbackResize function) {
+        if (function) {
+            resizeFunction = function;
+
+            RGFW_setWindowResizeCallback(ResizeFunction);
+
+            libqb_log_trace("Window resize function set: %p", function);
+        } else {
+            libqb_log_error("Window resize function is NULL");
+        }
+    }
+
+    void SetDisplayFunction(CallbackDisplay function) {
+        if (function) {
+            displayFunction = function;
+            RGFW_setWindowRefreshCallback(RefreshFunction);
+
+            libqb_log_trace("Display function set: %p", function);
+        } else {
+            libqb_log_error("Display function is NULL");
+        }
+    }
+
+    void SetIdleFunction(CallbackIdle function) {
+        if (function) {
+            idleFunction = function;
+
+            libqb_log_trace("Idle function set: %p", function);
+        } else {
+            libqb_log_error("Idle function is NULL");
+        }
+    }
+
+    void SetKeyboardFunction(CallbackKeyboard function) {
+        if (function) {
+            keyboardFunction = function;
+            RGFW_setKeyCallback(KeyboardFunction);
+
+            libqb_log_trace("Keyboard function set: %p", function);
+        } else {
+            libqb_log_error("Keyboard function is NULL");
+        }
+    }
+
+    void SetMouseButtonFunction(CallbackMouseButton function) {
+        if (function) {
+            mouseButtonFunction = function;
+            RGFW_setMouseButtonCallback(MouseButtonFunction);
+
+            libqb_log_trace("Mouse button function set: %p", function);
+        } else {
+            libqb_log_error("Mouse button function is NULL");
+        }
+    }
+
+    void SetMouseMotionFunction(CallbackMouseMotion function) {
+        if (function) {
+            mouseMotionFunction = function;
+            RGFW_setMousePosCallback(MouseMotionFunction);
+
+            libqb_log_trace("Mouse motion function set: %p", function);
+        } else {
+            libqb_log_error("Mouse motion function is NULL");
+        }
+    }
+
+    void MainLoop() {
+        libqb_log_trace("Entering main loop");
+
+        for (;;) {
+            RGFW_window_checkEvents(window, 0);
+
+            if (window->event.type == RGFW_quit) {
+                break;
+            }
+
+            if (redisplayCounter) {
+                --redisplayCounter;
+                if (displayFunction) {
+                    displayFunction();
+                }
+            }
+
+            if (idleFunction) {
+                idleFunction();
+            }
+        }
+
+        libqb_log_trace("Exiting main loop");
+    }
+
     static QB64PEWindow &Instance() {
         static QB64PEWindow instance;
-
-        libqb_log_trace("Returning window instance");
-
         return instance;
     }
 
   private:
-    QB64PEWindow() : window(nullptr), flags(FLAGS_DEFAULT) {}
+    QB64PEWindow()
+        : window(nullptr), redisplayCounter(0), resizeFunction(nullptr), displayFunction(nullptr), idleFunction(nullptr), keyboardFunction(nullptr),
+          mouseButtonFunction(nullptr), mouseMotionFunction(nullptr) {}
 
     ~QB64PEWindow() {
         ShutDown();
@@ -314,47 +495,99 @@ class QB64PEWindow {
     QB64PEWindow(QB64PEWindow &&) = delete;
     QB64PEWindow &operator=(QB64PEWindow &&) = delete;
 
+    static void ResizeFunction(RGFW_window *window, RGFW_rect r) {
+        auto instance = static_cast<QB64PEWindow *>(window->userPtr);
+        if (instance->resizeFunction) {
+            instance->resizeFunction(r.w, r.h);
+        }
+    }
+
+    static void RefreshFunction(RGFW_window *window) {
+        auto instance = static_cast<QB64PEWindow *>(window->userPtr);
+        if (instance->displayFunction) {
+            instance->displayFunction();
+        }
+    }
+
+    static void KeyboardFunction(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, b8 isPressed) {
+        (void)keyChar;
+        auto instance = static_cast<QB64PEWindow *>(window->userPtr);
+        if (instance->keyboardFunction) {
+            instance->keyboardFunction(key, modifiers, isPressed);
+        }
+    }
+
+    static void MouseButtonFunction(RGFW_window *window, RGFW_mouseButton button, double scroll, b8 isPressed) {
+        auto instance = static_cast<QB64PEWindow *>(window->userPtr);
+        if (instance->mouseButtonFunction) {
+            instance->mouseButtonFunction(button, isPressed, scroll);
+        }
+    }
+
+    static void MouseMotionFunction(RGFW_window *window, RGFW_point point) {
+        auto instance = static_cast<QB64PEWindow *>(window->userPtr);
+        if (instance->mouseMotionFunction) {
+            instance->mouseMotionFunction(point.x, point.y);
+        }
+    }
+
     RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future
-    RGFW_windowFlags flags;
     mutable std::mutex windowMutex;
+    size_t redisplayCounter;
+    CallbackResize resizeFunction;
+    CallbackDisplay displayFunction;
+    CallbackIdle idleFunction;
+    CallbackKeyboard keyboardFunction;
+    CallbackMouseButton mouseButtonFunction;
+    CallbackMouseMotion mouseMotionFunction;
 };
 
 void MAIN_LOOP(void *);
-void GLUT_KEYBOARD_FUNC(unsigned char key, int x, int y);
+void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed);
 void GLUT_DISPLAY_REQUEST();
-void GLUT_KEYBOARDUP_FUNC(unsigned char key, int x, int y);
-void GLUT_SPECIAL_FUNC(int key, int x, int y);
-void GLUT_SPECIALUP_FUNC(int key, int x, int y);
-void GLUT_MOUSE_FUNC(int glut_button, int state, int x, int y);
-void GLUT_MOTION_FUNC(int x, int y);
-void GLUT_PASSIVEMOTION_FUNC(int x, int y);
-void GLUT_RESHAPE_FUNC(int width, int height);
+void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, double scroll);
+void GLUT_MOTION_FUNC(int32_t x, int32_t y);
+void GLUT_RESHAPE_FUNC(int32_t width, int32_t height);
 void GLUT_IDLEFUNC();
-void GLUT_MOUSEWHEEL_FUNC(int wheel, int direction, int x, int y);
 
-static void glutWarning(const char *fmt, va_list lst) {
-    // This keeps FreeGlut from dumping warnings to console
-    (void)fmt;
-    (void)lst;
-}
-
-void glutReshapeWindow(uint32_t width, uint32_t height) {
-    // RGFW_TODO: GLUT runs in the GLUT main loop
+void glutReshapeWindow(int32_t width, int32_t height) {
     QB64PEWindow::Instance().Resize(width, height);
 }
 
 void glutFullScreen() {
-    // RGFW_TODO: GLUT runs in the GLUT main loop
     QB64PEWindow::Instance().SetFullscreen(true);
 }
 
 void glutPostRedisplay() {
-    libqb_log_error("glutPostRedisplay() called, but not implemented");
-    exit(EXIT_FAILURE);
+    QB64PEWindow::Instance().PostRedisplay();
 }
 
 void glutSwapBuffers() {
     QB64PEWindow::Instance().SwapBuffers();
+}
+
+void glutDisplayFunc(void (*func)()) {
+    QB64PEWindow::Instance().SetDisplayFunction(func);
+}
+
+void glutIdleFunc(void (*func)()) {
+    QB64PEWindow::Instance().SetIdleFunction(func);
+}
+
+void glutReshapeFunc(void (*func)(int, int)) {
+    QB64PEWindow::Instance().SetWindowResizeFunction(func);
+}
+
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, bool)) {
+    QB64PEWindow::Instance().SetKeyboardFunction(func);
+}
+
+void glutMouseFunc(void (*func)(uint8_t, bool, double)) {
+    QB64PEWindow::Instance().SetMouseButtonFunction(func);
+}
+
+void glutMotionFunc(void (*func)(int32_t, int32_t)) {
+    QB64PEWindow::Instance().SetMouseMotionFunction(func);
 }
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
@@ -391,14 +624,9 @@ static void initialize_glut() {
     glutIdleFunc(GLUT_IDLEFUNC);
 
     glutKeyboardFunc(GLUT_KEYBOARD_FUNC);
-    glutKeyboardUpFunc(GLUT_KEYBOARDUP_FUNC);
-    glutSpecialFunc(GLUT_SPECIAL_FUNC);
-    glutSpecialUpFunc(GLUT_SPECIALUP_FUNC);
     glutMouseFunc(GLUT_MOUSE_FUNC);
     glutMotionFunc(GLUT_MOTION_FUNC);
-    glutPassiveMotionFunc(GLUT_PASSIVEMOTION_FUNC);
     glutReshapeFunc(GLUT_RESHAPE_FUNC);
-    glutMouseWheelFunc(GLUT_MOUSEWHEEL_FUNC);
 }
 
 static bool glut_is_started;
@@ -425,7 +653,7 @@ bool libqb_is_glut_up() {
     return glut_is_started;
 }
 
-void libqb_glut_presetup(int argc, char **argv) {
+void libqb_glut_presetup() {
     if (!screen_hide) {
         initialize_glut(); // Initialize GLUT if the screen isn't hidden
         glut_is_started = true;
@@ -434,7 +662,7 @@ void libqb_glut_presetup(int argc, char **argv) {
     }
 }
 
-void libqb_start_main_thread(int argc, char **argv) {
+void libqb_start_main_thread() {
 
     // Start the 'MAIN_LOOP' in a separate thread, as GLUT has to run on the
     // initial thread.
@@ -454,7 +682,7 @@ void libqb_start_main_thread(int argc, char **argv) {
             completion_finish(glut_thread_initialized);
     }
 
-    glutMainLoop();
+    QB64PEWindow::Instance().MainLoop();
 }
 
 // Due to GLUT making use of cleanup via atexit, we have to call exit() from
@@ -472,46 +700,6 @@ void libqb_exit(int exitcode) {
     libqb_glut_exit_program(exitcode);
 }
 
-static libqb_mutex *glut_msg_queue_lock = libqb_mutex_new();
-static std::queue<glut_message *> glut_msg_queue;
-
-// These values from GLUT are read on every process of the msg queue. Calls to
-// libqb_glut_get() can then read from these values directly rather than wait
-// for the GLUT thread to process the command.
-static int glut_window_x, glut_window_y;
-static int glut_window_border_width, glut_window_header_height;
-
-bool libqb_queue_glut_message(glut_message *msg) {
-    if (!libqb_is_glut_up()) {
-        msg->finish();
-        return false;
-    }
-
-    libqb_mutex_guard guard(glut_msg_queue_lock);
-
-    glut_msg_queue.push(msg);
-
-    return true;
-}
-
-void libqb_process_glut_queue() {
-    libqb_mutex_guard guard(glut_msg_queue_lock);
-
-    glut_window_x = glutGet(GLUT_WINDOW_X);
-    glut_window_y = glutGet(GLUT_WINDOW_Y);
-    glut_window_border_width = glutGet(GLUT_WINDOW_BORDER_WIDTH);
-    glut_window_header_height = glutGet(GLUT_WINDOW_HEADER_HEIGHT);
-
-    while (!glut_msg_queue.empty()) {
-        glut_message *msg = glut_msg_queue.front();
-        glut_msg_queue.pop();
-
-        msg->execute();
-
-        msg->finish();
-    }
-}
-
 void libqb_glut_set_cursor(int style) {
     QB64PEWindow::Instance().SetMouseCursor(QB64PEWindow::MouseCursorStyle(style));
 }
@@ -521,37 +709,72 @@ void libqb_glut_warp_pointer(int x, int y) {
 }
 
 int libqb_glut_get(int id) {
-    if (is_static_glut_value(id)) {
-        libqb_mutex_guard guard(glut_msg_queue_lock);
-        return __get_static_glut_value(id);
+    switch (id) {
+    case GLUT_FULL_SCREEN:
+        return QB64PEWindow::Instance().IsFullscreen();
+        break;
+
+    case GLUT_WINDOW_X:
+        return QB64PEWindow::Instance().GetPosition().x;
+        break;
+
+    case GLUT_WINDOW_Y:
+        return QB64PEWindow::Instance().GetPosition().y;
+        break;
+
+    case GLUT_WINDOW_WIDTH:
+        return QB64PEWindow::Instance().GetSize().w;
+        break;
+
+    case GLUT_WINDOW_HEIGHT:
+        return QB64PEWindow::Instance().GetSize().h;
+        break;
+
+    case GLUT_WINDOW_BORDER_WIDTH:
+        libqb_log_trace("GLUT_WINDOW_BORDER_WIDTH not implemented");
+        return 0;
+        break;
+
+    case GLUT_WINDOW_BORDER_HEIGHT:
+        libqb_log_trace("GLUT_WINDOW_BORDER_HEIGHT not implemented");
+        return 0;
+        break;
+
+    case GLUT_WINDOW_HEADER_HEIGHT:
+        libqb_log_trace("GLUT_WINDOW_HEADER_HEIGHT not implemented");
+        return 0;
+        break;
+
+    case GLUT_SCREEN_WIDTH:
+        return QB64PEWindow::Instance().GetScreenSize().w;
+        break;
+
+    case GLUT_SCREEN_HEIGHT:
+        return QB64PEWindow::Instance().GetScreenSize().h;
+        break;
     }
 
-    glut_message_get msg(id);
-
-    libqb_queue_glut_message(&msg);
-    msg.wait_for_response();
-
-    return msg.response_value;
+    return 0;
 }
 
 void libqb_glut_iconify_window() {
-    libqb_queue_glut_message(new glut_message_iconify_window());
+    QB64PEWindow::Instance().Minimize();
 }
 
 void libqb_glut_position_window(int x, int y) {
-    libqb_queue_glut_message(new glut_message_position_window(x, y));
+    QB64PEWindow::Instance().Move(x, y);
 }
 
 void libqb_glut_show_window() {
-    libqb_queue_glut_message(new glut_message_show_window());
+    QB64PEWindow::Instance().Show();
 }
 
 void libqb_glut_hide_window() {
-    libqb_queue_glut_message(new glut_message_hide_window());
+    QB64PEWindow::Instance().Hide();
 }
 
 void libqb_glut_set_window_title(const char *title) {
-    libqb_queue_glut_message(new glut_message_set_window_title(title));
+    QB64PEWindow::Instance().SetTitle(title);
 }
 
 void libqb_glut_exit_program(int exitcode) {

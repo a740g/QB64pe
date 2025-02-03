@@ -423,8 +423,6 @@ static int32 display_required_y = 400;
 
 int32 dont_call_sub_gl = 0;
 
-void GLUT_DISPLAY_REQUEST();
-
 struct display_frame_struct {
     int32 state;
     int64 order;
@@ -1776,10 +1774,8 @@ void FreeConsole() {
 
 extern void QBMAIN(void *);
 extern void TIMERTHREAD(void *);
-void MAIN_LOOP(void *);
 
 void GLUT_MAINLOOP_THREAD(void *);
-void GLUT_DISPLAY_REQUEST();
 
 extern qbs *FUNC__DECODEURL(qbs *_FUNC__DECODEURL_STRING__URL);
 extern qbs *FUNC__WHATISMYIP();
@@ -26084,7 +26080,7 @@ error:
     return b;
 }
 
-void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool pressed) {
+void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
 #ifdef QB64_GLUT
     int32_t vk = -1;
 
@@ -26173,7 +26169,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool pressed) {
     }
 
     if (vk != -1) {
-        if (pressed) {
+        if (isPressed) {
             keydown_vk(vk);
         } else {
             keyup_vk(vk);
@@ -26210,7 +26206,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool pressed) {
 #    endif
 
     if (key == 127) { // delete
-        if (pressed) {
+        if (isPressed) {
             keydown_vk(0x5300);
         } else {
             keyup_vk(0x5300);
@@ -26219,7 +26215,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool pressed) {
         return;
     }
 
-    if (pressed) {
+    if (isPressed) {
         keydown_ascii(key);
     } else {
         keyup_ascii(key);
@@ -26231,8 +26227,6 @@ static int64_t lastTick = 0;
 static double deltaTick = 0;
 
 void GLUT_IDLEFUNC() {
-    libqb_process_glut_queue();
-
 #ifdef QB64_MACOSX
 #    ifdef DEPENDENCY_DEVICEINPUT
     // must be in same thread as GLUT for OSX
@@ -26278,7 +26272,6 @@ void GLUT_IDLEFUNC() {
             deltaTick += ((double)1000 / max_fps);
     }
 
-    // RGFW_TODO: We may not need this anymore
     glutPostRedisplay();
 #endif
 }
@@ -26360,7 +26353,7 @@ void sub__glrender(int32 method) {
 
 #else // end stubs
 
-void GLUT_RESHAPE_FUNC(int width, int height) {
+void GLUT_RESHAPE_FUNC(int32_t width, int32_t height) {
     resize_event_x = width;
     resize_event_y = height;
     resize_event = -1;
@@ -28144,9 +28137,17 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 
 static int mouseLastX = 0, mouseLastY = 0;
 
-void GLUT_MOUSE_FUNC(uint32_t button, bool isPressed, double scroll) {
+void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, double scroll) {
 #    ifdef QB64_GLUT
-    (void)scroll; // RGFW_TODO: Implement proper mouse wheel support
+    // RGFW_TODO: Check the scroll value!
+    if (scroll > 0.0) {
+        GLUT_MouseButton_Down(4, mouseLastX, mouseLastY);
+        GLUT_MouseButton_Up(4, mouseLastX, mouseLastY);
+    } else if (scroll < 0.0) {
+        GLUT_MouseButton_Down(5, mouseLastX, mouseLastY);
+        GLUT_MouseButton_Up(5, mouseLastX, mouseLastY);
+    }
+
     if (isPressed) {
         GLUT_MouseButton_Down(button + 1, mouseLastX, mouseLastY);
     } else {
@@ -28155,8 +28156,7 @@ void GLUT_MOUSE_FUNC(uint32_t button, bool isPressed, double scroll) {
 #    endif
 }
 
-void GLUT_MOTION_FUNC(int x, int y) {
-
+void GLUT_MOTION_FUNC(int32_t x, int32_t y) {
     int32 i, last_i;
     int32 xrel, yrel;
 
@@ -28267,29 +28267,6 @@ void GLUT_MOTION_FUNC(int x, int y) {
             commitDeviceEvent(d);
         }
     } // core devices required
-}
-
-void GLUT_PASSIVEMOTION_FUNC(int x, int y) {
-    GLUT_MOTION_FUNC(x, y);
-}
-
-void GLUT_MOUSEWHEEL_FUNC(int wheel, int direction, int x, int y) {
-#    ifdef QB64_GLUT
-    // Note: freeglut specific, limited documentation existed so the following
-    // research was done:
-    //  qbs_print(qbs_str(wheel),NULL); <-- was always 0 [could 1 indicate
-    //  horizontal wheel?] qbs_print(qbs_str(direction),NULL); <-- 1(up) or
-    //  -1(down) qbs_print(qbs_str(x),NULL); <--mouse x,y co-ordinates
-    //  qbs_print(qbs_str(y),1);    <
-    if (direction > 0) {
-        GLUT_MouseButton_Down(4, x, y);
-        GLUT_MouseButton_Up(4, x, y);
-    }
-    if (direction < 0) {
-        GLUT_MouseButton_Down(5, x, y);
-        GLUT_MouseButton_Up(5, x, y);
-    }
-#    endif
 }
 
 #endif
@@ -28900,7 +28877,7 @@ int main(int argc, char *argv[]) {
 
     libqb_http_init();
 
-    libqb_glut_presetup(argc, argv);
+    libqb_glut_presetup();
 
     struct libqb_thread *qbmain = libqb_thread_new();
     libqb_thread_start(qbmain, QBMAIN, NULL);
@@ -28910,7 +28887,7 @@ int main(int argc, char *argv[]) {
 
     lock_display_required = 1;
 
-    libqb_start_main_thread(argc, argv);
+    libqb_start_main_thread();
 
     return 0; // Should never get here
 }

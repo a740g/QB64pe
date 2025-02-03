@@ -1,5 +1,4 @@
-#ifndef INCLUDE_LIBQB_GLUT_THREAD_H
-#define INCLUDE_LIBQB_GLUT_THREAD_H
+#pragma once
 
 #include <RGFW.h>
 
@@ -150,15 +149,20 @@ enum {
 
 // GLUT emulation functions
 void glutPostRedisplay();
-void glutReshapeWindow(uint32_t width, uint32_t height);
+void glutReshapeWindow(int32_t width, int32_t height);
 void glutFullScreen();
 void glutSwapBuffers();
+void glutDisplayFunc(void (*func)());
+void glutIdleFunc(void (*func)());
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, bool));
+void glutMouseFunc(void (*func)(uint8_t, bool, double));
+void glutMotionFunc(void (*func)(int32_t, int32_t));
 
 // Called to potentially setup GLUT before starting the program.
-void libqb_glut_presetup(int argc, char **argv);
+void libqb_glut_presetup();
 
 // Starts the "main thread", including handling all the GLUT setup.
-void libqb_start_main_thread(int argc, char **argv);
+void libqb_start_main_thread();
 
 // Used to support _ScreenShow, which can start the GLUT thread after the
 // program is started
@@ -167,9 +171,6 @@ void libqb_start_glut_thread();
 // Indicates whether GLUT is currently running (and thus whether we're able to
 // do any GLUT-related stuff
 bool libqb_is_glut_up();
-
-// Called at consistent intervals from a GLUT callback
-void libqb_process_glut_queue();
 
 // Called to properly exit the program. Necessary because GLUT requires a
 // special care to not seg-fault when exiting the program.
@@ -201,5 +202,3 @@ void libqb_glut_exit_program(int exitcode);
         if (!libqb_is_glut_up())                                                                                                                               \
             return result;                                                                                                                                     \
     } while (0)
-
-#endif

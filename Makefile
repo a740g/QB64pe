@@ -148,12 +148,10 @@ CXXFLAGS += -Wno-conversion-null
 
 ifeq ($(OS),lnx)
 	CXXLIBS += -lGL -lGLU -lX11 -lpthread -ldl -lrt -lxcb
-	CXXFLAGS += -DFREEGLUT_STATIC
 endif
 
 ifeq ($(OS),win)
 	CXXLIBS += -static-libgcc -static-libstdc++ -lcomdlg32 -lole32 -luuid -lshlwapi -lwindowscodecs
-	CXXFLAGS += -DGLEW_STATIC -DFREEGLUT_STATIC
 endif
 
 ifeq ($(OS),osx)
@@ -355,7 +353,7 @@ ifeq ($(OS),win)
 	endif
 
 	ifneq ($(filter y,$(DEP_CONSOLE_ONLY)),)
-		CXXFLAGS := $(filter-out -DFREEGLUT_STATIC,$(CXXFLAGS))
+		CXXFLAGS := $(filter-out -DRGFWDEF,$(CXXFLAGS))
 		EXE_LIBS := $(filter-out $(QB_CORE_LIB),$(EXE_LIBS))
 
 		LICENSE_IN_USE := $(filter-out freeglut,$(LICENSE_IN_USE))
