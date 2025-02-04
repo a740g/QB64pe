@@ -29,6 +29,7 @@
 #include "font.h"
 #include "game_controller.h"
 #include "gfs.h"
+#include "glut-emu.h"
 #include "glut-thread.h"
 #include "graphics.h"
 #include "gui.h"
@@ -26227,6 +26228,8 @@ static int64_t lastTick = 0;
 static double deltaTick = 0;
 
 void GLUT_IDLEFUNC() {
+    libqb_process_glut_queue();
+
 #ifdef QB64_MACOSX
 #    ifdef DEPENDENCY_DEVICEINPUT
     // must be in same thread as GLUT for OSX

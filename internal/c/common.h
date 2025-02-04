@@ -35,11 +35,12 @@
 #            ifdef QB64_MACOSX
 #                include <OpenGL/gl.h>
 #                include <OpenGL/glext.h>
+#                include <OpenGL/glu.h>
 #            else
 #                include <GL/gl.h>
 #                include <GL/glext.h>
+#                include <GL/glu.h>
 #            endif
-#            include <RGFW.h>
 #        endif
 #    endif
 

@@ -147,7 +147,7 @@ CXXFLAGS += -fno-strict-aliasing
 CXXFLAGS += -Wno-conversion-null
 
 ifeq ($(OS),lnx)
-	CXXLIBS += -lGL -lGLU -lX11 -lpthread -ldl -lrt -lxcb
+	CXXLIBS += -lGL -lGLU -lX11 -lXrandr -lxcb -lpthread -ldl -lrt
 endif
 
 ifeq ($(OS),win)
@@ -155,7 +155,7 @@ ifeq ($(OS),win)
 endif
 
 ifeq ($(OS),osx)
-	CXXLIBS += -framework OpenGL -framework IOKit -framework GLUT -framework Cocoa -framework ApplicationServices -framework CoreFoundation
+	CXXLIBS += -framework OpenGL -framework IOKit -framework Cocoa -framework ApplicationServices -framework CoreFoundation
 
 	# OSX doesn't strip using objcopy, so we're using `-s` instead
 	ifneq ($(STRIP_SYMBOLS),n)
