@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INCLUDE_LIBQB_GLUT_THREAD_H
+#define INCLUDE_LIBQB_GLUT_THREAD_H
 
 // Called to potentially setup GLUT before starting the program.
 void libqb_glut_presetup();
@@ -47,3 +48,5 @@ void libqb_glut_exit_program(int exitcode);
         if (!libqb_is_glut_up())                                                                                                                               \
             return result;                                                                                                                                     \
     } while (0)
+
+#endif
