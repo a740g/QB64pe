@@ -27,8 +27,8 @@ extern int32_t screen_hide;
 void MAIN_LOOP(void *);
 void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed);
 void GLUT_DISPLAY_REQUEST();
-void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, double scroll);
-void GLUT_MOTION_FUNC(int32_t x, int32_t y);
+void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y);
+void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy);
 void GLUT_RESHAPE_FUNC(int32_t width, int32_t height);
 void GLUT_IDLEFUNC();
 

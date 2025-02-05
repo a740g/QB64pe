@@ -856,7 +856,7 @@ uint16_t codepage437_to_unicode16[] = {
 */
 
 int64 device_event_index = 0;
-int32 device_mouse_relative = 0;
+int32 device_mouse_relative = 0; // RGFW_TODO: This is never set to true anywhere! See what we need to do about it.
 
 int32 lock_mainloop = 0; // 0=unlocked, 1=lock requested, 2=locked
 
@@ -28138,34 +28138,35 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 #    endif
 }
 
-static int mouseLastX = 0, mouseLastY = 0;
-
-void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, double scroll) {
+void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y) {
 #    ifdef QB64_GLUT
-    // RGFW_TODO: Check the scroll value!
-    if (scroll > 0.0) {
-        GLUT_MouseButton_Down(4, mouseLastX, mouseLastY);
-        GLUT_MouseButton_Up(4, mouseLastX, mouseLastY);
-    } else if (scroll < 0.0) {
-        GLUT_MouseButton_Down(5, mouseLastX, mouseLastY);
-        GLUT_MouseButton_Up(5, mouseLastX, mouseLastY);
-    }
+    // RGFW button order is similar to GLUT and the left button begins at 1
+    // Also, do not discard the scroll intensity
 
-    if (isPressed) {
-        GLUT_MouseButton_Down(button + 1, mouseLastX, mouseLastY);
+    if (button == 4 || button == 5) {
+        if (scroll > 0) {
+            while (scroll) {
+                GLUT_MouseButton_Down(4, x, y);
+                GLUT_MouseButton_Up(4, x, y);
+                --scroll;
+            }
+        } else if (scroll < 0) {
+            while (scroll) {
+                GLUT_MouseButton_Down(5, x, y);
+                GLUT_MouseButton_Up(5, x, y);
+                ++scroll;
+            }
+        }
+    } else if (isPressed) {
+        GLUT_MouseButton_Down(button, x, y);
     } else {
-        GLUT_MouseButton_Up(button + 1, mouseLastX, mouseLastY);
+        GLUT_MouseButton_Up(button, x, y);
     }
 #    endif
 }
 
-void GLUT_MOTION_FUNC(int32_t x, int32_t y) {
+void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy) {
     int32 i, last_i;
-    int32 xrel, yrel;
-
-    // This is used to save the last mouse position which is then paired with the button events
-    mouseLastX = x;
-    mouseLastY = y;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
 
@@ -28181,21 +28182,10 @@ void GLUT_MOTION_FUNC(int32_t x, int32_t y) {
         queue->current = nextIndex;
     }
 
-#    if defined(QB64_WINDOWS) || defined(QB64_MACOSX)
-    // Windows calculates relative movement by intercepting WM_INPUT events
-    // macOS uses the Quartz Event Services to get relative movements
-    xrel = 0;
-    yrel = 0;
-#    else
-    // TODO: This needs to be correctly implemented on Linux
-    xrel = x - queue->queue[queue->last].x;
-    yrel = y - queue->queue[queue->last].y;
-#    endif
-
     queue->queue[i].x = x;
     queue->queue[i].y = y;
-    queue->queue[i].movementx = xrel;
-    queue->queue[i].movementy = yrel;
+    queue->queue[i].movementx = dx;
+    queue->queue[i].movementy = dy;
     queue->queue[i].buttons = queue->queue[last_i].buttons;
     queue->last = i;
 
@@ -28256,8 +28246,8 @@ void GLUT_MOTION_FUNC(int32_t x, int32_t y) {
             int32 eventIndex = createDeviceEvent(d);
             static float fx, fy;
             static int32 z;
-            fx = xrel;
-            fy = yrel;
+            fx = dx;
+            fy = dy;
             setDeviceEventWheelValue(d, eventIndex, 0, fx);
             setDeviceEventWheelValue(d, eventIndex, 1, fy);
             commitDeviceEvent(d);
