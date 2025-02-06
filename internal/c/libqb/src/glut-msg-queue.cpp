@@ -91,6 +91,10 @@ void libqb_glut_position_window(int x, int y) {
     libqb_queue_glut_message(new glut_message_position_window(x, y));
 }
 
+void libqb_glut_reshape_window(int width, int height) {
+    libqb_queue_glut_message(new glut_message_reshape_window(width, height));
+}
+
 void libqb_glut_show_window() {
     libqb_queue_glut_message(new glut_message_show_window());
 }

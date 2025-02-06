@@ -236,14 +236,14 @@ class GLUTEmu {
         return {0u, 0u};
     }
 
-    uintptr_t WindowGetHandle() const {
+    void *WindowGetHandle() const {
         if (window) {
-            return reinterpret_cast<uintptr_t>(window->src.window);
+            return window->src.window;
         } else {
             libqb_log_error("Window not created, cannot get handle");
         }
 
-        return NULL;
+        return nullptr;
     }
 
     void WindowSwapBuffers() const {
@@ -599,4 +599,8 @@ void glutHideWindow() {
 
 void glutSetWindowTitle(const char *title) {
     GLUTEmu::Instance().WindowSetTitle(title);
+}
+
+void *glutGetWindowHandle() {
+    return GLUTEmu::Instance().WindowGetHandle();
 }

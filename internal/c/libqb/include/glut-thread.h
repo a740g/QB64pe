@@ -29,6 +29,7 @@ void libqb_glut_warp_pointer(int x, int y);
 int libqb_glut_get(int id);
 void libqb_glut_iconify_window();
 void libqb_glut_position_window(int x, int y);
+void libqb_glut_reshape_window(int width, int height);
 void libqb_glut_show_window();
 void libqb_glut_hide_window();
 void libqb_glut_set_window_title(const char *title);

@@ -135,19 +135,10 @@ int32 force_display_update = 0;
 void *generic_window_handle = NULL;
 int32 acceptFileDrop = 0;
 #ifdef QB64_WINDOWS
-HWND window_handle = NULL;
 HDROP hdrop = NULL;
 int32 totalDroppedFiles = 0;
 #endif
 //...
-
-extern "C" void QB64_Window_Handle(void *handle) {
-    generic_window_handle = handle;
-#ifdef QB64_WINDOWS
-    window_handle = (HWND)handle;
-#endif
-    //...
-}
 
 // forward references
 void set_view(int32 new_mode);
@@ -199,10 +190,6 @@ int32 resize_event_y = 0;
 
 int32 ScreenResizeScale = 0;
 int32 ScreenResize = 0;
-
-extern "C" int QB64_Resizable() {
-    return ScreenResize;
-}
 
 int32 sub_gl_called = 0;
 
@@ -13961,19 +13948,24 @@ int32 func__blink() {
     return -H3C0_blink_enable;
 }
 
-int64 func__handle() {
+uintptr_t func__handle() {
 #ifdef QB64_WINDOWS
 #    ifdef DEPENDENCY_CONSOLE_ONLY
-    if (!window_handle) {
+    if (!generic_window_handle) {
         char pszConsoleTitle[1024];
         GetConsoleTitle(pszConsoleTitle, 1024);
-        window_handle = FindWindow(NULL, pszConsoleTitle);
+        generic_window_handle = FindWindow(NULL, pszConsoleTitle);
     }
-    return (ptrszint)window_handle;
+    return uintptr_t(generic_window_handle);
 #    endif
+#endif
 
+#ifdef QB64_GUI
     OPTIONAL_GLUT(0);
-    return (ptrszint)window_handle;
+
+    generic_window_handle = glutGetWindowHandle();
+
+    return uintptr_t(generic_window_handle);
 #else
     return 0;
 #endif
@@ -27599,7 +27591,7 @@ void GLUT_DISPLAY_REQUEST() {
                 }
                 resize_auto_accept_aspect = (float)x / (float)y;
                 resize_pending = 1;
-                glutReshapeWindow(x, y);
+                libqb_glut_reshape_window(x, y);
                 glutPostRedisplay();
 
                 goto auto_resized;
@@ -27608,7 +27600,7 @@ void GLUT_DISPLAY_REQUEST() {
 
         if ((display_required_x != display_x) || (display_required_y != display_y)) {
             if (resize_snapback || framesize_changed) {
-                glutReshapeWindow(display_required_x, display_required_y);
+                libqb_glut_reshape_window(display_required_x, display_required_y);
                 glutPostRedisplay();
                 resize_pending = 1;
             }
@@ -27626,7 +27618,7 @@ void GLUT_DISPLAY_REQUEST() {
                 if (full_screen != 0) {
                     // exit full screen
                     resize_pending = 1;
-                    glutReshapeWindow(display_frame[i].w, display_frame[i].h);
+                    libqb_glut_reshape_window(display_frame[i].w, display_frame[i].h);
                     glutPostRedisplay();
                 }
                 full_screen = 0;

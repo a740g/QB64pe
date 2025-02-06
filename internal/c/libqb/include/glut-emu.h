@@ -194,3 +194,4 @@ void glutPositionWindow(int32_t x, int32_t y);
 void glutShowWindow();
 void glutHideWindow();
 void glutSetWindowTitle(const char *title);
+void *glutGetWindowHandle();

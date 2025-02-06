@@ -23,6 +23,7 @@
 extern uint8_t *window_title;
 extern int32_t framebufferobjects_supported;
 extern int32_t screen_hide;
+extern void *generic_window_handle;
 
 void MAIN_LOOP(void *);
 void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed);
@@ -53,6 +54,8 @@ static void initialize_glut() {
 
         libqb_log_trace("GLEW_EXT_framebuffer_object supported");
     }
+
+    generic_window_handle = glutGetWindowHandle();
 
     // RGFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
     RGFW_setGLSamples(4);
