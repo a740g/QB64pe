@@ -7,6 +7,10 @@
 #include "logging.h"
 #include <cmath>
 
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
+
 class GLUTEmu {
   public:
     typedef void (*CallbackWindowResize)(int32_t, int32_t);
@@ -28,6 +32,8 @@ class GLUTEmu {
 
                 mouseCurrentPosition = RGFW_window_getMousePoint(window);
                 mousePreviousPosition = mouseCurrentPosition;
+
+                ComputeWindowBorderSize();
 
                 libqb_log_trace("Window created (%u x %u)", width, height);
 
@@ -65,7 +71,7 @@ class GLUTEmu {
         }
     }
 
-    void WindowSetFullscreen(bool fullscreen) const {
+    void WindowSetFullscreen(bool fullscreen) {
         if (window) {
             if (fullscreen) {
                 RGFW_window_maximize(window);
@@ -78,6 +84,9 @@ class GLUTEmu {
 
                 libqb_log_trace("Window set to windowed");
             }
+
+            ComputeWindowBorderSize();
+
         } else {
             libqb_log_error("Window not created, cannot set fullscreen");
         }
@@ -93,9 +102,11 @@ class GLUTEmu {
         return false;
     }
 
-    void WindowMaximize() const {
+    void WindowMaximize() {
         if (window) {
             RGFW_window_maximize(window);
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window maximized");
         } else {
@@ -113,9 +124,11 @@ class GLUTEmu {
         return false;
     }
 
-    void WindowMinimize() const {
+    void WindowMinimize() {
         if (window) {
             RGFW_window_minimize(window);
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window minimized");
         } else {
@@ -133,9 +146,11 @@ class GLUTEmu {
         return false;
     }
 
-    void WindowRestore() const {
+    void WindowRestore() {
         if (window) {
             RGFW_window_restore(window);
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window restored");
         } else {
@@ -143,9 +158,11 @@ class GLUTEmu {
         }
     }
 
-    void WindowShow() const {
+    void WindowShow() {
         if (window) {
             RGFW_window_show(window);
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window focused");
         } else {
@@ -153,9 +170,11 @@ class GLUTEmu {
         }
     }
 
-    void WindowHide() const {
+    void WindowHide() {
         if (window) {
             RGFW_window_hide(window);
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window hidden");
         } else {
@@ -173,9 +192,11 @@ class GLUTEmu {
         return false;
     }
 
-    void WindowResize(uint32_t width, uint32_t height) const {
+    void WindowResize(uint32_t width, uint32_t height) {
         if (window) {
             RGFW_window_resize(window, RGFW_AREA(width, height));
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window resized (%u x %u)", width, height);
         } else {
@@ -183,9 +204,11 @@ class GLUTEmu {
         }
     }
 
-    void WindowMove(int32_t x, int32_t y) const {
+    void WindowMove(int32_t x, int32_t y) {
         if (window) {
             RGFW_window_move(window, RGFW_POINT(x, y));
+
+            ComputeWindowBorderSize();
 
             libqb_log_trace("Window moved to (%d, %d)", x, y);
         } else {
@@ -195,7 +218,7 @@ class GLUTEmu {
 
     RGFW_point WindowGetPosition() const {
         if (window) {
-            return {window->r.x, window->r.y};
+            return {window->r.x - windowBorderSize.x, window->r.y - windowBorderSize.y};
         } else {
             libqb_log_error("Window not created, cannot get position");
         }
@@ -339,9 +362,18 @@ class GLUTEmu {
     void MainLoop() {
         libqb_log_trace("Entering main loop");
 
-        // RGFW_TODO: manually handle all events instead of using callback functions
         for (;;) {
-            RGFW_window_checkEvents(window, 0);
+            RGFW_window_eventWait(window, 0);
+
+            while (RGFW_window_checkEvent(window) && window->event.type != RGFW_quit) {
+                if (window->event.type == RGFW_mousePosChanged && mouseMotionFunction && mouseCaptured) {
+                    mousePreviousPosition = mouseCurrentPosition;
+                    RGFW_point mouseRelativePosition = window->event.point;
+                    mouseCurrentPosition.x += mouseRelativePosition.x;
+                    mouseCurrentPosition.y += mouseRelativePosition.y;
+                    mouseMotionFunction(mouseCurrentPosition.x, mouseCurrentPosition.y, mouseRelativePosition.x, mouseRelativePosition.y);
+                }
+            }
 
             if (window->event.type == RGFW_quit) {
                 break;
@@ -371,6 +403,7 @@ class GLUTEmu {
     GLUTEmu()
         : window(nullptr), windowRedisplayCounter(0), mouseCaptured(false), windowResizeFunction(nullptr), windowDisplayFunction(nullptr),
           windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr), mouseMotionFunction(nullptr) {
+        windowBorderSize = {0, 0};
         mouseCurrentPosition = {0, 0};
         mousePreviousPosition = {0, 0};
     }
@@ -410,34 +443,44 @@ class GLUTEmu {
     static void MouseButtonCallback(RGFW_window *window, RGFW_mouseButton button, double scroll, b8 isPressed) {
         auto instance = static_cast<GLUTEmu *>(window->userPtr);
         if (instance->mouseButtonFunction) {
-            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), window->_lastMousePoint.x, window->_lastMousePoint.y);
+            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y);
         }
     }
 
     static void MouseMotionCallback(RGFW_window *window, RGFW_point point) {
         auto instance = static_cast<GLUTEmu *>(window->userPtr);
-        if (instance->mouseMotionFunction) {
+        if (instance->mouseMotionFunction && !instance->mouseCaptured) {
             instance->mousePreviousPosition = instance->mouseCurrentPosition;
-
+            instance->mouseCurrentPosition = point;
             RGFW_point mouseRelativePosition;
-
-            if (instance->mouseCaptured) {
-                instance->mouseCurrentPosition.x += point.x;
-                instance->mouseCurrentPosition.y += point.y;
-                mouseRelativePosition = point;
-            } else {
-                instance->mouseCurrentPosition = point;
-                mouseRelativePosition.x = point.x - instance->mousePreviousPosition.x;
-                mouseRelativePosition.y = point.y - instance->mousePreviousPosition.y;
-            }
-
+            mouseRelativePosition.x = point.x - instance->mousePreviousPosition.x;
+            mouseRelativePosition.y = point.y - instance->mousePreviousPosition.y;
             instance->mouseMotionFunction(instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y, mouseRelativePosition.x, mouseRelativePosition.y);
         }
     }
 
+#if defined(_WIN32)
+
+    void ComputeWindowBorderSize() {
+        RECT windowRect;
+        GetWindowRect(window->src.window, &windowRect);
+
+        windowBorderSize.x = window->r.x - windowRect.left;
+        windowBorderSize.y = window->r.y - windowRect.top;
+    }
+
+#elif defined(__APPLE__)
+
+#elif defined(__linux__)
+
+#else
+#    error Unsupported platform
+#endif
+
     RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future
     size_t windowRedisplayCounter;
     bool mouseCaptured;
+    RGFW_point windowBorderSize;
     RGFW_point mouseCurrentPosition;
     RGFW_point mousePreviousPosition;
     CallbackWindowResize windowResizeFunction;
@@ -524,21 +567,6 @@ int32_t glutGet(uint32_t id) {
 
     case GLUT_WINDOW_HEIGHT:
         return GLUTEmu::Instance().WindowGetSize().h;
-        break;
-
-    case GLUT_WINDOW_BORDER_WIDTH:
-        libqb_log_trace("GLUT_WINDOW_BORDER_WIDTH not implemented");
-        return 0;
-        break;
-
-    case GLUT_WINDOW_BORDER_HEIGHT:
-        libqb_log_trace("GLUT_WINDOW_BORDER_HEIGHT not implemented");
-        return 0;
-        break;
-
-    case GLUT_WINDOW_HEADER_HEIGHT:
-        libqb_log_trace("GLUT_WINDOW_HEADER_HEIGHT not implemented");
-        return 0;
         break;
 
     case GLUT_SCREEN_WIDTH:

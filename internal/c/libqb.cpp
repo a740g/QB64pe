@@ -22004,28 +22004,20 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 #endif // DEPENDENCY_ICON
 
 int32 func_screenwidth() {
-#ifdef QB64_WINDOWS
-    return GetSystemMetrics(SM_CXSCREEN);
-#else
-#    ifdef QB64_GLUT
+#ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return libqb_glut_get(GLUT_SCREEN_WIDTH);
-#    else
+#else
     return 0;
-#    endif
 #endif
 }
 
 int32 func_screenheight() {
-#ifdef QB64_WINDOWS
-    return GetSystemMetrics(SM_CYSCREEN);
-#else
-#    ifdef QB64_GLUT
+#ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return libqb_glut_get(GLUT_SCREEN_HEIGHT);
-#    else
+#else
     return 0;
-#    endif
 #endif
 }
 
@@ -25377,25 +25369,19 @@ qbs *func__os() {
 }
 
 int32 func__screenx() {
-#if defined(QB64_GUI) && defined(QB64_WINDOWS) && defined(QB64_GLUT)
-    NEEDS_GLUT(0);
-    return libqb_glut_get(GLUT_WINDOW_X) - libqb_glut_get(GLUT_WINDOW_BORDER_WIDTH);
-#elif defined(QB64_GUI) && defined(QB64_MACOSX) && defined(QB64_GLUT)
+#if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
     return libqb_glut_get(GLUT_WINDOW_X);
 #endif
-    return 0; // if not windows then return 0
+    return 0;
 }
 
 int32 func__screeny() {
-#if defined(QB64_GUI) && defined(QB64_WINDOWS) && defined(QB64_GLUT)
-    NEEDS_GLUT(0);
-    return libqb_glut_get(GLUT_WINDOW_Y) - libqb_glut_get(GLUT_WINDOW_BORDER_WIDTH) - libqb_glut_get(GLUT_WINDOW_HEADER_HEIGHT);
-#elif defined(QB64_GUI) && defined(QB64_MACOSX) && defined(QB64_GLUT)
+#if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
     return libqb_glut_get(GLUT_WINDOW_Y);
 #endif
-    return 0; // if not windows then return 0
+    return 0;
 }
 
 void sub__screenmove(int32 x, int32 y, int32 passed) {
@@ -26180,7 +26166,6 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
     }
 
     // Note: The following is required regardless of whether FREEGLUT is/isn't being used
-    // #ifdef CORE_FREEGLUT
     // Is CTRL key down? If so, unencode character (applying shift as required)
     if (modifiers & GLUT_MODIFIER_CONTROL) {
         if (key == 10) {
@@ -28140,20 +28125,21 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 
 void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y) {
 #    ifdef QB64_GLUT
-    // RGFW button order is similar to GLUT and the left button begins at 1
-    // Also, do not discard the scroll intensity
+    // RGFW button order is similar to GLUT and the left button begins at 1.
+    // The scroll wheel direction is opposite to GLUT.
+    // Since RGFW provides the scroll intensity, we'll make use of it.
 
     if (button == GLUT_MOUSE_WHEEL_DOWN || button == GLUT_MOUSE_WHEEL_UP) {
         if (scroll > 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_DOWN, x, y);
-                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_DOWN, x, y);
+                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_UP, x, y);
+                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_UP, x, y);
                 --scroll;
             }
         } else if (scroll < 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_UP, x, y);
-                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_UP, x, y);
+                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_DOWN, x, y);
+                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_DOWN, x, y);
                 ++scroll;
             }
         }

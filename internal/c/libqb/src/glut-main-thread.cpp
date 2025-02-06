@@ -103,7 +103,6 @@ void libqb_glut_presetup() {
 }
 
 void libqb_start_main_thread() {
-
     // Start the 'MAIN_LOOP' in a separate thread, as GLUT has to run on the
     // initial thread.
     struct libqb_thread *main_loop = libqb_thread_new();
