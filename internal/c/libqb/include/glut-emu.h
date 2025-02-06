@@ -52,6 +52,15 @@ enum : uint32_t {
 };
 
 enum : uint8_t {
+    GLUT_MOUSE_BUTTON_NONE = 0,
+    GLUT_MOUSE_BUTTON_LEFT,
+    GLUT_MOUSE_BUTTON_MIDDLE,
+    GLUT_MOUSE_BUTTON_RIGHT,
+    GLUT_MOUSE_WHEEL_DOWN,
+    GLUT_MOUSE_WHEEL_UP
+};
+
+enum : uint8_t {
     GLUT_MODIFIER_CAPS_LOCK = RGFW_modCapsLock,
     GLUT_MODIFIER_NUM_LOCK = RGFW_modNumLock,
     GLUT_MODIFIER_CONTROL = RGFW_modControl,

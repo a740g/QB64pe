@@ -28143,17 +28143,17 @@ void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, 
     // RGFW button order is similar to GLUT and the left button begins at 1
     // Also, do not discard the scroll intensity
 
-    if (button == 4 || button == 5) {
+    if (button == GLUT_MOUSE_WHEEL_DOWN || button == GLUT_MOUSE_WHEEL_UP) {
         if (scroll > 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(4, x, y);
-                GLUT_MouseButton_Up(4, x, y);
+                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_DOWN, x, y);
+                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_DOWN, x, y);
                 --scroll;
             }
         } else if (scroll < 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(5, x, y);
-                GLUT_MouseButton_Up(5, x, y);
+                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_UP, x, y);
+                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_UP, x, y);
                 ++scroll;
             }
         }
