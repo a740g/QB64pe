@@ -9,6 +9,13 @@
 
 #if defined(_WIN32)
 #    include <windows.h>
+#elif defined(__APPLE__)
+
+#elif defined(__linux__)
+#    include <X11/Xatom.h>
+#    include <X11/Xlib.h>
+#else
+#    error Unsupported platform
 #endif
 
 class GLUTEmu {
@@ -236,9 +243,9 @@ class GLUTEmu {
         return {0u, 0u};
     }
 
-    void *WindowGetHandle() const {
+    const void *WindowGetHandle() const {
         if (window) {
-            return window->src.window;
+            return reinterpret_cast<const void *>(window->src.window);
         } else {
             libqb_log_error("Window not created, cannot get handle");
         }
@@ -473,6 +480,27 @@ class GLUTEmu {
 
 #elif defined(__linux__)
 
+    void ComputeWindowBorderSize() {
+        Atom prop = XInternAtom(window->src.display, "_NET_FRAME_EXTENTS", False);
+        if (prop != None) {
+            Atom actualType;
+            int actualFormat;
+            unsigned long nItems, bytesAfter;
+            long *extents = nullptr;
+            if (XGetWindowProperty(window->src.display, window->src.window, prop, 0, 4, False, XA_CARDINAL, &actualType, &actualFormat, &nItems, &bytesAfter,
+                                   (unsigned char **)&extents) == Success) {
+                if (extents) {
+                    if (actualType == XA_CARDINAL && actualFormat == 32 && nItems >= 4) {
+                        windowBorderSize.x = extents[0];
+                        windowBorderSize.y = extents[2];
+                    }
+
+                    XFree(extents);
+                }
+            }
+        }
+    }
+
 #else
 #    error Unsupported platform
 #endif
@@ -601,6 +629,6 @@ void glutSetWindowTitle(const char *title) {
     GLUTEmu::Instance().WindowSetTitle(title);
 }
 
-void *glutGetWindowHandle() {
+const void *glutGetWindowHandle() {
     return GLUTEmu::Instance().WindowGetHandle();
 }

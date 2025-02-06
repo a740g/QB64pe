@@ -23,7 +23,7 @@
 extern uint8_t *window_title;
 extern int32_t framebufferobjects_supported;
 extern int32_t screen_hide;
-extern void *generic_window_handle;
+extern const void *generic_window_handle;
 
 void MAIN_LOOP(void *);
 void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed);
@@ -36,7 +36,7 @@ void GLUT_IDLEFUNC();
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
     auto windowTitle = (window_title ? reinterpret_cast<const char *>(window_title) : "Untitled");
-    auto windowFlags = GLUT_WINDOW_FLAG_ALLOW_DND | (screen_hide ? GLUT_WINDOW_FLAG_HIDE : 0);
+    auto windowFlags = uint32_t(GLUT_WINDOW_FLAG_ALLOW_DND) | (screen_hide ? uint32_t(GLUT_WINDOW_FLAG_HIDE) : 0u);
 
     if (!glutInitWindow(640, 400, windowTitle, windowFlags)) {
         gui_alert("Failed to initialize window");
