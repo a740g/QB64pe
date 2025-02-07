@@ -31,6 +31,9 @@ class GLUTEmu {
         if (window) {
             libqb_log_error("Window already created, cannot create another window"); // RGFW_TODO: sure we can; maybe we'll use it a future version of QB64-PE
         } else {
+            RGFW_setGLSamples(4);
+            RGFW_setDoubleBuffer(RGFW_TRUE);
+
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
                 window->userPtr = this;

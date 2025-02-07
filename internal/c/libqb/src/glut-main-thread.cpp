@@ -58,7 +58,6 @@ static void initialize_glut() {
     generic_window_handle = glutGetWindowHandle();
 
     // RGFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
-    RGFW_setGLSamples(4);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
