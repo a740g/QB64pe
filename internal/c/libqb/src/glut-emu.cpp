@@ -370,17 +370,7 @@ class GLUTEmu {
         libqb_log_trace("Entering main loop");
 
         for (;;) {
-            RGFW_window_eventWait(window, 0);
-
-            while (RGFW_window_checkEvent(window) && window->event.type != RGFW_quit) {
-                if (window->event.type == RGFW_mousePosChanged && mouseMotionFunction && mouseCaptured) {
-                    mousePreviousPosition = mouseCurrentPosition;
-                    RGFW_point mouseRelativePosition = window->event.point;
-                    mouseCurrentPosition.x += mouseRelativePosition.x;
-                    mouseCurrentPosition.y += mouseRelativePosition.y;
-                    mouseMotionFunction(mouseCurrentPosition.x, mouseCurrentPosition.y, mouseRelativePosition.x, mouseRelativePosition.y);
-                }
-            }
+            RGFW_window_checkEvents(window, 0);
 
             if (window->event.type == RGFW_quit) {
                 break;
@@ -438,7 +428,7 @@ class GLUTEmu {
         }
     }
 
-    static void KeyboardButtonCallback(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, b8 isPressed) {
+    static void KeyboardButtonCallback(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
         (void)keyChar;
 
         auto instance = static_cast<GLUTEmu *>(window->userPtr);
@@ -447,7 +437,7 @@ class GLUTEmu {
         }
     }
 
-    static void MouseButtonCallback(RGFW_window *window, RGFW_mouseButton button, double scroll, b8 isPressed) {
+    static void MouseButtonCallback(RGFW_window *window, RGFW_mouseButton button, double scroll, RGFW_bool isPressed) {
         auto instance = static_cast<GLUTEmu *>(window->userPtr);
         if (instance->mouseButtonFunction) {
             instance->mouseButtonFunction(button, isPressed, std::lround(scroll), instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y);
@@ -456,12 +446,21 @@ class GLUTEmu {
 
     static void MouseMotionCallback(RGFW_window *window, RGFW_point point) {
         auto instance = static_cast<GLUTEmu *>(window->userPtr);
-        if (instance->mouseMotionFunction && !instance->mouseCaptured) {
+        if (instance->mouseMotionFunction) {
             instance->mousePreviousPosition = instance->mouseCurrentPosition;
-            instance->mouseCurrentPosition = point;
+
             RGFW_point mouseRelativePosition;
-            mouseRelativePosition.x = point.x - instance->mousePreviousPosition.x;
-            mouseRelativePosition.y = point.y - instance->mousePreviousPosition.y;
+
+            if (instance->mouseCaptured) {
+                mouseRelativePosition = point;
+                instance->mouseCurrentPosition.x += mouseRelativePosition.x;
+                instance->mouseCurrentPosition.y += mouseRelativePosition.y;
+            } else {
+                instance->mouseCurrentPosition = point;
+                mouseRelativePosition.x = point.x - instance->mousePreviousPosition.x;
+                mouseRelativePosition.y = point.y - instance->mousePreviousPosition.y;
+            }
+
             instance->mouseMotionFunction(instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y, mouseRelativePosition.x, mouseRelativePosition.y);
         }
     }

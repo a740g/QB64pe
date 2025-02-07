@@ -23,15 +23,7 @@ enum : int32_t {
     GLUT_CURSOR_CYCLE = RGFW_mouseResizeAll
 };
 
-enum : uint32_t {
-    GLUT_FULL_SCREEN,
-    GLUT_WINDOW_X,
-    GLUT_WINDOW_Y,
-    GLUT_WINDOW_WIDTH,
-    GLUT_WINDOW_HEIGHT,
-    GLUT_SCREEN_WIDTH,
-    GLUT_SCREEN_HEIGHT
-};
+enum : uint32_t { GLUT_FULL_SCREEN, GLUT_WINDOW_X, GLUT_WINDOW_Y, GLUT_WINDOW_WIDTH, GLUT_WINDOW_HEIGHT, GLUT_SCREEN_WIDTH, GLUT_SCREEN_HEIGHT };
 
 enum : uint32_t {
     GLUT_WINDOW_FLAG_NO_INIT_API = RGFW_windowNoInitAPI,
@@ -49,12 +41,16 @@ enum : uint32_t {
 };
 
 enum : uint8_t {
-    GLUT_MOUSE_BUTTON_NONE = RGFW_mouseNone,
     GLUT_MOUSE_BUTTON_LEFT = RGFW_mouseLeft,
     GLUT_MOUSE_BUTTON_MIDDLE = RGFW_mouseMiddle,
     GLUT_MOUSE_BUTTON_RIGHT = RGFW_mouseRight,
     GLUT_MOUSE_WHEEL_UP = RGFW_mouseScrollUp,
-    GLUT_MOUSE_WHEEL_DOWN = RGFW_mouseScrollDown
+    GLUT_MOUSE_WHEEL_DOWN = RGFW_mouseScrollDown,
+    GLUT_MOUSE_MISC_1 = RGFW_mouseMisc1,
+    GLUT_MOUSE_MISC_2 = RGFW_mouseMisc2,
+    GLUT_MOUSE_MISC_3 = RGFW_mouseMisc3,
+    GLUT_MOUSE_MISC_4 = RGFW_mouseMisc4,
+    GLUT_MOUSE_MISC_5 = RGFW_mouseMisc5
 };
 
 enum : uint8_t {

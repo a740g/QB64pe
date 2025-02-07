@@ -28084,28 +28084,27 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 
 void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y) {
 #    ifdef QB64_GLUT
-    // RGFW button order is similar to GLUT and the left button begins at 1.
-    // The scroll wheel direction is opposite to GLUT.
+    // RGFW button order is similar to GLUT. Although, the scroll wheel direction is opposite to GLUT.
     // Since RGFW provides the scroll intensity, we'll make use of it.
 
     if (button == GLUT_MOUSE_WHEEL_DOWN || button == GLUT_MOUSE_WHEEL_UP) {
         if (scroll > 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_UP, x, y);
-                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_UP, x, y);
+                GLUT_MouseButton_Down(4, x, y);
+                GLUT_MouseButton_Up(4, x, y);
                 --scroll;
             }
         } else if (scroll < 0) {
             while (scroll) {
-                GLUT_MouseButton_Down(GLUT_MOUSE_WHEEL_DOWN, x, y);
-                GLUT_MouseButton_Up(GLUT_MOUSE_WHEEL_DOWN, x, y);
+                GLUT_MouseButton_Down(5, x, y);
+                GLUT_MouseButton_Up(5, x, y);
                 ++scroll;
             }
         }
     } else if (isPressed) {
-        GLUT_MouseButton_Down(button, x, y);
+        GLUT_MouseButton_Down(button + 1, x, y);
     } else {
-        GLUT_MouseButton_Up(button, x, y);
+        GLUT_MouseButton_Up(button + 1, x, y);
     }
 #    endif
 }
