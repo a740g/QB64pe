@@ -23,7 +23,16 @@ enum : int32_t {
     GLUT_CURSOR_CYCLE = RGFW_mouseResizeAll
 };
 
-enum : uint32_t { GLUT_FULL_SCREEN, GLUT_WINDOW_X, GLUT_WINDOW_Y, GLUT_WINDOW_WIDTH, GLUT_WINDOW_HEIGHT, GLUT_SCREEN_WIDTH, GLUT_SCREEN_HEIGHT };
+enum : uint32_t {
+    GLUT_WINDOW_X,
+    GLUT_WINDOW_Y,
+    GLUT_WINDOW_WIDTH,
+    GLUT_WINDOW_HEIGHT,
+    GLUT_WINDOW_FULL_SCREEN,
+    GLUT_WINDOW_ICONIFIED,
+    GLUT_SCREEN_WIDTH,
+    GLUT_SCREEN_HEIGHT
+};
 
 enum : uint32_t {
     GLUT_WINDOW_FLAG_NO_INIT_API = RGFW_windowNoInitAPI,
@@ -54,12 +63,12 @@ enum : uint8_t {
 };
 
 enum : uint8_t {
-    GLUT_MODIFIER_CAPS_LOCK = RGFW_modCapsLock,
-    GLUT_MODIFIER_NUM_LOCK = RGFW_modNumLock,
-    GLUT_MODIFIER_CONTROL = RGFW_modControl,
-    GLUT_MODIFIER_ALT = RGFW_modAlt,
-    GLUT_MODIFIER_SHIFT = RGFW_modShift,
-    GLUT_MODIFIER_SUPER = RGFW_modSuper
+    GLUT_KEY_MODIFIER_CAPS_LOCK = RGFW_modCapsLock,
+    GLUT_KEY_MODIFIER_NUM_LOCK = RGFW_modNumLock,
+    GLUT_KEY_MODIFIER_CONTROL = RGFW_modControl,
+    GLUT_KEY_MODIFIER_ALT = RGFW_modAlt,
+    GLUT_KEY_MODIFIER_SHIFT = RGFW_modShift,
+    GLUT_KEY_MODIFIER_SUPER = RGFW_modSuper
 };
 
 enum : uint8_t {
@@ -177,7 +186,7 @@ void glutFullScreen();
 void glutSwapBuffers();
 void glutDisplayFunc(void (*func)());
 void glutIdleFunc(void (*func)());
-void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, bool));
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool));
 void glutMouseFunc(void (*func)(uint8_t, bool, int32_t, int32_t, int32_t));
 void glutMotionFunc(void (*func)(int32_t, int32_t, int32_t, int32_t));
 void glutReshapeFunc(void (*func)(int32_t, int32_t));
@@ -191,3 +200,4 @@ void glutShowWindow();
 void glutHideWindow();
 void glutSetWindowTitle(const char *title);
 const void *glutGetWindowHandle();
+uint8_t glutGetKeyModifiers();

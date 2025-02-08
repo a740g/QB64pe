@@ -47,35 +47,6 @@ extern int32 vWatchHandle();
 #    include <ApplicationServices/ApplicationServices.h>
 #endif
 
-/* testing only
-    #ifdef QB64_WINDOWS
-
-    HWND FindMyTopMostWindow()
-    {
-    DWORD dwProcID = GetCurrentProcessId();
-    HWND hWnd = GetTopWindow(GetDesktopWindow());
-    while(hWnd)
-    {
-    DWORD dwWndProcID = 0;
-    GetWindowThreadProcessId(hWnd, &dwWndProcID);
-    if(dwWndProcID == dwProcID)
-    return hWnd;
-    hWnd = GetNextWindow(hWnd, GW_HWNDNEXT);
-    }
-    return NULL;
-    }
-
-    void SetMidiVolume(int32 vol){
-    //DWORD vol = MAKELONG(((volume*65535L)/100), ((volume*65535L)/100));
-    MIDIOUTCAPS midiCaps;
-    midiOutGetDevCaps(0, &midiCaps, sizeof(midiCaps));
-    if (midiCaps.dwSupport & MIDICAPS_VOLUME)
-    midiOutSetVolume(0, vol);
-    }
-
-    #endif
-*/
-
 #ifdef QB64_WINDOWS
 int _CRT_glob = -1; // enable globbing on llvm-mingw by default
 #endif

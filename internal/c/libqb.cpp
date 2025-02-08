@@ -13923,7 +13923,7 @@ uintptr_t func__handle() {
         GetConsoleTitle(pszConsoleTitle, 1024);
         generic_window_handle = FindWindow(NULL, pszConsoleTitle);
     }
-    return uintptr_t(generic_window_handle);
+    return reinterpret_cast<uintptr_t>(generic_window_handle);
 #    endif
 #endif
 
@@ -13932,7 +13932,7 @@ uintptr_t func__handle() {
 
     generic_window_handle = glutGetWindowHandle();
 
-    return uintptr_t(generic_window_handle);
+    return reinterpret_cast<uintptr_t>(generic_window_handle);
 #else
     return 0;
 #endif
@@ -13948,9 +13948,8 @@ qbs *func__title() {
 
 void set_foreground_window(ptrszint i) {
 #ifdef QB64_WINDOWS
-    BOOL result = SetForegroundWindow((HWND)i);
+    SetForegroundWindow((HWND)i);
 #endif
-    return;
 }
 
 int32 func__hasfocus() {
@@ -21989,7 +21988,7 @@ void sub_screenicon() {
 
 int32 func_windowexists() {
 #ifdef QB64_GLUT
-    return libqb_is_glut_up();
+    return QB_BOOL(libqb_is_glut_up());
 #else
     return -1;
 #endif
@@ -21997,36 +21996,15 @@ int32 func_windowexists() {
 
 int32 func_screenicon() {
 #ifdef QB64_GLUT
-#    ifdef QB64_WINDOWS
-    HWND win = (HWND)func__handle();
-    if (!win) {
-        return 0;
-    }
-    return -IsIconic(win);
-#    else
-    /*
-        Linux code not compiling for now
-        #include <X11/X.h>
-        #include <X11/Xlib.h>
-        extern Display *X11_display;
-        extern Window X11_window;
-        extern int32 screen_hide;
-        XWindowAttributes attribs;
-        while (!(X11_display && X11_window));
-        XGetWindowAttributes(X11_display, X11_window, &attribs);
-        if (attribs.map_state == IsUnmapped) return -1;
-        return 0;
-    #endif */
-    return 0; // if we get here and haven't exited already, we failed somewhere along the way.
-#    endif
+    NEEDS_GLUT(0);
+    return QB_BOOL(libqb_glut_get(GLUT_WINDOW_ICONIFIED));
+#else
+    return 0;
 #endif
 }
 
 int32 func__autodisplay() {
-    if (autodisplay) {
-        return -1;
-    }
-    return 0;
+    return QB_BOOL(autodisplay);
 }
 
 void sub__autodisplay() {
@@ -26026,8 +26004,10 @@ error:
     return b;
 }
 
-void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
+void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool isPressed) {
 #ifdef QB64_GLUT
+    // printf("key = %u, keyChar = %c, modifiers = %X, isPressed = %d\n", key, keyChar, modifiers, isPressed);
+
     int32_t vk = -1;
 
     switch (key) {
@@ -26094,6 +26074,12 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
     case GLUT_KEY_INSERT:
         vk = 0x5200;
         break;
+    case GLUT_KEY_CAPS_LOCK:
+        vk = VK + QBVK_CAPSLOCK;
+        break;
+    case GLUT_KEY_NUM_LOCK:
+        vk = VK + QBVK_NUMLOCK;
+        break;
     case GLUT_KEY_SHIFT_L:
         vk = VK + QBVK_LSHIFT;
         break;
@@ -26112,6 +26098,9 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
     case GLUT_KEY_ALT_R:
         vk = VK + QBVK_RALT;
         break;
+    case GLUT_KEY_DELETE:
+        vk = 0x5300;
+        break;
     }
 
     if (vk != -1) {
@@ -26124,46 +26113,33 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t modifiers, bool isPressed) {
         return;
     }
 
-    // Note: The following is required regardless of whether FREEGLUT is/isn't being used
-    // Is CTRL key down? If so, unencode character (applying shift as required)
-    if (modifiers & GLUT_MODIFIER_CONTROL) {
-        if (key == 10) {
-            key = 13;
-        } else if ((key >= 1) && (key <= 26)) {
-            if (modifiers & GLUT_MODIFIER_SHIFT) {
-                key = key - 1 + 65;
-            } else {
-                key = key - 1 + 97; // assume caps lock off
+    if (keyChar) {
+        if (modifiers & GLUT_KEY_MODIFIER_CONTROL) {
+            if (keyChar == 10) {
+                keyChar = 13;
+            } else if ((keyChar >= 1) && (keyChar <= 26)) {
+                if (modifiers & GLUT_KEY_MODIFIER_SHIFT) {
+                    keyChar = keyChar - 1 + 65;
+                } else {
+                    keyChar = keyChar - 1 + 97; // assume caps lock off
+                }
             }
         }
-    }
 
 #    ifdef QB64_MACOSX
-    // RGFW_TODO: Check if this is really necessary
-    // swap DEL and backspace keys
-    if (key == 8) {
-        key = 127;
-    } else {
-        if (key == 127) {
-            key = 8;
+        // swap DEL and backspace keys
+        if (keyChar == 8) {
+            keyChar = 127;
+        } else if (keyChar == 127) {
+            keyChar = 8;
         }
-    }
 #    endif
 
-    if (key == 127) { // delete
         if (isPressed) {
-            keydown_vk(0x5300);
+            keydown_ascii(keyChar);
         } else {
-            keyup_vk(0x5300);
+            keyup_ascii(keyChar);
         }
-
-        return;
-    }
-
-    if (isPressed) {
-        keydown_ascii(key);
-    } else {
-        keyup_ascii(key);
     }
 #endif
 }
@@ -28686,50 +28662,28 @@ int main(int argc, char *argv[]) {
 
     command_initialize(argc, argv);
 
-#ifdef QB64_WINDOWS
-    // for caps lock, use the state of the lock (=1)
-    // for held keys check against (=-127)
-    if (GetKeyState(VK_SCROLL) & 1)
-        keyheld_add(QBK + QBK_SCROLL_LOCK_MODE);
-    if (GetKeyState(VK_SCROLL) < 0) {
-        bindkey = QBVK_SCROLLOCK;
-        keydown_vk(VK + QBVK_SCROLLOCK);
-    }
-    if (GetKeyState(VK_LSHIFT) < 0) {
+    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SHIFT) {
         bindkey = QBVK_LSHIFT;
         keydown_vk(VK + QBVK_LSHIFT);
     }
-    if (GetKeyState(VK_RSHIFT) < 0) {
-        bindkey = QBVK_RSHIFT;
-        keydown_vk(VK + QBVK_RSHIFT);
-    }
-    if (GetKeyState(VK_LCONTROL) < 0) {
+    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CONTROL) {
         bindkey = QBVK_LCTRL;
         keydown_vk(VK + QBVK_LCTRL);
     }
-    if (GetKeyState(VK_RCONTROL) < 0) {
-        bindkey = QBVK_RCTRL;
-        keydown_vk(VK + QBVK_RCTRL);
-    }
-    if (GetKeyState(VK_LMENU) < 0) {
+    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_ALT) {
         bindkey = QBVK_LALT;
         keydown_vk(VK + QBVK_LALT);
     }
-    if (GetKeyState(VK_RMENU) < 0) {
-        bindkey = QBVK_RALT;
-        keydown_vk(VK + QBVK_RALT);
-    }
-    if (GetKeyState(VK_CAPITAL) & 1) {
+    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK) {
         bindkey = QBVK_CAPSLOCK;
         keydown_vk(VK + QBVK_CAPSLOCK);
     }
-    if (GetKeyState(VK_NUMLOCK) & 1) {
+    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK) {
         bindkey = QBVK_NUMLOCK;
         keydown_vk(VK + QBVK_NUMLOCK);
     }
     update_shift_state();
     keyhit_next = keyhit_nextfree; // skip hitkey events generated by above code
-#endif
 
     // init fake keyb. cyclic buffer
     cmem[0x41a] = 30;
@@ -28953,38 +28907,6 @@ main_loop:
             0,  0,  0,  0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,
             0,  0,  0,  0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,   0,  0,  0,  0,  0,
             0,  0,  0,  0,  0,   0,   0,  0,  0,  0,  0,  0,  0,  0,  0,  0};
-
-#ifdef QB64_WINDOWS
-        // manage important external keyboard lock/state changes
-        if ((GetKeyState(VK_SCROLL) & 1) != keyheld(QBK + QBK_SCROLL_LOCK_MODE)) {
-            if (keyheld(QBK + QBK_SCROLL_LOCK_MODE)) {
-                keyheld_remove(QBK + QBK_SCROLL_LOCK_MODE);
-            } else {
-                keyheld_add(QBK + QBK_SCROLL_LOCK_MODE);
-            }
-            update_shift_state();
-        }
-        if ((GetKeyState(VK_CAPITAL) & 1) != keyheld(VK + QBVK_CAPSLOCK)) {
-            if (keyheld(VK + QBVK_CAPSLOCK)) {
-                bindkey = QBVK_CAPSLOCK;
-                keyup_vk(VK + QBVK_CAPSLOCK);
-            } else {
-                bindkey = QBVK_CAPSLOCK;
-                keydown_vk(VK + QBVK_CAPSLOCK);
-            }
-            update_shift_state();
-        }
-        if ((GetKeyState(VK_NUMLOCK) & 1) != keyheld(VK + QBVK_NUMLOCK)) {
-            if (keyheld(VK + QBVK_NUMLOCK)) {
-                bindkey = QBVK_NUMLOCK;
-                keyup_vk(VK + QBVK_NUMLOCK);
-            } else {
-                bindkey = QBVK_NUMLOCK;
-                keydown_vk(VK + QBVK_NUMLOCK);
-            }
-            update_shift_state();
-        }
-#endif
 
         if (shell_call_in_progress)
             goto main_loop;

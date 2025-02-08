@@ -12,11 +12,6 @@
 static libqb_mutex *glut_msg_queue_lock = libqb_mutex_new();
 static std::queue<glut_message *> glut_msg_queue;
 
-// These values from GLUT are read on every process of the msg queue. Calls to
-// libqb_glut_get() can then read from these values directly rather than wait
-// for the GLUT thread to process the command.
-static int glut_window_x, glut_window_y;
-
 bool libqb_queue_glut_message(glut_message *msg) {
     if (!libqb_is_glut_up()) {
         msg->finish();
@@ -32,9 +27,6 @@ bool libqb_queue_glut_message(glut_message *msg) {
 
 void libqb_process_glut_queue() {
     libqb_mutex_guard guard(glut_msg_queue_lock);
-
-    glut_window_x = glutGet(GLUT_WINDOW_X);
-    glut_window_y = glutGet(GLUT_WINDOW_Y);
 
     while (!glut_msg_queue.empty()) {
         glut_message *msg = glut_msg_queue.front();
@@ -54,27 +46,7 @@ void libqb_glut_warp_pointer(int x, int y) {
     libqb_queue_glut_message(new glut_message_warp_pointer(x, y));
 }
 
-static inline bool is_static_glut_value(int id) {
-    return id == GLUT_WINDOW_Y || id == GLUT_WINDOW_X;
-}
-
-static inline int __get_static_glut_value(int id) {
-    switch (id) {
-    case GLUT_WINDOW_Y:
-        return glut_window_y;
-    case GLUT_WINDOW_X:
-        return glut_window_x;
-    default:
-        return -1;
-    }
-}
-
 int libqb_glut_get(int id) {
-    if (is_static_glut_value(id)) {
-        libqb_mutex_guard guard(glut_msg_queue_lock);
-        return __get_static_glut_value(id);
-    }
-
     glut_message_get msg(id);
 
     libqb_queue_glut_message(&msg);

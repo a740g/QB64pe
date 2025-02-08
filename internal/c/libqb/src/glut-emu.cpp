@@ -23,7 +23,7 @@ class GLUTEmu {
     typedef void (*CallbackWindowResize)(int32_t, int32_t);
     typedef void (*CallbackWindowDisplay)();
     typedef void (*CallbackWindowIdle)();
-    typedef void (*CallbackKeyboardButton)(uint8_t, uint8_t, bool);
+    typedef void (*CallbackKeyboardButton)(uint8_t, uint8_t, uint8_t, bool);
     typedef void (*CallbackMouseButton)(uint8_t, bool, int32_t, int32_t, int32_t);
     typedef void (*CallbackMouseMotion)(int32_t, int32_t, int32_t, int32_t);
 
@@ -39,9 +39,6 @@ class GLUTEmu {
                 window->userPtr = this;
 
                 RGFW_window_makeCurrent(window);
-
-                mouseCurrentPosition = RGFW_window_getMousePoint(window);
-                mousePreviousPosition = mouseCurrentPosition;
 
                 ComputeWindowBorderSize();
 
@@ -343,6 +340,16 @@ class GLUTEmu {
         }
     }
 
+    uint8_t KeyboardGetModifiers() const {
+        if (window) {
+            return window->event.keyMod;
+        } else {
+            libqb_log_error("Window not created, cannot get modifiers");
+        }
+
+        return 0u;
+    }
+
     void MouseSetButtonFunction(CallbackMouseButton function) {
         if (function) {
             mouseButtonFunction = function;
@@ -404,8 +411,6 @@ class GLUTEmu {
         : window(nullptr), windowRedisplayCounter(0), mouseCaptured(false), windowResizeFunction(nullptr), windowDisplayFunction(nullptr),
           windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr), mouseMotionFunction(nullptr) {
         windowBorderSize = {0, 0};
-        mouseCurrentPosition = {0, 0};
-        mousePreviousPosition = {0, 0};
     }
 
     ~GLUTEmu() {
@@ -418,53 +423,37 @@ class GLUTEmu {
     GLUTEmu &operator=(GLUTEmu &&) = delete;
 
     static void WindowResizeCallback(RGFW_window *window, RGFW_rect r) {
-        auto instance = static_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->windowResizeFunction) {
             instance->windowResizeFunction(r.w, r.h);
         }
     }
 
     static void WindowRefreshCallback(RGFW_window *window) {
-        auto instance = static_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->windowDisplayFunction) {
             instance->windowDisplayFunction();
         }
     }
 
     static void KeyboardButtonCallback(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
-        (void)keyChar;
-
-        auto instance = static_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->keyboardButtonFunction) {
-            instance->keyboardButtonFunction(key, modifiers, isPressed);
+            instance->keyboardButtonFunction(key, uint8_t(keyChar), modifiers, isPressed);
         }
     }
 
     static void MouseButtonCallback(RGFW_window *window, RGFW_mouseButton button, double scroll, RGFW_bool isPressed) {
-        auto instance = static_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->mouseButtonFunction) {
-            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y);
+            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), window->_lastMousePoint.x, window->_lastMousePoint.y);
         }
     }
 
-    static void MouseMotionCallback(RGFW_window *window, RGFW_point point) {
-        auto instance = static_cast<GLUTEmu *>(window->userPtr);
+    static void MouseMotionCallback(RGFW_window *window, RGFW_point point, RGFW_point vector) {
+        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->mouseMotionFunction) {
-            instance->mousePreviousPosition = instance->mouseCurrentPosition;
-
-            RGFW_point mouseRelativePosition;
-
-            if (instance->mouseCaptured) {
-                mouseRelativePosition = point;
-                instance->mouseCurrentPosition.x += mouseRelativePosition.x;
-                instance->mouseCurrentPosition.y += mouseRelativePosition.y;
-            } else {
-                instance->mouseCurrentPosition = point;
-                mouseRelativePosition.x = point.x - instance->mousePreviousPosition.x;
-                mouseRelativePosition.y = point.y - instance->mousePreviousPosition.y;
-            }
-
-            instance->mouseMotionFunction(instance->mouseCurrentPosition.x, instance->mouseCurrentPosition.y, mouseRelativePosition.x, mouseRelativePosition.y);
+            instance->mouseMotionFunction(point.x, point.y, vector.x, vector.y);
         }
     }
 
@@ -511,8 +500,6 @@ class GLUTEmu {
     size_t windowRedisplayCounter;
     bool mouseCaptured;
     RGFW_point windowBorderSize;
-    RGFW_point mouseCurrentPosition;
-    RGFW_point mousePreviousPosition;
     CallbackWindowResize windowResizeFunction;
     CallbackWindowDisplay windowDisplayFunction;
     CallbackWindowIdle windowIdleFunction;
@@ -553,7 +540,7 @@ void glutReshapeFunc(void (*func)(int32_t, int32_t)) {
     GLUTEmu::Instance().WindowSetResizeFunction(func);
 }
 
-void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, bool)) {
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool)) {
     GLUTEmu::Instance().KeyboardSetButtonFunction(func);
 }
 
@@ -579,10 +566,6 @@ void glutWarpPointer(int32_t x, int32_t y) {
 
 int32_t glutGet(uint32_t id) {
     switch (id) {
-    case GLUT_FULL_SCREEN:
-        return GLUTEmu::Instance().WindowIsFullscreen();
-        break;
-
     case GLUT_WINDOW_X:
         return GLUTEmu::Instance().WindowGetPosition().x;
         break;
@@ -597,6 +580,14 @@ int32_t glutGet(uint32_t id) {
 
     case GLUT_WINDOW_HEIGHT:
         return GLUTEmu::Instance().WindowGetSize().h;
+        break;
+
+    case GLUT_WINDOW_FULL_SCREEN:
+        return GLUTEmu::Instance().WindowIsFullscreen();
+        break;
+
+    case GLUT_WINDOW_ICONIFIED:
+        return GLUTEmu::Instance().WindowIsMinimized();
         break;
 
     case GLUT_SCREEN_WIDTH:
@@ -633,4 +624,8 @@ void glutSetWindowTitle(const char *title) {
 
 const void *glutGetWindowHandle() {
     return GLUTEmu::Instance().WindowGetHandle();
+}
+
+uint8_t glutGetKeyModifiers() {
+    return GLUTEmu::Instance().KeyboardGetModifiers();
 }
