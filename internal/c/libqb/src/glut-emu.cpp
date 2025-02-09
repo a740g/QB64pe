@@ -8,14 +8,36 @@
 #include <cmath>
 
 #if defined(_WIN32)
+
 #    include <windows.h>
+
 #elif defined(__APPLE__)
 
+#    include <ApplicationServices/ApplicationServices.h>
+#    include <CoreGraphics/CoreGraphics.h>
+#    include <objc/message.h>
+#    include <objc/runtime.h>
+
+// Thanks to https://dev.to/colleagueriley/rgfw-under-the-hood-cocoa-in-pure-c-1c7j for this
+#    ifdef __arm64__
+// ARM just uses objc_msgSend
+#        define abi_objc_msgSend_stret objc_msgSend
+#        define abi_objc_msgSend_fpret objc_msgSend
+#    else // __i386__
+// x86 just uses abi_objc_msgSend_fpret and (NSColor *)objc_msgSend_id respectively
+#        define abi_objc_msgSend_stret objc_msgSend_stret
+#        define abi_objc_msgSend_fpret objc_msgSend_fpret
+#    endif
+
 #elif defined(__linux__)
+
 #    include <X11/Xatom.h>
 #    include <X11/Xlib.h>
+
 #else
+
 #    error Unsupported platform
+
 #endif
 
 class GLUTEmu {
@@ -462,12 +484,18 @@ class GLUTEmu {
     void ComputeWindowBorderSize() {
         RECT windowRect;
         GetWindowRect(window->src.window, &windowRect);
-
         windowBorderSize.x = window->r.x - windowRect.left;
         windowBorderSize.y = window->r.y - windowRect.top;
     }
 
 #elif defined(__APPLE__)
+
+    void ComputeWindowBorderSize() {
+        CGRect frame = ((CGRect(*)(id, SEL))abi_objc_msgSend_stret)(reinterpret_cast<id>(window->src.window), sel_registerName("frame"));
+        CGRect contentRect = ((CGRect(*)(id, SEL))abi_objc_msgSend_stret)(reinterpret_cast<id>(window->src.view), sel_registerName("frame"));
+        windowBorderSize.x = int32_t(frame.size.width - contentRect.size.width) >> 1;
+        windowBorderSize.y = int32_t(frame.size.height - contentRect.size.height) - windowBorderSize.x;
+    }
 
 #elif defined(__linux__)
 

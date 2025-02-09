@@ -68,7 +68,8 @@ enum : uint8_t {
     GLUT_KEY_MODIFIER_CONTROL = RGFW_modControl,
     GLUT_KEY_MODIFIER_ALT = RGFW_modAlt,
     GLUT_KEY_MODIFIER_SHIFT = RGFW_modShift,
-    GLUT_KEY_MODIFIER_SUPER = RGFW_modSuper
+    GLUT_KEY_MODIFIER_SUPER = RGFW_modSuper,
+    GLUT_KEY_MODIFIER_SCROLL_LOCK = RGFW_modScrollLock
 };
 
 enum : uint8_t {
@@ -149,6 +150,7 @@ enum : uint8_t {
     GLUT_KEY_CONTROL_R = RGFW_controlR,
     GLUT_KEY_ALT_R = RGFW_altR,
     GLUT_KEY_SUPER_R = RGFW_superR,
+    GLUT_KEY_SCROLL_LOCK = RGFW_scrollLock,
 
     GLUT_KEY_UP = RGFW_up,
     GLUT_KEY_DOWN = RGFW_down,
