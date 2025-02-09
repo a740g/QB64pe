@@ -221,6 +221,14 @@ class GLUTEmu {
         return false;
     }
 
+    bool WindowIsFocused() const {
+        if (window) {
+            return window->event.inFocus;
+        } else {
+            libqb_log_error("Window not created, cannot check focus");
+        }
+    }
+
     void WindowResize(uint32_t width, uint32_t height) {
         if (window) {
             RGFW_window_resize(window, RGFW_AREA(width, height));
@@ -616,6 +624,10 @@ int32_t glutGet(uint32_t id) {
 
     case GLUT_WINDOW_ICONIFIED:
         return GLUTEmu::Instance().WindowIsMinimized();
+        break;
+
+    case GLUT_WINDOW_HAS_FOCUS:
+        return GLUTEmu::Instance().WindowIsFocused();
         break;
 
     case GLUT_SCREEN_WIDTH:

@@ -861,7 +861,7 @@ undefined_retry:
             return -8;
         if (e == 2)
             return -5;
-        // showvalue(e);
+
         return -5; // assume (2)
     } // invalid handle
 
@@ -887,7 +887,7 @@ undefined_retry:
                     return -8;
                 if (e == 2)
                     return -5;
-                // showvalue(e);
+
                 return -5; // assume (2)
             } // invalid handle
         }
@@ -1074,7 +1074,7 @@ int32_t gfs_read(int32_t i, int64_t position, uint8_t *data, int64_t size) {
             auto e = GetLastError();
             if ((e == 5) || (e == 33))
                 return -7; // permission denied
-            // showvalue(e);
+
             return -9; // assume: path/file access error
         }
     }
@@ -1135,7 +1135,7 @@ int32_t gfs_lock(int32_t i, int64_t offset_start, int64_t offset_end) {
         auto e = GetLastError();
         if ((e == 5) || (e == 33))
             return -7; // permission denied
-        // showvalue(e);
+
         return -9; // assume: path/file access error
     }
     return 0;
@@ -1176,7 +1176,7 @@ int32_t gfs_unlock(int32_t i, int64_t offset_start, int64_t offset_end) {
         auto e = GetLastError();
         if ((e == 5) || (e == 33) || (e == 158))
             return -7; // permission denied
-        // showvalue(e);
+
         return -9; // assume: path/file access error
     }
     return 0;

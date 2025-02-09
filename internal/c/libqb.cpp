@@ -72,14 +72,6 @@ uint32 rotateLeft(uint32 word, uint32 shift) {
 #    include <pthread.h>
 #endif
 
-#ifdef QB64_LINUX
-#    include <X11/Xatom.h>
-#    include <X11/Xlib.h>
-#    include <X11/Xutil.h>
-Display *X11_display = NULL;
-Window X11_window;
-#endif
-
 int32 x11_locked = 0;
 int32 x11_lock_request = 0;
 
@@ -129,7 +121,6 @@ float environment_2d__screen_y_scale = 1.0f;
 int32 environment_2d__screen_smooth = 0; // 1(LINEAR) or 0(NEAREST)
 int32 environment_2d__letterbox = 0;     // 1=vertical black stripes required, 2=horizontal black stripes required
 
-int32 window_focused = 0; // Not used on Windows
 uint8 *window_title = NULL;
 
 double max_fps = 60; // 60 is the default
@@ -939,10 +930,6 @@ int32 convert_unicode(int32 src_fmt, void *src_buf, int32 src_size, int32 dest_f
 
     return dest_size;
 }
-
-#ifdef QB64_WINDOWS
-void showvalue(__int64);
-#endif
 
 int32 lastfont = 48;
 int32 *font = (int32 *)calloc(4 * (48 + 1), 1); // NULL=unused index
@@ -13954,11 +13941,7 @@ void set_foreground_window(ptrszint i) {
 
 int32 func__hasfocus() {
 #ifdef QB64_GUI
-#    ifdef QB64_WINDOWS
-    return -((HWND)func__handle() == GetForegroundWindow());
-#    elif defined(QB64_LINUX)
-    return window_focused;
-#    endif
+    return QB_BOOL(libqb_glut_get(GLUT_WINDOW_HAS_FOCUS));
 #endif
     return -1;
 }
@@ -22702,16 +22685,6 @@ udlr:
     goto nextchar;
 }
 
-#ifdef QB64_WINDOWS
-void showvalue(__int64 v) {
-    static qbs *s = NULL;
-    if (s == NULL)
-        s = qbs_new(0, 0);
-    qbs_set(s, qbs_str(v));
-    gui_alert((char *)s->chr, "showvalue", "ok");
-}
-#endif
-
 // Referenced: http://johnnie.jerrata.com/winsocktutorial/
 // Much of the unix sockets code based on http://beej.us/guide/bgnet/
 #ifdef QB64_WINDOWS
@@ -30856,35 +30829,6 @@ extern "C" LRESULT qb64_os_event_windows(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 }
 #endif
 
-#if defined(QB64_LINUX) && defined(QB64_GUI)
-extern "C" void qb64_os_event_linux(XEvent *event, Display *display, int *qb64_os_event_info) {
-    if (*qb64_os_event_info == OS_EVENT_PRE_PROCESSING) {
-
-        if (X11_display == NULL) {
-            X11_display = display;
-            X11_window = event->xexpose.window;
-        }
-    }
-
-    if (*qb64_os_event_info == OS_EVENT_POST_PROCESSING) {
-        switch (event->type) {
-        case FocusIn:
-            window_focused = -1;
-            break;
-
-        case FocusOut:
-            window_focused = 0;
-            // Iterate over all modifiers
-            for (uint32 key = VK + QBVK_RSHIFT; key <= VK + QBVK_MODE; key++) {
-                if (keyheld(key))
-                    keyup(key);
-            }
-            break;
-        }
-    }
-}
-#endif
-
 void qb64_custom_event_relative_mouse_movement(int deltaX, int deltaY) {
     mouse_message_queue_struct *queue = &mouse_message_queue;
     // message #1
@@ -30966,22 +30910,25 @@ extern "C" int qb64_custom_event(int event, int v1, int v2, int v3, int v4, int 
 }
 
 int32 func__capslock() {
-#ifdef QB64_WINDOWS
-    return -GetKeyState(VK_CAPITAL);
+#ifdef QB64_GLUT
+    OPTIONAL_GLUT(0);
+    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK);
 #endif
     return 0;
 }
 
 int32 func__scrolllock() {
-#ifdef QB64_WINDOWS
-    return -GetKeyState(VK_SCROLL);
+#ifdef QB64_GLUT
+    OPTIONAL_GLUT(0);
+    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SCROLL_LOCK);
 #endif
     return 0;
 }
 
 int32 func__numlock() {
-#ifdef QB64_WINDOWS
-    return -GetKeyState(VK_NUMLOCK);
+#ifdef QB64_GLUT
+    OPTIONAL_GLUT(0);
+    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK);
 #endif
     return 0;
 }
