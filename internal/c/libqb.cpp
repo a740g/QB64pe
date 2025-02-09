@@ -13926,11 +13926,12 @@ void set_foreground_window(ptrszint i) {
 #endif
 }
 
-int32 func__hasfocus() {
+int32_t func__hasfocus() {
 #ifdef QB64_GUI
-    return QB_BOOL(libqb_glut_get(GLUT_WINDOW_HAS_FOCUS));
+    OPTIONAL_GLUT(QB_FALSE);
+    return QB_BOOL(glutGet(GLUT_WINDOW_HAS_FOCUS));
 #endif
-    return -1;
+    return QB_TRUE;
 }
 
 void sub_out(int32 port, int32 data) {
@@ -21934,7 +21935,7 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 int32 func_screenwidth() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return libqb_glut_get(GLUT_SCREEN_WIDTH);
+    return glutGet(GLUT_SCREEN_WIDTH);
 #else
     return 0;
 #endif
@@ -21943,7 +21944,7 @@ int32 func_screenwidth() {
 int32 func_screenheight() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return libqb_glut_get(GLUT_SCREEN_HEIGHT);
+    return glutGet(GLUT_SCREEN_HEIGHT);
 #else
     return 0;
 #endif
@@ -25299,9 +25300,9 @@ void sub__screenmove(int32 x, int32 y, int32 passed) {
     } else {
         int32 SW = -1, SH, WW, WH;
         while (SW == -1) {
-            SW = libqb_glut_get(GLUT_SCREEN_WIDTH);
+            SW = glutGet(GLUT_SCREEN_WIDTH);
         }
-        SH = libqb_glut_get(GLUT_SCREEN_HEIGHT);
+        SH = glutGet(GLUT_SCREEN_HEIGHT);
         WW = libqb_glut_get(GLUT_WINDOW_WIDTH);
         WH = libqb_glut_get(GLUT_WINDOW_HEIGHT);
         x = (SW - WW) / 2;
@@ -30887,7 +30888,7 @@ extern "C" int qb64_custom_event(int event, int v1, int v2, int v3, int v4, int 
     return -1; // Unknown command (use for debugging purposes only)
 }
 
-int32 func__capslock() {
+int32_t func__capslock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK);
@@ -30895,7 +30896,7 @@ int32 func__capslock() {
     return 0;
 }
 
-int32 func__scrolllock() {
+int32_t func__scrolllock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SCROLL_LOCK);
@@ -30903,7 +30904,7 @@ int32 func__scrolllock() {
     return 0;
 }
 
-int32 func__numlock() {
+int32_t func__numlock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK);

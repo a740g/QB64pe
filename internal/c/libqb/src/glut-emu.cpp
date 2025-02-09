@@ -227,6 +227,8 @@ class GLUTEmu {
         } else {
             libqb_log_error("Window not created, cannot check focus");
         }
+
+        return false;
     }
 
     void WindowResize(uint32_t width, uint32_t height) {
