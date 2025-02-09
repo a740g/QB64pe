@@ -72,19 +72,6 @@ uint32 rotateLeft(uint32 word, uint32 shift) {
 #    include <pthread.h>
 #endif
 
-int32 x11_locked = 0;
-int32 x11_lock_request = 0;
-
-void x11_lock() {
-    x11_lock_request = 1;
-    while (x11_locked == 0)
-        Sleep(1);
-}
-
-void x11_unlock() {
-    x11_locked = 0;
-}
-
 // forward references
 void sub__printimage(int32 i);
 
@@ -26133,15 +26120,6 @@ void GLUT_IDLEFUNC() {
 #endif
 
 #ifdef QB64_GLUT
-
-#    ifdef QB64_LINUX
-    if (x11_lock_request) {
-        x11_locked = 1;
-        x11_lock_request = 0;
-        while (x11_locked)
-            Sleep(1);
-    }
-#    endif
     int64_t curTime = GetTicks();
 
     // This is how long the frame took to render
