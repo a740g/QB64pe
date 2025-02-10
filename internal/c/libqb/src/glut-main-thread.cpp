@@ -31,7 +31,8 @@ void GLUT_DISPLAY_REQUEST();
 void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y);
 void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy);
 void GLUT_RESHAPE_FUNC(int32_t width, int32_t height);
-void GLUT_IDLEFUNC();
+void GLUT_IDLE_FUNC();
+void GLUT_EXIT_FUNC();
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
@@ -64,11 +65,12 @@ static void initialize_glut() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glutDisplayFunc(GLUT_DISPLAY_REQUEST);
-    glutIdleFunc(GLUT_IDLEFUNC);
+    glutIdleFunc(GLUT_IDLE_FUNC);
     glutKeyboardFunc(GLUT_KEYBOARD_FUNC);
     glutMouseFunc(GLUT_MOUSE_FUNC);
     glutMotionFunc(GLUT_MOTION_FUNC);
     glutReshapeFunc(GLUT_RESHAPE_FUNC);
+    glutExitFunc(GLUT_EXIT_FUNC);
 }
 
 static bool glut_is_started;

@@ -26109,7 +26109,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool is
 static int64_t lastTick = 0;
 static double deltaTick = 0;
 
-void GLUT_IDLEFUNC() {
+void GLUT_IDLE_FUNC() {
     libqb_process_glut_queue();
 
 #ifdef QB64_MACOSX
@@ -28737,6 +28737,8 @@ int main(int argc, char *argv[]) {
 
     libqb_start_main_thread();
 
+    libqb_log_trace("Main thread exited");
+
     return 0; // Should never get here
 }
 
@@ -30844,48 +30846,8 @@ void qb64_custom_event_relative_mouse_movement(int deltaX, int deltaY) {
     queue->last = i;
 }
 
-extern "C" int qb64_custom_event(int event, int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, void *p1, void *p2) {
-    if (event == QB64_EVENT_CLOSE) {
-        exit_value |= 1;
-        return 0;
-    } // close
-
-    if (event == QB64_EVENT_KEY) {
-        if (v1 == VK + QBVK_PAUSE) {
-            if (v2 > 0)
-                keydown_vk(v1);
-            else
-                keyup_vk(v1);
-            return 0;
-        }
-        if (v1 == VK + QBVK_BREAK) {
-            if (v2 > 0)
-                keydown_vk(v1);
-            else
-                keyup_vk(v1);
-            return 0;
-        }
-        return -1;
-    } // key
-
-    // qb64_custom_event(QB64_EVENT_RELATIVE_MOUSE_MOVEMENT,xPosRelative,yPosRelative,0,0,0,0,0,0,NULL,NULL);
-    if (event == QB64_EVENT_RELATIVE_MOUSE_MOVEMENT) {
-        qb64_custom_event_relative_mouse_movement(v1, v2);
-        return 0;
-    } // QB64_EVENT_RELATIVE_MOUSE_MOVEMENT
-
-    if (event == QB64_EVENT_FILE_DROP) {
-#ifdef QB64_WINDOWS
-        if (totalDroppedFiles > 0)
-            sub__finishdrop();
-
-        hdrop = (HDROP)p1;
-        totalDroppedFiles = DragQueryFile(hdrop, -1, NULL, 0);
-#endif
-        return 0;
-    }
-
-    return -1; // Unknown command (use for debugging purposes only)
+void GLUT_EXIT_FUNC() {
+    exit_value |= 1;
 }
 
 int32_t func__capslock() {

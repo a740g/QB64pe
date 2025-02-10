@@ -187,6 +187,7 @@ void glutPostRedisplay();
 void glutReshapeWindow(int32_t width, int32_t height);
 void glutFullScreen();
 void glutSwapBuffers();
+void glutExitFunc(void (*func)());
 void glutDisplayFunc(void (*func)());
 void glutIdleFunc(void (*func)());
 void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool));
