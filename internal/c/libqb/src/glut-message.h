@@ -90,14 +90,6 @@ class glut_message_position_window : public glut_message {
     glut_message_position_window(int _x, int _y) : glut_message(false), x(_x), y(_y) {}
 };
 
-class glut_message_reshape_window : public glut_message {
-  public:
-    int width, height;
-    void execute();
-
-    glut_message_reshape_window(int _width, int _height) : glut_message(false), width(_width), height(_height) {}
-};
-
 class glut_message_show_window : public glut_message {
   public:
     void execute();

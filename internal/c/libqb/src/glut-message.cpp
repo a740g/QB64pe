@@ -29,10 +29,6 @@ void glut_message_position_window::execute() {
     glutPositionWindow(x, y);
 }
 
-void glut_message_reshape_window::execute() {
-    glutReshapeWindow(width, height);
-}
-
 void glut_message_show_window::execute() {
     glutShowWindow();
 }

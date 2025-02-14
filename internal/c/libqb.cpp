@@ -27487,7 +27487,7 @@ void GLUT_DISPLAY_REQUEST() {
                 }
                 resize_auto_accept_aspect = (float)x / (float)y;
                 resize_pending = 1;
-                libqb_glut_reshape_window(x, y);
+                glutReshapeWindow(x, y);
                 glutPostRedisplay();
 
                 goto auto_resized;
@@ -27496,7 +27496,7 @@ void GLUT_DISPLAY_REQUEST() {
 
         if ((display_required_x != display_x) || (display_required_y != display_y)) {
             if (resize_snapback || framesize_changed) {
-                libqb_glut_reshape_window(display_required_x, display_required_y);
+                glutReshapeWindow(display_required_x, display_required_y);
                 glutPostRedisplay();
                 resize_pending = 1;
             }
@@ -27514,7 +27514,7 @@ void GLUT_DISPLAY_REQUEST() {
                 if (full_screen != 0) {
                     // exit full screen
                     resize_pending = 1;
-                    libqb_glut_reshape_window(display_frame[i].w, display_frame[i].h);
+                    glutReshapeWindow(display_frame[i].w, display_frame[i].h);
                     glutPostRedisplay();
                 }
                 full_screen = 0;

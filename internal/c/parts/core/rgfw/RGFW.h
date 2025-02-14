@@ -336,19 +336,6 @@ int main() {
 			#include <XInput.h>
 		#endif
 	#endif
-
-	#if defined(RGFW_DIRECTX)
-		#define OEMRESOURCE
-		#include <d3d11.h>
-		#include <dxgi.h>
-		#include <dxgi.h>
-		#include <d3dcompiler.h>
-
-		#ifndef __cplusplus
-			#define __uuidof(T) IID_##T
-		#endif
-	#endif
-
 #elif defined(RGFW_WAYLAND)
 	#define RGFW_DEBUG // wayland will be in debug mode by default for now
     #if !defined(RGFW_NO_API) && (!defined(RGFW_BUFFER) || defined(RGFW_OPENGL)) && !defined(RGFW_OSMESA)
@@ -553,6 +540,7 @@ typedef RGFW_ENUM(u8, RGFW_gamepadCodes) {
 		float scaleX, scaleY; /*!< monitor content scale*/
 		float pixelRatio; /*!< pixel ratio for monitor (1.0 for regular, 2.0 for hiDPI)  */
 		float physW, physH; /*!< monitor physical size in inches*/
+		u32 refreshRate; /*!< monitor refresh rate */
 	} RGFW_monitor;
 
 	/*
@@ -563,7 +551,7 @@ typedef RGFW_ENUM(u8, RGFW_gamepadCodes) {
 	RGFWDEF RGFW_monitor* RGFW_getMonitors(void);
 	/*! get the primary monitor */
 	RGFWDEF RGFW_monitor RGFW_getPrimaryMonitor(void);
-	/*! scale monitor to area */
+	/*! scale monitor to area and refreshRate, if refreshRate == 0, it's ignored */
 	RGFWDEF RGFW_bool RGFW_monitor_scale(RGFW_monitor mon, RGFW_area area, u32 refreshRate);
 #endif
 
@@ -619,10 +607,6 @@ typedef struct RGFW_window_src {
 		HGLRC ctx; /*!< source graphics context */
 	#elif defined(RGFW_OSMESA)
 		OSMesaContext ctx;
-	#elif defined(RGFW_DIRECTX)
-		IDXGISwapChain* swapchain;
-		ID3D11RenderTargetView* renderTargetView;
-		ID3D11DepthStencilView* pDepthStencilView;
 	#elif defined(RGFW_EGL)
 		EGLSurface EGL_surface;
 		EGLDisplay EGL_display;
@@ -1161,20 +1145,27 @@ RGFWDEF void RGFW_setGLVersion(RGFW_glProfile profile, i32 major, i32 minor);
 RGFWDEF void RGFW_setDoubleBuffer(RGFW_bool useDoubleBuffer);
 RGFWDEF void* RGFW_getProcAddress(const char* procname); /*!< get native opengl proc address */
 RGFWDEF void RGFW_window_makeCurrent_OpenGL(RGFW_window* win); /*!< to be called by RGFW_window_makeCurrent */
+#elif defined(RGFW_VULKAN)
+	#if defined(RGFW_X11)
+		#define VK_USE_PLATFORM_XLIB_KHR
+		#define RGFW_VK_SURFACE "VK_KHR_xlib_surface"
+	#elif defined(RGFW_WINDOWS)
+		#define VK_USE_PLATFORM_WIN32_KHR
+		#define OEMRESOURCE
+		#define RGFW_VK_SURFACE "VK_KHR_win32_surface"
+	#elif defined(RGFW_MACOS) && !defined(RGFW_MACOS_X11)
+		#define VK_USE_PLATFORM_MACOS_MVK
+		#define RGFW_VK_SURFACE "VK_MVK_macos_surface"
+	#elif defined(RGFW_WAYLAND)
+		#define VK_USE_PLATFORM_WAYLAND_KHR
+		#define RGFW_VK_SURFACE "VK_KHR_wayland_surface"
+	#else
+		#define RGFW_VK_SURFACE NULL
+	#endif
 
-#elif defined(RGFW_DIRECTX)
-typedef struct {
-	IDXGIFactory* pFactory;
-	IDXGIAdapter* pAdapter;
-	ID3D11Device* pDevice;
-	ID3D11DeviceContext* pDeviceContext;
-} RGFW_directXinfo;
+#include <vulkan/vulkan.h>
 
-/*
-	RGFW stores a global instance of RGFW_directXinfo,
-	you can use this function to get a pointer the instance
-*/
-RGFWDEF RGFW_directXinfo* RGFW_getDirectXInfo(void);
+RGFWDEF VkResult RGFW_window_createVKSurface(RGFW_window* win, VkInstance instance, VkSurfaceKHR* surface);
 #endif
 
 /** @} */
@@ -1834,19 +1825,9 @@ RGFW_bool RGFW_isReleased(RGFW_window* win, RGFW_key key) {
 	return (!RGFW_isPressed(win, key) && RGFW_wasPressed(win, key));
 }
 
-#if defined(RGFW_WINDOWS)  && defined(RGFW_DIRECTX) /* defines for directX context*/
-	RGFW_directXinfo RGFW_dxInfo;
-	RGFW_directXinfo* RGFW_getDirectXInfo(void) { return &RGFW_dxInfo; }
-#endif
-
 #ifndef RGFW_CUSTOM_BACKEND
 void RGFW_window_makeCurrent(RGFW_window* win) {
-#if defined(RGFW_WINDOWS) && defined(RGFW_DIRECTX)
-	if (win == NULL)
-		RGFW_dxInfo.pDeviceContext->lpVtbl->OMSetRenderTargets(RGFW_dxInfo.pDeviceContext, 1, NULL, NULL);
-	else
-		RGFW_dxInfo.pDeviceContext->lpVtbl->OMSetRenderTargets(RGFW_dxInfo.pDeviceContext, 1, &win->src.renderTargetView, NULL);
-#elif defined(RGFW_OPENGL)
+#if defined(RGFW_OPENGL)
 	RGFW_window_makeCurrent_OpenGL(win);
 #else
 	RGFW_UNUSED(win);
@@ -2454,7 +2435,33 @@ void RGFW_window_swapInterval(RGFW_window* win, i32 swapInterval) {
 /*
 	end of RGFW_EGL defines
 */
-#endif /* RGFW_GL (OpenGL, EGL, OSMesa )*/
+/* end of RGFW_GL (OpenGL, EGL, OSMesa )*/
+
+/*
+	RGFW_VULKAN defines
+*/
+#elif defined(RGFW_VULKAN)
+
+VkResult RGFW_window_createVKSurface(RGFW_window* win, VkInstance instance, VkSurfaceKHR* surface) {
+    assert(win != NULL); assert(instance);
+	assert(surface != NULL);
+
+    *surface = VK_NULL_HANDLE;
+
+#ifdef RGFW_X11
+    VkXlibSurfaceCreateInfoKHR x11 = { VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR, 0, 0, (Display*) win->src.display, (Window) win->src.window };
+    return vkCreateXlibSurfaceKHR(instance, &x11, NULL, surface);
+#elif defined(RGFW_WINDOWS)
+    VkWin32SurfaceCreateInfoKHR win32 = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR, 0, 0, GetModuleHandle(NULL), (HWND)win->src.window };
+
+    return vkCreateWin32SurfaceKHR(instance, &win32, NULL, surface);
+#elif defined(RGFW_MACOS) && !defined(RGFW_MACOS_X11)
+    VkMacOSSurfaceCreateFlagsMVK macos = { VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK, 0, 0, vulkWin->display, (void *)win->src.window };
+
+    return vkCreateMacOSSurfaceMVK(instance, &macos, NULL, surface);
+#endif
+}
+#endif /* end of RGFW_vulkan */
 
 /*
 This is where OS specific stuff starts
@@ -4878,6 +4885,15 @@ RGFW_bool RGFW_window_isMaximized(RGFW_window* win) {
 	return RGFW_FALSE;
 }
 
+#ifndef RGFW_NO_DPI
+static u32 RGFW_XCalculateRefreshRate(XRRModeInfo mi) {
+    if (mi.hTotal == 0 || mi.vTotal == 0) return 0;
+	
+	return (u32) RGFW_ROUND((double) mi.dotClock / ((double) mi.hTotal * (double) mi.vTotal));
+}
+#endif
+
+
 static float XGetSystemContentDPI(Display* display, i32 screen) {
 	float dpi = 96.0f;
 
@@ -4922,6 +4938,7 @@ RGFW_monitor RGFW_XCreateMonitor(i32 screen) {
 
 	#ifndef RGFW_NO_DPI
 		XRRScreenResources* sr = XRRGetScreenResourcesCurrent(display, RootWindow(display, screen));
+		monitor.refreshRate = RGFW_XCalculateRefreshRate(sr->modes[screen]);
 
 		XRRCrtcInfo* ci = NULL;
 		int crtc = screen;
@@ -4945,7 +4962,7 @@ RGFW_monitor RGFW_XCreateMonitor(i32 screen) {
 			XCloseDisplay(display);
 
 			#ifdef RGFW_DEBUG
-			printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio);
+			printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n    refreshRate: %i\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio, monitor.refreshRate);
 			#endif
 			return monitor;
 		}
@@ -4998,7 +5015,7 @@ RGFW_monitor RGFW_XCreateMonitor(i32 screen) {
 	XCloseDisplay(display);
 
 	#ifdef RGFW_DEBUG
-	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio);
+	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n    refreshRate: %i\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio, monitor.refreshRate);
 	#endif
 
 	return monitor;
@@ -5028,12 +5045,6 @@ RGFW_monitor RGFW_getPrimaryMonitor(void) {
 	#ifdef RGFW_WAYLAND
 	wayland: return (RGFW_monitor){ }; // TODO WAYLAND 
 	#endif
-}
-
-static u32 RGFW_XCalculateRefreshRate(XRRModeInfo mi) {
-    if (mi.hTotal == 0 || mi.vTotal == 0) return 0;
-	
-	return (u32) RGFW_ROUND((double) mi.dotClock / ((double) mi.hTotal * (double) mi.vTotal));
 }
 
 RGFW_bool RGFW_monitor_scale(RGFW_monitor mon, RGFW_area area, u32 refreshRate) {
@@ -5721,7 +5732,7 @@ void RGFW_window_initBufferPtr(RGFW_window* win, u8* buffer, RGFW_area area){
 	#endif
 }
 
-void RGFW_releaseCursor(RGFW_window* win) {
+void RGFW_releaseCursor(RGFW_window* win) { 
 	RGFW_UNUSED(win);
 	ClipCursor(NULL);
 	const RAWINPUTDEVICE id = { 0x01, 0x02, RIDEV_REMOVE, NULL };
@@ -5742,6 +5753,43 @@ void RGFW_captureCursor(RGFW_window* win, RGFW_rect rect) {
 }
 
 #define RGFW_LOAD_LIBRARY(x, lib) if (x == NULL) x = LoadLibraryA(lib)
+
+#ifdef RGFW_DIRECTX
+
+#define OEMRESOURCE
+#include <dxgi.h>
+
+#ifndef __cplusplus
+	#define __uuidof(T) IID_##T
+#endif
+
+int RGFW_window_createDXSwapChain(RGFW_window* win, IDXGIFactory* pFactory, IUnknown* pDevice, IDXGISwapChain** swapchain) {
+    if (!win || !pFactory || !pDevice || !swapchain) {
+        printf("Error: Null argument passed to RGFW_window_createDXSwapChain\n");
+        return -1;
+    }
+
+    static DXGI_SWAP_CHAIN_DESC swapChainDesc = { 0 };
+    swapChainDesc.BufferCount = 2; 
+    swapChainDesc.BufferDesc.Width = win->r.w;
+    swapChainDesc.BufferDesc.Height = win->r.h;
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.OutputWindow = (HWND)win->src.window;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+    swapChainDesc.Windowed = TRUE;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    HRESULT hr = pFactory->lpVtbl->CreateSwapChain(pFactory, (IUnknown*)pDevice, &swapChainDesc, swapchain);
+    if (FAILED(hr)) {
+        printf("Error: Failed to create DirectX swap chain! HRESULT: 0x%X\n", hr);
+        return -2;
+    }
+
+    return 0;
+}
+#endif
 
 u32 RGFW_windowsOpen = 0;
 
@@ -5846,71 +5894,6 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 	win->src.hdc = GetDC(win->src.window);
 
 	if ((flags & RGFW_windowNoInitAPI) == 0) {
-	#ifdef RGFW_DIRECTX
-		RGFW_ASSERT(FAILED(CreateDXGIFactory(&__uuidof(IDXGIFactory), (void**) &RGFW_dxInfo.pFactory)) == 0);
-
-		if (FAILED(RGFW_dxInfo.pFactory->lpVtbl->EnumAdapters(RGFW_dxInfo.pFactory, 0, &RGFW_dxInfo.pAdapter))) {
-			#ifdef RGFW_DEBUG
-				fprintf(stderr, "Failed to enumerate DXGI adapters\n");
-			#endif
-			RGFW_dxInfo.pFactory->lpVtbl->Release(RGFW_dxInfo.pFactory);
-			return NULL;
-		}
-
-		D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
-
-		if (FAILED(D3D11CreateDevice(RGFW_dxInfo.pAdapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, featureLevels, 1, D3D11_SDK_VERSION, &RGFW_dxInfo.pDevice, NULL, &RGFW_dxInfo.pDeviceContext))) {
-			#ifdef RGFW_DEBUG
-				fprintf(stderr, "Failed to create Direct3D device\n");
-			#endif
-			RGFW_dxInfo.pAdapter->lpVtbl->Release(RGFW_dxInfo.pAdapter);
-			RGFW_dxInfo.pFactory->lpVtbl->Release(RGFW_dxInfo.pFactory);
-			return NULL;
-		}
-
-		DXGI_SWAP_CHAIN_DESC swapChainDesc = { 0 };
-		swapChainDesc.BufferCount = 1;
-		swapChainDesc.BufferDesc.Width = win->r.w;
-		swapChainDesc.BufferDesc.Height = win->r.h;
-		swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.OutputWindow = win->src.window;
-		swapChainDesc.SampleDesc.Count = 1;
-		swapChainDesc.SampleDesc.Quality = 0;
-		swapChainDesc.Windowed = TRUE;
-		RGFW_dxInfo.pFactory->lpVtbl->CreateSwapChain(RGFW_dxInfo.pFactory, (IUnknown*) RGFW_dxInfo.pDevice, &swapChainDesc, &win->src.swapchain);
-
-		ID3D11Texture2D* pBackBuffer;
-		win->src.swapchain->lpVtbl->GetBuffer(win->src.swapchain, 0, &__uuidof(ID3D11Texture2D), (LPVOID*) &pBackBuffer);
-		RGFW_dxInfo.pDevice->lpVtbl->CreateRenderTargetView(RGFW_dxInfo.pDevice, (ID3D11Resource*) pBackBuffer, NULL, &win->src.renderTargetView);
-		pBackBuffer->lpVtbl->Release(pBackBuffer);
-
-		D3D11_TEXTURE2D_DESC depthStencilDesc = { 0 };
-		depthStencilDesc.Width = win->r.w;
-		depthStencilDesc.Height = win->r.h;
-		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.ArraySize = 1;
-		depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthStencilDesc.SampleDesc.Count = 1;
-		depthStencilDesc.SampleDesc.Quality = 0;
-		depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
-		ID3D11Texture2D* pDepthStencilTexture = NULL;
-		RGFW_dxInfo.pDevice->lpVtbl->CreateTexture2D(RGFW_dxInfo.pDevice, &depthStencilDesc, NULL, &pDepthStencilTexture);
-
-		D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc = { 0 };
-		depthStencilViewDesc.Format = depthStencilDesc.Format;
-		depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		depthStencilViewDesc.Texture2D.MipSlice = 0;
-
-		RGFW_dxInfo.pDevice->lpVtbl->CreateDepthStencilView(RGFW_dxInfo.pDevice, (ID3D11Resource*) pDepthStencilTexture, &depthStencilViewDesc, &win->src.pDepthStencilView);
-
-		pDepthStencilTexture->lpVtbl->Release(pDepthStencilTexture);
-
-		RGFW_dxInfo.pDeviceContext->lpVtbl->OMSetRenderTargets(RGFW_dxInfo.pDeviceContext, 1, &win->src.renderTargetView, win->src.pDepthStencilView);
-	#endif
-
 	#ifdef RGFW_OPENGL
 		HDC dummy_dc = GetDC(dummyWin);
 
@@ -6670,20 +6653,29 @@ RGFW_monitor win32CreateMonitor(HMONITOR src) {
 	info.hMonitor = src;
 
 	/* get the monitor's index */
-	if (EnumDisplayMonitors(NULL, NULL, GetMonitorByHandle, (LPARAM) &info)) {
-		DISPLAY_DEVICEA dd;
-		dd.cb = sizeof(dd);
+	DISPLAY_DEVICEA dd;
+	dd.cb = sizeof(dd);
 
-		/* loop through the devices until you find a device with the monitor's index */
-		size_t deviceIndex;
-		for (deviceIndex = 0; EnumDisplayDevicesA(0, (DWORD) deviceIndex, &dd, 0); deviceIndex++) {
-			char* deviceName = dd.DeviceName;
-			if (EnumDisplayDevicesA(deviceName, info.iIndex, &dd, 0)) {
-				RGFW_MEMCPY(monitor.name, dd.DeviceString, 128); /*!< copy the monitor's name */
-				break;
-			}
+	for (DWORD deviceNum = 0; EnumDisplayDevicesA(NULL, deviceNum, &dd, 0); deviceNum++) {
+		if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE))
+			continue;
+
+		DEVMODE dm;
+		ZeroMemory(&dm, sizeof(dm));
+		dm.dmSize = sizeof(dm);
+
+		if (EnumDisplaySettingsA(dd.DeviceName, ENUM_CURRENT_SETTINGS, &dm))
+			monitor.refreshRate = dm.dmDisplayFrequency;
+
+		DISPLAY_DEVICEA mdd;
+		mdd.cb = sizeof(mdd);
+
+		if (EnumDisplayDevicesA(dd.DeviceName, info.iIndex, &mdd, 0)) {
+			RGFW_MEMCPY(monitor.name, mdd.DeviceString, 128);
+			break;
 		}
-	}
+	}	
+
 
 	monitor.rect.x = monitorInfo.rcWork.left;
 	monitor.rect.y = monitorInfo.rcWork.top;
@@ -6713,7 +6705,7 @@ RGFW_monitor win32CreateMonitor(HMONITOR src) {
 	#endif
 
 	#ifdef RGFW_DEBUG
-	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio);
+	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n    refreshRate: %i\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio, monitor.refreshRate);
 	#endif
 
 	return monitor;
@@ -6770,7 +6762,7 @@ RGFW_bool RGFW_monitor_scale(RGFW_monitor mon, RGFW_area area, u32 refreshRate) 
     dd.cb = sizeof(dd);
 
     // Enumerate display devices
-    for (DWORD deviceNum = 0; EnumDisplayDevices(NULL, deviceNum, &dd, 0); deviceNum++) {
+    for (DWORD deviceNum = 0; EnumDisplayDevicesA(NULL, deviceNum, &dd, 0); deviceNum++) {
         if (!(dd.StateFlags & DISPLAY_DEVICE_ACTIVE))
 			continue;
 		
@@ -6778,7 +6770,7 @@ RGFW_bool RGFW_monitor_scale(RGFW_monitor mon, RGFW_area area, u32 refreshRate) 
 		ZeroMemory(&dm, sizeof(dm));
 		dm.dmSize = sizeof(dm);
 
-		if (EnumDisplaySettings(dd.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
+		if (EnumDisplaySettingsA(dd.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
 			dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
 			dm.dmPelsWidth = area.w;
 			dm.dmPelsHeight = area.h;
@@ -6896,12 +6888,6 @@ void RGFW_window_close(RGFW_window* win) {
 		RGFW_closeEGL(win);
 	#endif
 
-	#ifdef RGFW_DIRECTX
-		win->src.swapchain->lpVtbl->Release(win->src.swapchain);
-		win->src.renderTargetView->lpVtbl->Release(win->src.renderTargetView);
-		win->src.pDepthStencilView->lpVtbl->Release(win->src.pDepthStencilView);
-	#endif
-
 	#ifdef RGFW_BUFFER
 		DeleteDC(win->src.hdcMem);
 		DeleteObject(win->src.bitmap);
@@ -6916,13 +6902,6 @@ void RGFW_window_close(RGFW_window* win) {
 	if (win->src.hIcon) DestroyIcon(win->src.hIcon);
 
 	if (RGFW_windowsOpen <= 0) {
-		#ifdef RGFW_DIRECTX
-			RGFW_dxInfo.pDeviceContext->lpVtbl->Release(RGFW_dxInfo.pDeviceContext);
-			RGFW_dxInfo.pDevice->lpVtbl->Release(RGFW_dxInfo.pDevice);
-			RGFW_dxInfo.pAdapter->lpVtbl->Release(RGFW_dxInfo.pAdapter);
-			RGFW_dxInfo.pFactory->lpVtbl->Release(RGFW_dxInfo.pFactory);
-		#endif
-
 		#ifndef RGFW_NO_XINPUT
 		RGFW_FREE_LIBRARY(RGFW_XInput_dll);
 		#endif
@@ -7153,10 +7132,6 @@ void RGFW_window_swapBuffers(RGFW_window* win) {
 			eglSwapBuffers(win->src.EGL_display, win->src.EGL_surface);
 		#elif defined(RGFW_OPENGL)
 			SwapBuffers(win->src.hdc);
-		#endif
-
-		#if defined(RGFW_WINDOWS) && defined(RGFW_DIRECTX)
-			win->src.swapchain->lpVtbl->Present(win->src.swapchain, 0, 0);
 		#endif
 	}
 }
@@ -8873,6 +8848,12 @@ RGFW_monitor RGFW_NSCreateMonitor(CGDirectDisplayID display, id screen) {
 	CGRect bounds = CGDisplayBounds(display);
 	monitor.rect = RGFW_RECT((int) bounds.origin.x, (int) bounds.origin.y, (int) bounds.size.width, (int) bounds.size.height);
 
+	CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+	if (mode) {
+		monitor.refreshRate = CGDisplayModeGetRefreshRate(mode);
+		CFRelease(mode);
+	}
+
 	CGSize screenSizeMM = CGDisplayScreenSize(display);
 	monitor.physW = (float)screenSizeMM.width / 25.4f;
 	monitor.physH = (float)screenSizeMM.height / 25.4f;
@@ -8887,7 +8868,7 @@ RGFW_monitor RGFW_NSCreateMonitor(CGDirectDisplayID display, id screen) {
 	monitor.scaleY = ((i32)(((float) (ppi_height) / dpi) * 10.0f)) / 10.0f;
 
 	#ifdef RGFW_DEBUG
-	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio);
+	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n   pixelRatio: %f\n    refreshRate: %i\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY, monitor.pixelRatio, monitor.refreshRate);
 	#endif
 
 	return monitor;

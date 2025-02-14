@@ -51,11 +51,6 @@ void libqb_glut_position_window(int x, int y) {
     (void)y;
 }
 
-void libqb_glut_reshape_window(int width, int height) {
-    (void)width;
-    (void)height;
-}
-
 void libqb_glut_show_window() {}
 
 void libqb_glut_hide_window() {}
