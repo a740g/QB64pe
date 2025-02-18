@@ -403,6 +403,11 @@ class GLUTEmu {
         while (window) {
             RGFW_window_checkEvents(window, 0);
 
+            if (window->event.type == RGFW_quit) {
+                // Cancel RGFW_quit event to unfreeze the RGFW event loop and let QB64-PE handle the user quit action
+                window->event.type = RGFW_eventNone;
+            }
+
             if (windowRedisplayCounter) {
                 --windowRedisplayCounter;
                 if (windowDisplayFunction) {
