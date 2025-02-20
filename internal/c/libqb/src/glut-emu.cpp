@@ -52,8 +52,8 @@ class GLUTEmu {
         if (window) {
             libqb_log_error("Window already created, cannot create another window"); // RGFW_TODO: sure we can; maybe we'll use it a future version of QB64-PE
         } else {
-            RGFW_setGLSamples(4);
-            RGFW_setDoubleBuffer(RGFW_TRUE);
+            RGFW_setGLHint(RGFW_glSamples, 4);
+            RGFW_setGLHint(RGFW_glDoubleBuffer, RGFW_TRUE);
 
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
@@ -96,6 +96,8 @@ class GLUTEmu {
 
             ComputeWindowBorderSize();
 
+            windowShouldRedisplay = true;
+
         } else {
             libqb_log_error("Window not created, cannot set fullscreen");
         }
@@ -117,6 +119,8 @@ class GLUTEmu {
 
             ComputeWindowBorderSize();
 
+            windowShouldRedisplay = true;
+
             libqb_log_trace("Window maximized");
         } else {
             libqb_log_error("Window not created, cannot maximize");
@@ -136,6 +140,8 @@ class GLUTEmu {
     void WindowMinimize() {
         if (window) {
             RGFW_window_minimize(window);
+
+            windowShouldRedisplay = false;
 
             libqb_log_trace("Window minimized");
         } else {
@@ -159,6 +165,8 @@ class GLUTEmu {
 
             ComputeWindowBorderSize();
 
+            windowShouldRedisplay = true;
+
             libqb_log_trace("Window restored");
         } else {
             libqb_log_error("Window not created, cannot restore");
@@ -171,6 +179,8 @@ class GLUTEmu {
 
             ComputeWindowBorderSize();
 
+            windowShouldRedisplay = true;
+
             libqb_log_trace("Window focused");
         } else {
             libqb_log_error("Window not created, cannot set focus");
@@ -180,6 +190,8 @@ class GLUTEmu {
     void WindowHide() {
         if (window) {
             RGFW_window_hide(window);
+
+            windowShouldRedisplay = false;
 
             libqb_log_trace("Window hidden");
         } else {
@@ -212,6 +224,8 @@ class GLUTEmu {
             RGFW_window_resize(window, RGFW_AREA(width, height));
 
             ComputeWindowBorderSize();
+
+            windowShouldRedisplay = true;
 
             libqb_log_trace("Window resized (%u x %u)", width, height);
         } else {
@@ -270,7 +284,7 @@ class GLUTEmu {
     }
 
     void WindowPostRedisplay() {
-        ++windowRedisplayCounter;
+        windowShouldRedisplay = true;
     }
 
     // RGFW_TODO: Refactor this to MouseSetCursor(), MouseCapture() and MouseRelease().
@@ -401,15 +415,20 @@ class GLUTEmu {
         libqb_log_trace("Entering main loop");
 
         while (window) {
-            RGFW_window_checkEvents(window, 0);
+            // RGFW_window_checkEvents(window, 0);
+            while (RGFW_window_checkEvent(window)) {
+                if (window->event.type == RGFW_quit) {
+                    break;
+                }
+            }
 
             if (window->event.type == RGFW_quit) {
                 // Cancel RGFW_quit event to unfreeze the RGFW event loop and let QB64-PE handle the user quit action
                 window->event.type = RGFW_eventNone;
             }
 
-            if (windowRedisplayCounter) {
-                --windowRedisplayCounter;
+            if (windowShouldRedisplay) {
+                windowShouldRedisplay = false;
                 if (windowDisplayFunction) {
                     windowDisplayFunction();
                 }
@@ -418,6 +437,8 @@ class GLUTEmu {
             if (windowIdleFunction) {
                 windowIdleFunction();
             }
+
+            RGFW_window_eventWait(window, 10); // RGFW_TODO: 10ms is upper limit but check if this needs to be changed
         }
 
         libqb_log_trace("Exiting main loop");
@@ -430,7 +451,7 @@ class GLUTEmu {
 
   private:
     GLUTEmu()
-        : window(nullptr), windowRedisplayCounter(0), mouseCaptured(false), windowCloseFunction(nullptr), windowResizeFunction(nullptr),
+        : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), windowCloseFunction(nullptr), windowResizeFunction(nullptr),
           windowDisplayFunction(nullptr), windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr),
           mouseMotionFunction(nullptr) {
         windowBorderSize = {0, 0};
@@ -465,10 +486,8 @@ class GLUTEmu {
     }
 
     static void WindowRefreshCallback(RGFW_window *window) {
-        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
-        if (instance->windowDisplayFunction) {
-            instance->windowDisplayFunction();
-        }
+        auto instance = reinterpret_cast<GLUTEmu *>(window->userPtr);
+        instance->windowShouldRedisplay = true;
     }
 
     static void KeyboardButtonCallback(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
@@ -552,7 +571,7 @@ class GLUTEmu {
 #endif
 
     RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future.
-    size_t windowRedisplayCounter;
+    bool windowShouldRedisplay;
     bool mouseCaptured;
     RGFW_point windowBorderSize;
     CallbackWindowClose windowCloseFunction;
