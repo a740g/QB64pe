@@ -4526,10 +4526,9 @@ void RGFW_window_focus(RGFW_window* win) {
 	
     XWindowAttributes attr;
     XGetWindowAttributes(win->src.display, win->src.window, &attr);
-    if (attr.map_state != IsViewable)
-        return;
+    if (attr.map_state != IsViewable) return;
 
-	int status = XSetInputFocus(win->src.display, win->src.window, RevertToPointerRoot, CurrentTime);
+	XSetInputFocus(win->src.display, win->src.window, RevertToPointerRoot, CurrentTime);
 	XFlush(win->src.display);
 }
 
@@ -9238,7 +9237,7 @@ void RGFW_writeClipboard(const char* text, u32 textLen) {
 		objc_msgSend_void(win->src.ctx, sel_registerName("makeCurrentContext"));
 	}
 	void* RGFW_getCurrent_OpenGL(void) {
-		objc_msgSend_id(objc_getClass("NSOpenGLContext"), sel_registerName("currentContext"));
+		return objc_msgSend_id(objc_getClass("NSOpenGLContext"), sel_registerName("currentContext"));
 	}
 	#endif
 

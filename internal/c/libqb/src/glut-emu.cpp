@@ -7,37 +7,6 @@
 #include "logging.h"
 #include <cmath>
 
-#if defined(_WIN32)
-
-#    include <windows.h>
-
-#elif defined(__APPLE__)
-
-#    include <ApplicationServices/ApplicationServices.h>
-#    include <CoreGraphics/CoreGraphics.h>
-#    include <objc/message.h>
-#    include <objc/runtime.h>
-
-// Thanks to https://dev.to/colleagueriley/rgfw-under-the-hood-cocoa-in-pure-c-1c7j for this.
-#    ifdef __arm64__
-#        define abi_objc_msgSend_stret objc_msgSend
-#        define abi_objc_msgSend_fpret objc_msgSend
-#    else
-#        define abi_objc_msgSend_stret objc_msgSend_stret
-#        define abi_objc_msgSend_fpret objc_msgSend_fpret
-#    endif
-
-#elif defined(__linux__)
-
-#    include <X11/Xatom.h>
-#    include <X11/Xlib.h>
-
-#else
-
-#    error Unsupported platform
-
-#endif
-
 class GLUTEmu {
   public:
     typedef void (*CallbackWindowClose)();
@@ -60,8 +29,6 @@ class GLUTEmu {
                 window->userPtr = this;
 
                 RGFW_window_makeCurrent(window);
-
-                ComputeWindowBorderSize();
 
                 libqb_log_trace("Window created (%u x %u)", width, height);
 
@@ -94,8 +61,6 @@ class GLUTEmu {
 
             libqb_log_trace("Window fullscreen set to %s", fullscreen ? "true" : "false");
 
-            ComputeWindowBorderSize();
-
             windowShouldRedisplay = true;
 
         } else {
@@ -116,8 +81,6 @@ class GLUTEmu {
     void WindowMaximize() {
         if (window) {
             RGFW_window_maximize(window);
-
-            ComputeWindowBorderSize();
 
             windowShouldRedisplay = true;
 
@@ -163,8 +126,6 @@ class GLUTEmu {
         if (window) {
             RGFW_window_restore(window);
 
-            ComputeWindowBorderSize();
-
             windowShouldRedisplay = true;
 
             libqb_log_trace("Window restored");
@@ -176,8 +137,6 @@ class GLUTEmu {
     void WindowShow() {
         if (window) {
             RGFW_window_show(window);
-
-            ComputeWindowBorderSize();
 
             windowShouldRedisplay = true;
 
@@ -223,8 +182,6 @@ class GLUTEmu {
         if (window) {
             RGFW_window_resize(window, RGFW_AREA(width, height));
 
-            ComputeWindowBorderSize();
-
             windowShouldRedisplay = true;
 
             libqb_log_trace("Window resized (%u x %u)", width, height);
@@ -237,8 +194,6 @@ class GLUTEmu {
         if (window) {
             RGFW_window_move(window, RGFW_POINT(x, y));
 
-            ComputeWindowBorderSize();
-
             libqb_log_trace("Window moved to (%d, %d)", x, y);
         } else {
             libqb_log_error("Window not created, cannot move");
@@ -247,7 +202,7 @@ class GLUTEmu {
 
     RGFW_point WindowGetPosition() const {
         if (window) {
-            return {window->r.x - windowBorderSize.x, window->r.y - windowBorderSize.y};
+            return {window->r.x, window->r.y};
         } else {
             libqb_log_error("Window not created, cannot get position");
         }
@@ -255,9 +210,9 @@ class GLUTEmu {
         return {0, 0};
     }
 
-    RGFW_area WindowGetSize() const {
+    RGFW_point WindowGetSize() const {
         if (window) {
-            return {uint32_t(window->r.w), uint32_t(window->r.h)};
+            return {window->r.w, window->r.h};
         } else {
             libqb_log_error("Window not created, cannot get size");
         }
@@ -453,9 +408,7 @@ class GLUTEmu {
     GLUTEmu()
         : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), windowCloseFunction(nullptr), windowResizeFunction(nullptr),
           windowDisplayFunction(nullptr), windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr),
-          mouseMotionFunction(nullptr) {
-        windowBorderSize = {0, 0};
-    }
+          mouseMotionFunction(nullptr) {}
 
     ~GLUTEmu() {
         if (window) {
@@ -511,69 +464,9 @@ class GLUTEmu {
         }
     }
 
-#if defined(_WIN32)
-
-    void ComputeWindowBorderSize() {
-        if (RGFW_window_isFullscreen(window)) {
-            windowBorderSize = {0, 0};
-        } else {
-            RECT windowRect;
-            GetWindowRect(window->src.window, &windowRect);
-            windowBorderSize.x = window->r.x - windowRect.left;
-            windowBorderSize.y = window->r.y - windowRect.top;
-        }
-    }
-
-#elif defined(__APPLE__)
-
-    void ComputeWindowBorderSize() {
-        if (RGFW_window_isFullscreen(window)) {
-            windowBorderSize = {0, 0};
-        } else {
-            CGRect frame = ((CGRect(*)(id, SEL))abi_objc_msgSend_stret)(reinterpret_cast<id>(window->src.window), sel_registerName("frame"));
-            CGRect contentRect = ((CGRect(*)(id, SEL))abi_objc_msgSend_stret)(reinterpret_cast<id>(window->src.view), sel_registerName("frame"));
-            windowBorderSize.x = int32_t(frame.size.width - contentRect.size.width) >> 1;
-            windowBorderSize.y = int32_t(frame.size.height - contentRect.size.height) - windowBorderSize.x;
-        }
-    }
-
-#elif defined(__linux__)
-
-    void ComputeWindowBorderSize() {
-        if (RGFW_window_isFullscreen(window)) {
-            windowBorderSize = {0, 0};
-        } else {
-            Atom prop = XInternAtom(window->src.display, "_NET_FRAME_EXTENTS", False);
-            if (prop != None) {
-                Atom actualType;
-                int actualFormat;
-                unsigned long nItems, bytesAfter;
-                long *extents = nullptr;
-                if (XGetWindowProperty(window->src.display, window->src.window, prop, 0, 4, False, XA_CARDINAL, &actualType, &actualFormat, &nItems,
-                                       &bytesAfter, (unsigned char **)&extents) == Success) {
-                    if (extents) {
-                        if (actualType == XA_CARDINAL && actualFormat == 32 && nItems >= 4) {
-                            windowBorderSize.x = extents[0];
-                            windowBorderSize.y = extents[2];
-                        }
-
-                        XFree(extents);
-                    }
-                }
-            }
-        }
-    }
-
-#else
-
-#    error Unsupported platform
-
-#endif
-
     RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future.
     bool windowShouldRedisplay;
     bool mouseCaptured;
-    RGFW_point windowBorderSize;
     CallbackWindowClose windowCloseFunction;
     CallbackWindowResize windowResizeFunction;
     CallbackWindowDisplay windowDisplayFunction;
@@ -654,11 +547,11 @@ int32_t glutGet(uint32_t id) {
         break;
 
     case GLUT_WINDOW_WIDTH:
-        return GLUTEmu::Instance().WindowGetSize().w;
+        return GLUTEmu::Instance().WindowGetSize().x;
         break;
 
     case GLUT_WINDOW_HEIGHT:
-        return GLUTEmu::Instance().WindowGetSize().h;
+        return GLUTEmu::Instance().WindowGetSize().y;
         break;
 
     case GLUT_WINDOW_FULL_SCREEN:
