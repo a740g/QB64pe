@@ -26673,50 +26673,7 @@ void set_view(int32 new_mode) { // set view can only be called after the correct
 
         if (render_state.dest_handle == 0) {
             static int32 dst_w, dst_h;
-            static int32 scale_factor = 0;
-
-#    ifdef QB64_MACOSX
-            if (scale_factor == 0) {
-                // by default scale_factor should be 1, but in macOS Catalina
-                // (10.15.*) scale_factor must be setted in 2
-                // * in cases where the app is executed on system with Retina
-                // Display
-                scale_factor = 1; // by default
-
-                // lookup for retina/5k output from system_profiler (storing all
-                // outpun in stream)
-                bool b_isRetina, b_is5k;
-                FILE *consoleStream = popen("system_profiler SPDisplaysDataType 2>/dev/null", "r");
-                if (consoleStream) {
-                    char buffer[128];
-                    while (!feof(consoleStream)) {
-                        if (fgets(buffer, 128, consoleStream) != NULL) {
-                            std::string szBuffer(buffer);
-
-                            if (!b_isRetina)
-                                b_isRetina = (szBuffer.rfind("Retina") != ULONG_MAX);
-                            if (!b_is5k)
-                                b_is5k = (szBuffer.rfind("5K") != ULONG_MAX);
-                        }
-                    }
-                }
-                pclose(consoleStream);
-
-                if (b_isRetina || b_is5k) {
-                    // apply only factor = 2 if macOS is Catalina (11.15.* //
-                    // kern.osrelease 19.*)
-                    char str[256];
-                    size_t size = sizeof(str);
-                    int ret = sysctlbyname("kern.osrelease", str, &size, NULL, 0);
-
-                    std::string sz_osrelease(str);
-                    if (sz_osrelease.rfind("19.") == 0)
-                        scale_factor = 2;
-                }
-            }
-#    else
-            scale_factor = 1;
-#    endif
+            static int32 scale_factor = 1;
 
             dst_w = environment__window_width;
             dst_h = environment__window_height;
