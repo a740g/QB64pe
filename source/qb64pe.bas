@@ -89,6 +89,7 @@ IF _DIREXISTS("internal") = 0 THEN
 END IF
 
 DIM SHARED Include_GDB_Debugging_Info 'set using "config.ini" or "Compiler settings" dialog
+DIM SHARED UseSystemMinGW AS _BYTE
 
 DIM SHARED DEPENDENCY_LAST
 CONST DEPENDENCY_LOADFONT = 1: DEPENDENCY_LAST = DEPENDENCY_LAST + 1
@@ -12473,7 +12474,6 @@ mac = 0: IF MacOSX THEN mac = 1: o$ = "osx"
 ver$ = Version$ 'eg. "0.123"
 libs$ = ""
 makedeps$ = ""
-make$ = GetMakeExecutable$
 
 localpath$ = "internal\c\"
 
@@ -12520,11 +12520,14 @@ escapedExe$ = StrReplace$(path.exe$ + file$ + extension$, " ", "\ ")
 escapedExe$ = StrReplace$(escapedExe$, CHR$(34), "\" + CHR$(34))
 escapedExe$ = StrReplace$(escapedExe$, "$", "$$")
 
-makeline$ = make$ + makedeps$ + " EXE=" + AddQuotes$(escapedExe$)
+makeline$ = GetMakeExecutable$ + makedeps$ + " EXE=" + AddQuotes$(escapedExe$)
 makeline$ = makeline$ + " " + AddQuotes$("CXXFLAGS_EXTRA=" + CxxFlagsExtra$)
 makeline$ = makeline$ + " " + AddQuotes$("CFLAGS_EXTRA=" + CxxFlagsExtra$)
 makeline$ = makeline$ + " " + AddQuotes$("CXXLIBS_EXTRA=" + CxxLibsExtra$)
 makeline$ = makeline$ + " -j" + AddQuotes$(str2$(MaxParallelProcesses))
+IF UseSystemMinGW THEN
+    makeline$ = makeline$ + " " + AddQuotes$("USE_SYSTEM_MINGW=y")
+END IF
 
 IF NOT StripDebugSymbols THEN
     makeline$ = makeline$ + " STRIP_SYMBOLS=n"
@@ -12567,7 +12570,7 @@ IF os$ = "WIN" THEN
 
             n = 0
             IF NOT _FILEEXISTS(nm_output_file$) THEN
-                SHELL _HIDE "cmd /c internal\c\c_compiler\bin\nm.exe " + AddQuotes$(ResolveStaticFunction_File(x)) + " --demangle -g >" + AddQuotes$(nm_output_file$)
+                SHELL _HIDE "cmd /c " + GetCompilerPath$ + "nm.exe " + AddQuotes$(ResolveStaticFunction_File(x)) + " --demangle -g >" + AddQuotes$(nm_output_file$)
             END IF
             s$ = " " + ResolveStaticFunction_Name(x) + "("
             fh = OpenBuffer%("I", nm_output_file$)
@@ -12627,7 +12630,7 @@ IF os$ = "WIN" THEN
 
             IF n = 0 THEN 'a C++ dynamic object library?
                 IF NOT _FILEEXISTS(nm_output_file_dynamic$) THEN
-                    SHELL _HIDE "cmd /c internal\c\c_compiler\bin\nm.exe " + AddQuotes$(ResolveStaticFunction_File(x)) + " -D --demangle -g >" + AddQuotes$(nm_output_file_dynamic$)
+                    SHELL _HIDE "cmd /c " + GetCompilerPath$ + "nm.exe " + AddQuotes$(ResolveStaticFunction_File(x)) + " -D --demangle -g >" + AddQuotes$(nm_output_file_dynamic$)
                 END IF
                 s$ = " " + ResolveStaticFunction_Name(x) + "("
                 fh = OpenBuffer%("I", nm_output_file$)
@@ -12711,7 +12714,7 @@ IF os$ = "WIN" THEN
     PRINT #ffh, "echo Type 'quit' to exit"
     PRINT #ffh, "echo (the GDB debugger has many other useful commands, this advice is for beginners)"
     PRINT #ffh, "pause"
-    PRINT #ffh, "internal\c\c_compiler\bin\gdb.exe " + CHR$(34) + path.exe$ + file$ + extension$ + CHR$(34)
+    PRINT #ffh, GetCompilerPath$ + "gdb.exe " + CHR$(34) + path.exe$ + file$ + extension$ + CHR$(34)
     PRINT #ffh, "pause"
     CLOSE ffh
 END IF
@@ -13339,7 +13342,7 @@ FUNCTION ParseCMDLineArgs$ ()
             IDEAutoLayoutKwStyle = -1
         END IF
     END IF
-     'don't leak force option into the IDE or the code formatter
+    'don't leak force option into the IDE or the code formatter
     IF NoIDEMode = 0 THEN ForceOptExpl = 0
 
     IF FormatMode AND LEN(outputfile_cmd$) = 0 THEN
