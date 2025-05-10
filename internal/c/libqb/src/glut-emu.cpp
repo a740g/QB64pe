@@ -10,7 +10,7 @@
 class GLUTEmu {
   public:
     typedef void (*CallbackWindowClose)();
-    typedef void (*CallbackWindowResize)(int32_t, int32_t);
+    typedef void (*CallbackWindowResized)(int32_t, int32_t);
     typedef void (*CallbackWindowDisplay)();
     typedef void (*CallbackWindowIdle)();
     typedef void (*CallbackKeyboardButton)(uint8_t, uint8_t, uint8_t, bool);
@@ -170,7 +170,7 @@ class GLUTEmu {
 
     bool WindowIsFocused() const {
         if (window) {
-            return window->event.inFocus;
+            return RGFW_window_isInFocus(window);
         } else {
             libqb_log_error("Window not created, cannot check focus");
         }
@@ -286,11 +286,11 @@ class GLUTEmu {
         }
     }
 
-    void WindowSetResizeFunction(CallbackWindowResize function) {
+    void WindowSetResizedFunction(CallbackWindowResized function) {
         if (function) {
-            windowResizeFunction = function;
+            windowResizedFunction = function;
 
-            RGFW_setWindowResizeCallback(WindowResizeCallback);
+            RGFW_setWindowResizedCallback(WindowResizedCallback);
 
             libqb_log_trace("Window resize function set: %p", function);
         } else {
@@ -406,7 +406,7 @@ class GLUTEmu {
 
   private:
     GLUTEmu()
-        : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), windowCloseFunction(nullptr), windowResizeFunction(nullptr),
+        : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), windowCloseFunction(nullptr), windowResizedFunction(nullptr),
           windowDisplayFunction(nullptr), windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr),
           mouseMotionFunction(nullptr) {}
 
@@ -431,10 +431,10 @@ class GLUTEmu {
         }
     }
 
-    static void WindowResizeCallback(RGFW_window *window, RGFW_rect r) {
+    static void WindowResizedCallback(RGFW_window *window, RGFW_rect r) {
         auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
-        if (instance->windowResizeFunction) {
-            instance->windowResizeFunction(r.w, r.h);
+        if (instance->windowResizedFunction) {
+            instance->windowResizedFunction(r.w, r.h);
         }
     }
 
@@ -443,7 +443,7 @@ class GLUTEmu {
         instance->windowShouldRedisplay = true;
     }
 
-    static void KeyboardButtonCallback(RGFW_window *window, u8 key, char keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
+    static void KeyboardButtonCallback(RGFW_window *window, u8 key, u8 keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
         auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
         if (instance->keyboardButtonFunction) {
             instance->keyboardButtonFunction(key, uint8_t(keyChar), modifiers, isPressed);
@@ -468,7 +468,7 @@ class GLUTEmu {
     bool windowShouldRedisplay;
     bool mouseCaptured;
     CallbackWindowClose windowCloseFunction;
-    CallbackWindowResize windowResizeFunction;
+    CallbackWindowResized windowResizedFunction;
     CallbackWindowDisplay windowDisplayFunction;
     CallbackWindowIdle windowIdleFunction;
     CallbackKeyboardButton keyboardButtonFunction;
@@ -509,7 +509,7 @@ void glutExitFunc(void (*func)()) {
 }
 
 void glutReshapeFunc(void (*func)(int32_t, int32_t)) {
-    GLUTEmu::Instance().WindowSetResizeFunction(func);
+    GLUTEmu::Instance().WindowSetResizedFunction(func);
 }
 
 void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool)) {

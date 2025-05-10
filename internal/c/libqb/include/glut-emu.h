@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <RGFW.h>
+#include "../../parts/core/rgfw/RGFW.h"
 #include <stdint.h>
 
 enum : int32_t {

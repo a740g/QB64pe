@@ -2,7 +2,7 @@
 RGFW_SRCS := $(PATH_INTERNAL_C)/parts/core/rgfw/RGFW.c
 GLEW_SRCS := $(PATH_INTERNAL_C)/parts/core/glew/glew.c
 
-CORE_INCLUDE := -I$(PATH_INTERNAL_C)/parts/core/rgfw -I$(PATH_INTERNAL_C)/parts/core/glew/include
+CORE_INCLUDE := -I$(PATH_INTERNAL_C)/parts/core/glew/include
 
 RGFW_OBJS := $(RGFW_SRCS:.c=.o)
 GLEW_OBJS := $(GLEW_SRCS:.c=.o)
