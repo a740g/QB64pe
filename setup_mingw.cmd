@@ -38,10 +38,10 @@ if not exist "internal\c\c_compiler\" (
 rem Check the processor type and then set the ARCH variable to the processor type
 rem These values are from https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor#properties
 set "ARCH="
-wmic cpu get architecture | find "0" > nul && set ARCH=X86
-wmic cpu get architecture | find "5" > nul && set ARCH=ARM
-wmic cpu get architecture | find "9" > nul && set ARCH=X86
-wmic cpu get architecture | find "12" > nul && set ARCH=ARM
+powershell -c "(Get-WmiObject Win32_Processor).Architecture" | find "0" > nul && set ARCH=X86
+powershell -c "(Get-WmiObject Win32_Processor).Architecture" | find "5" > nul && set ARCH=ARM
+powershell -c "(Get-WmiObject Win32_Processor).Architecture" | find "9" > nul && set ARCH=X86
+powershell -c "(Get-WmiObject Win32_Processor).Architecture" | find "12" > nul && set ARCH=ARM
 
 rem Check if this is an alien processor
 if "%ARCH%" == "" (
@@ -50,7 +50,7 @@ if "%ARCH%" == "" (
 )
 
 rem Check the processor type and then set the BITS variable
-wmic os get osarchitecture | find /i "64-bit" > nul && set BITS=64 || set BITS=32
+powershell -c "(Get-WmiObject Win32_OperatingSystem).OsArchitecture" | find /i "64-bit" > nul && set BITS=64 || set BITS=32
 
 echo %ARCH%-%BITS% platform detected.
 
@@ -65,19 +65,19 @@ rem MINGW_DIR is actually the internal directory name inside the zip file
 rem It needs to be updated whenever the toolchains are updated
 if "%ARCH%" == "ARM" (
     if %BITS% == 64 (
-        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250402/llvm-mingw-20250402-ucrt-aarch64.zip"
-        set MINGW_DIR=llvm-mingw-20250402-ucrt-aarch64
+        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250514/llvm-mingw-20250514-ucrt-aarch64.zip"
+        set MINGW_DIR=llvm-mingw-20250514-ucrt-aarch64
     ) else (
-        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250402/llvm-mingw-20250402-ucrt-armv7.zip"
-        set MINGW_DIR=llvm-mingw-20250402-ucrt-armv7
+        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250514/llvm-mingw-20250514-ucrt-armv7.zip"
+        set MINGW_DIR=llvm-mingw-20250514-ucrt-armv7
     )
 ) else (
     if %BITS% == 64 (
-        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250402/llvm-mingw-20250402-ucrt-x86_64.zip"
-        set MINGW_DIR=llvm-mingw-20250402-ucrt-x86_64
+        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250514/llvm-mingw-20250514-ucrt-x86_64.zip"
+        set MINGW_DIR=llvm-mingw-20250514-ucrt-x86_64
     ) else (
-        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250402/llvm-mingw-20250402-ucrt-i686.zip"
-        set MINGW_DIR=llvm-mingw-20250402-ucrt-i686
+        set URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250514/llvm-mingw-20250514-ucrt-i686.zip"
+        set MINGW_DIR=llvm-mingw-20250514-ucrt-i686
     )
 )
 
