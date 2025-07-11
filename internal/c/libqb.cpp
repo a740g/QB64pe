@@ -25047,13 +25047,10 @@ void sub__screenmove(int32 x, int32 y, int32 passed) {
     if (passed == 2) {
         libqb_glut_position_window(x, y);
     } else {
-        int32 SW = -1, SH, WW, WH;
-        while (SW == -1) {
-            SW = glutGet(GLUT_SCREEN_WIDTH);
-        }
-        SH = glutGet(GLUT_SCREEN_HEIGHT);
-        WW = libqb_glut_get(GLUT_WINDOW_WIDTH);
-        WH = libqb_glut_get(GLUT_WINDOW_HEIGHT);
+        int32_t SW = glutGet(GLUT_SCREEN_WIDTH);
+        int32_t SH = glutGet(GLUT_SCREEN_HEIGHT);
+        int32_t WW = libqb_glut_get(GLUT_WINDOW_WIDTH);
+        int32_t WH = libqb_glut_get(GLUT_WINDOW_HEIGHT);
         x = (SW - WW) / 2;
         y = (SH - WH) / 2;
         libqb_glut_position_window(x, y);

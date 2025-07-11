@@ -170,6 +170,7 @@ typedef char* (*PFN_XKeysymToString)(KeySym);
 typedef int (*PFN_XGetKeyboardControl)(Display*, XKeyboardState*);
 typedef char* (*PFN_XGetAtomName)(Display*, Atom);
 typedef Window (*PFN_XDefaultRootWindow)(Display*); 
+typedef int (*PFN_XDefaultScreen)(Display*); 
 typedef int (*PFN_XQueryKeymap)(Display*, char[32]); 
 typedef KeyCode (*PFN_XKeysymToKeycode)(Display*, KeySym);
 typedef void (*PFN_XFreeColors)(Display *display, Colormap colormap, unsigned long *pixels, int npixels, unsigned long planes);
@@ -216,6 +217,7 @@ typedef PFNGLXGETFBCONFIGATTRIBPROC PFN_glXGetFBConfigAttrib;
 typedef __GLXextFuncPtr (*PFN_glXGetProcAddressARB)(const GLubyte *);
 typedef PFNGLXCHOOSEFBCONFIGPROC PFN_glXChooseFBConfig;
 typedef void (*PFN_glXDestroyContext)(Display *dpy, GLXContext ctx);
+typedef const char* (*PFN_glXQueryExtensionsString)(Display* dpy, int screen);
 #endif
 
 /* Src vars for reciving the functions */
@@ -317,6 +319,7 @@ PFN_XKeysymToString XKeysymToStringSrc;
 PFN_XGetKeyboardControl XGetKeyboardControlSrc;
 PFN_XGetAtomName XGetAtomNameSrc;
 PFN_XDefaultRootWindow XDefaultRootWindowSrc;
+PFN_XDefaultScreen XDefaultScreenSrc;
 PFN_XQueryKeymap XQueryKeymapSrc;
 PFN_XKeysymToKeycode XKeysymToKeycodeSrc;
 PFN_XFreeColors XFreeColorsSrc;
@@ -359,6 +362,7 @@ PFN_glXGetFBConfigAttrib glXGetFBConfigAttribSrc;
 PFN_glXGetProcAddressARB glXGetProcAddressARBSrc;
 PFN_glXChooseFBConfig glXChooseFBConfigSrc;
 PFN_glXDestroyContext glXDestroyContextSrc;
+PFN_glXQueryExtensionsString glXQueryExtensionsStringSrc;
 #endif
 
 /* Function to source defines */
@@ -464,6 +468,7 @@ PFN_glXDestroyContext glXDestroyContextSrc;
 #define XkbFreeKeyboard XkbFreeKeyboardSrc
 #define XGetAtomName XGetAtomNameSrc
 #define XDefaultRootWindow XDefaultRootWindowSrc
+#define XDefaultScreen XDefaultScreenSrc
 #define XMatchVisualInfo XMatchVisualInfoSrc
 #define XGetKeyboardControl XGetKeyboardControlSrc
 #define XKeysymToKeycode XKeysymToKeycodeSrc
@@ -504,6 +509,7 @@ PFN_glXDestroyContext glXDestroyContextSrc;
     #define glXChooseFBConfig glXChooseFBConfigSrc
     #define glXDestroyContext glXDestroyContextSrc
     #define glXSwapIntervalEXT glXSwapIntervalEXTSrc
+    #define glXQueryExtensionsString glXQueryExtensionsStringSrc
 #endif
 
 #ifdef XDL_IMPLEMENTATION
@@ -650,6 +656,7 @@ void XDL_init(void) {
     XDL_PROC_DEF(0, XkbFreeKeyboard);
     XDL_PROC_DEF(0, XGetAtomName);
     XDL_PROC_DEF(0, XDefaultRootWindow);
+    XDL_PROC_DEF(0, XDefaultScreen);
     XDL_PROC_DEF(0, XMatchVisualInfo);
     XDL_PROC_DEF(0, XGetKeyboardControl);
     XDL_PROC_DEF(0, XKeysymToKeycode);
@@ -695,6 +702,7 @@ void XDL_init(void) {
         XDL_PROC_DEF(1, glXGetProcAddressARB);
         XDL_PROC_DEF(1, glXChooseFBConfig);
         XDL_PROC_DEF(1, glXDestroyContext);
+        XDL_PROC_DEF(1, glXQueryExtensionsString);
     #endif
 }
 

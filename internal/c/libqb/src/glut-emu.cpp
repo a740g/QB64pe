@@ -19,7 +19,8 @@ class GLUTEmu {
 
     bool WindowInitialize(uint32_t width, uint32_t height, const char *title, uint32_t flags) {
         if (window) {
-            libqb_log_error("Window already created, cannot create another window"); // RGFW_TODO: sure we can; maybe we'll use it a future version of QB64-PE
+            libqb_log_error(
+                "Window already created, cannot create another window"); // RGFW_TODO: sure we can; maybe we'll use it in a future version of QB64-PE
         } else {
             RGFW_setGLHint(RGFW_glSamples, 4);
             RGFW_setGLHint(RGFW_glDoubleBuffer, RGFW_TRUE);
@@ -27,6 +28,7 @@ class GLUTEmu {
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
                 window->userPtr = this;
+                window->exitKey = RGFW_keyNULL; // Disable the default exit key behavior
 
                 RGFW_window_makeCurrent(window);
 
@@ -370,12 +372,7 @@ class GLUTEmu {
         libqb_log_trace("Entering main loop");
 
         while (window) {
-            // RGFW_window_checkEvents(window, 0);
-            while (RGFW_window_checkEvent(window)) {
-                if (window->event.type == RGFW_quit) {
-                    break;
-                }
-            }
+            RGFW_window_checkEvents(window, 10); // RGFW_TODO: 10ms is upper limit but check if this needs to be changed
 
             if (window->event.type == RGFW_quit) {
                 // Cancel RGFW_quit event to unfreeze the RGFW event loop and let QB64-PE handle the user quit action
@@ -392,8 +389,6 @@ class GLUTEmu {
             if (windowIdleFunction) {
                 windowIdleFunction();
             }
-
-            RGFW_window_eventWait(window, 10); // RGFW_TODO: 10ms is upper limit but check if this needs to be changed
         }
 
         libqb_log_trace("Exiting main loop");
@@ -464,7 +459,7 @@ class GLUTEmu {
         }
     }
 
-    RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future.
+    RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future
     bool windowShouldRedisplay;
     bool mouseCaptured;
     CallbackWindowClose windowCloseFunction;

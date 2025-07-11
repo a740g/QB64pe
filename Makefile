@@ -166,7 +166,7 @@ ifeq ($(OS),lnx)
 endif
 
 ifeq ($(OS),win)
-	CXXLIBS += -static-libgcc -static-libstdc++ -lcomdlg32 -lole32 -luuid -lshlwapi -lwindowscodecs
+	CXXLIBS += -static-libgcc -static-libstdc++ -lcomdlg32 -lole32 -luuid -lshlwapi -lwindowscodecs -lwinmm
 endif
 
 ifeq ($(OS),osx)
@@ -311,7 +311,7 @@ ifneq ($(filter y,$(DEP_DEVICEINPUT)),)
 
 	CXXFLAGS += -DDEPENDENCY_DEVICEINPUT
 	ifeq ($(OS),win)
-		CXXLIBS += -lwinmm -lxinput -ldinput8 -ldxguid -lwbemuuid -lole32 -loleaut32
+		CXXLIBS += -lxinput -ldinput8 -ldxguid -lwbemuuid -loleaut32
 	endif
 
 	QBLIB_NAME := $(addsuffix 1,$(QBLIB_NAME))
@@ -329,7 +329,7 @@ ifneq ($(filter y,$(DEP_AUDIO_MINIAUDIO)),)
 		CXXLIBS += -lm -lasound
 	endif
 	ifeq ($(OS),win)
-		CXXLIBS += -lwinmm -lksguid -ldxguid -lole32
+		CXXLIBS += -lksguid -ldxguid
 	endif
 	ifeq ($(OS),osx)
 		CXXLIBS += -lpthread -lm -framework CoreAudio -framework CoreMIDI -framework AudioUnit -framework AudioToolbox
@@ -373,7 +373,7 @@ ifeq ($(OS),win)
 
 		LICENSE_IN_USE := $(filter-out freeglut,$(LICENSE_IN_USE))
 	else
-		CXXLIBS += -lopengl32 -lglu32 -lwinmm -lgdi32
+		CXXLIBS += -lopengl32 -lglu32 -lgdi32
 	endif
 
 	ifneq ($(filter y,$(DEP_SOCKETS)),)
