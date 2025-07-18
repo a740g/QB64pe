@@ -44,7 +44,7 @@ enum : uint32_t {
     GLUT_WINDOW_FLAG_FULLSCREEN = RGFW_windowFullscreen,
     GLUT_WINDOW_FLAG_TRANSPARENT = RGFW_windowTransparent,
     GLUT_WINDOW_FLAG_CENTER = RGFW_windowCenter,
-    GLUT_WINDOW_FLAG_OPENGL_SOFTWARE = RGFW_windowOpenglSoftware,
+    GLUT_WINDOW_FLAG_OPENGL_SOFTWARE = RGFW_windowOpenGLSoftware,
     GLUT_WINDOW_FLAG_COCOA_CHDIR_TO_RES = RGFW_windowCocoaCHDirToRes,
     GLUT_WINDOW_FLAG_SCALE_TO_MONITOR = RGFW_windowScaleToMonitor,
     GLUT_WINDOW_FLAG_HIDE = RGFW_windowHide
