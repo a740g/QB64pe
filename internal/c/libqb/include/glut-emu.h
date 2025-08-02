@@ -190,7 +190,7 @@ void glutSwapBuffers();
 void glutExitFunc(void (*func)());
 void glutDisplayFunc(void (*func)());
 void glutIdleFunc(void (*func)());
-void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool));
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool, bool));
 void glutMouseFunc(void (*func)(uint8_t, bool, int32_t, int32_t, int32_t));
 void glutMotionFunc(void (*func)(int32_t, int32_t, int32_t, int32_t));
 void glutReshapeFunc(void (*func)(int32_t, int32_t));

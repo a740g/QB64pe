@@ -25711,7 +25711,7 @@ error:
     return b;
 }
 
-void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool isPressed) {
+void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool isRepeated, bool isPressed) {
 #ifdef QB64_GLUT
     // printf("key = %u, keyChar = %c, modifiers = %X, isPressed = %d\n", key, keyChar, modifiers, isPressed);
 
@@ -25814,7 +25814,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool is
     }
 
     if (vk != -1) {
-        if (isPressed) {
+        if (isPressed || isRepeated) {
             keydown_vk(vk);
         } else {
             keyup_vk(vk);
@@ -25843,7 +25843,7 @@ void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool is
         }
 #    endif
 
-        if (isPressed) {
+        if (isPressed || isRepeated) {
             keydown_ascii(keyChar);
         } else {
             keyup_ascii(keyChar);

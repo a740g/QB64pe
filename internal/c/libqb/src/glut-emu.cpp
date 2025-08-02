@@ -13,7 +13,7 @@ class GLUTEmu {
     typedef void (*CallbackWindowResized)(int32_t, int32_t);
     typedef void (*CallbackWindowDisplay)();
     typedef void (*CallbackWindowIdle)();
-    typedef void (*CallbackKeyboardButton)(uint8_t, uint8_t, uint8_t, bool);
+    typedef void (*CallbackKeyboardButton)(uint8_t, uint8_t, uint8_t, bool, bool);
     typedef void (*CallbackMouseButton)(uint8_t, bool, int32_t, int32_t, int32_t);
     typedef void (*CallbackMouseMotion)(int32_t, int32_t, int32_t, int32_t);
 
@@ -22,15 +22,15 @@ class GLUTEmu {
             libqb_log_error(
                 "Window already created, cannot create another window"); // RGFW_TODO: sure we can; maybe we'll use it in a future version of QB64-PE
         } else {
-            RGFW_setGLHint(RGFW_glSamples, 4);
-            RGFW_setGLHint(RGFW_glDoubleBuffer, RGFW_TRUE);
+            RGFW_setHint_OpenGL(RGFW_glSamples, 4);
+            RGFW_setHint_OpenGL(RGFW_glDoubleBuffer, RGFW_TRUE);
 
             window = RGFW_createWindow(title, RGFW_RECT(0, 0, width, height), flags);
             if (window) {
-                window->userPtr = this;
-                window->exitKey = RGFW_keyNULL; // Disable the default exit key behavior
+                RGFW_window_setUserPtr(window, this);
+                RGFW_window_setExitKey(window, RGFW_keyNULL); // Disable the default exit key behavior
 
-                RGFW_window_makeCurrent(window);
+                RGFW_window_makeCurrentContext_OpenGL(window);
 
                 libqb_log_trace("Window created (%u x %u)", width, height);
 
@@ -204,7 +204,8 @@ class GLUTEmu {
 
     RGFW_point WindowGetPosition() const {
         if (window) {
-            return {window->r.x, window->r.y};
+            auto r = RGFW_window_getRect(window);
+            return {r.x, r.y};
         } else {
             libqb_log_error("Window not created, cannot get position");
         }
@@ -214,17 +215,20 @@ class GLUTEmu {
 
     RGFW_point WindowGetSize() const {
         if (window) {
-            return {window->r.w, window->r.h};
+            auto r = RGFW_window_getRect(window);
+            return {r.w, r.h};
         } else {
             libqb_log_error("Window not created, cannot get size");
         }
 
-        return {0u, 0u};
+        return {0, 0};
     }
 
     const void *WindowGetHandle() const {
         if (window) {
-            return reinterpret_cast<const void *>(window->src.window);
+            auto windowSrc = RGFW_window_getSrc(window);
+
+            return reinterpret_cast<const void *>(windowSrc); // RGFW_TODO: This is wrong! FIXME!
         } else {
             libqb_log_error("Window not created, cannot get handle");
         }
@@ -234,7 +238,7 @@ class GLUTEmu {
 
     void WindowSwapBuffers() const {
         if (window) {
-            RGFW_window_swapBuffers(window);
+            RGFW_window_swapBuffers_OpenGL(window);
         } else {
             libqb_log_error("Window not created, cannot swap buffers");
         }
@@ -248,13 +252,13 @@ class GLUTEmu {
     void MouseSetCursor(int32_t style) {
         if (window) {
             if (style == GLUT_CURSOR_NONE) {
-                RGFW_window_mouseHold(window, RGFW_AREA(0, 0));
+                //RGFW_window_mouseHold(window, RGFW_AREA(0, 0));
                 RGFW_window_showMouse(window, false);
-                mouseCaptured = true;
+                //mouseCaptured = true;
 
                 libqb_log_trace("Mouse cursor grabbed & hidden");
             } else {
-                RGFW_window_mouseUnhold(window);
+                //RGFW_window_mouseUnhold(window);
                 RGFW_window_showMouse(window, true);
                 RGFW_window_setMouseStandard(window, RGFW_mouseIcons(style));
                 mouseCaptured = false;
@@ -334,7 +338,7 @@ class GLUTEmu {
 
     uint8_t KeyboardGetModifiers() const {
         if (window) {
-            return window->event.keyMod;
+            return keyboardModifiers;
         } else {
             libqb_log_error("Window not created, cannot get modifiers");
         }
@@ -374,10 +378,13 @@ class GLUTEmu {
         while (window) {
             RGFW_window_checkEvents(window, 10); // RGFW_TODO: 10ms is upper limit but check if this needs to be changed
 
+            /*
+            // RGFW_TODO: FIXME
             if (window->event.type == RGFW_quit) {
                 // Cancel RGFW_quit event to unfreeze the RGFW event loop and let QB64-PE handle the user quit action
                 window->event.type = RGFW_eventNone;
             }
+            */
 
             if (windowShouldRedisplay) {
                 windowShouldRedisplay = false;
@@ -401,7 +408,7 @@ class GLUTEmu {
 
   private:
     GLUTEmu()
-        : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), windowCloseFunction(nullptr), windowResizedFunction(nullptr),
+        : window(nullptr), windowShouldRedisplay(false), mouseCaptured(false), keyboardModifiers(0u), windowCloseFunction(nullptr), windowResizedFunction(nullptr),
           windowDisplayFunction(nullptr), windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), mouseButtonFunction(nullptr),
           mouseMotionFunction(nullptr) {}
 
@@ -420,40 +427,43 @@ class GLUTEmu {
     GLUTEmu &operator=(GLUTEmu &&) = delete;
 
     static void WindowQuitCallback(RGFW_window *window) {
-        auto instance = reinterpret_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<GLUTEmu *>(RGFW_window_getUserPtr(window));
         if (instance->windowCloseFunction) {
             instance->windowCloseFunction();
         }
     }
 
     static void WindowResizedCallback(RGFW_window *window, RGFW_rect r) {
-        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(RGFW_window_getUserPtr(window));
         if (instance->windowResizedFunction) {
             instance->windowResizedFunction(r.w, r.h);
         }
     }
 
     static void WindowRefreshCallback(RGFW_window *window) {
-        auto instance = reinterpret_cast<GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<GLUTEmu *>(RGFW_window_getUserPtr(window));
         instance->windowShouldRedisplay = true;
     }
 
-    static void KeyboardButtonCallback(RGFW_window *window, u8 key, u8 keyChar, RGFW_keymod modifiers, RGFW_bool isPressed) {
-        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
+    static void KeyboardButtonCallback(RGFW_window *window, u8 key, u8 keyChar, RGFW_keymod modifiers, RGFW_bool isRepeated, RGFW_bool isPressed) {
+        auto instance = reinterpret_cast<GLUTEmu *>(RGFW_window_getUserPtr(window));
+        instance->keyboardModifiers = modifiers;
+
         if (instance->keyboardButtonFunction) {
-            instance->keyboardButtonFunction(key, uint8_t(keyChar), modifiers, isPressed);
+            instance->keyboardButtonFunction(key, uint8_t(keyChar), modifiers, isRepeated, isPressed);
         }
     }
 
     static void MouseButtonCallback(RGFW_window *window, RGFW_mouseButton button, double scroll, RGFW_bool isPressed) {
-        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(RGFW_window_getUserPtr(window));
+        auto mousePos = RGFW_window_getMousePoint(window);
         if (instance->mouseButtonFunction) {
-            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), window->_lastMousePoint.x, window->_lastMousePoint.y);
+            instance->mouseButtonFunction(button, isPressed, std::lround(scroll), mousePos.x, mousePos.y);
         }
     }
 
     static void MouseMotionCallback(RGFW_window *window, RGFW_point point, RGFW_point vector) {
-        auto instance = reinterpret_cast<const GLUTEmu *>(window->userPtr);
+        auto instance = reinterpret_cast<const GLUTEmu *>(RGFW_window_getUserPtr(window));
         if (instance->mouseMotionFunction) {
             instance->mouseMotionFunction(point.x, point.y, vector.x, vector.y);
         }
@@ -462,6 +472,7 @@ class GLUTEmu {
     RGFW_window *window; // RGFW_TODO: since RGFW allows multiple windows, check if we can support that in the future
     bool windowShouldRedisplay;
     bool mouseCaptured;
+    RGFW_keymod keyboardModifiers;
     CallbackWindowClose windowCloseFunction;
     CallbackWindowResized windowResizedFunction;
     CallbackWindowDisplay windowDisplayFunction;
@@ -507,7 +518,7 @@ void glutReshapeFunc(void (*func)(int32_t, int32_t)) {
     GLUTEmu::Instance().WindowSetResizedFunction(func);
 }
 
-void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool)) {
+void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool, bool)) {
     GLUTEmu::Instance().KeyboardSetButtonFunction(func);
 }
 
