@@ -1,5 +1,6 @@
-#ifndef INCLUDE_LIBQB_GLUT_THREAD_H
-#define INCLUDE_LIBQB_GLUT_THREAD_H
+#pragma once
+
+#include "glut-emu.h"
 
 // Called to potentially setup GLUT before starting the program.
 void libqb_glut_presetup();
@@ -24,14 +25,32 @@ void libqb_exit(int);
 
 // These functions perform the same actions as their corresponding glut* functions.
 // They tell the GLUT thread to perform the command, returning the result if applicable
-void libqb_glut_set_cursor(int style);
-void libqb_glut_warp_pointer(int x, int y);
-int libqb_glut_get(int id);
-void libqb_glut_iconify_window();
-void libqb_glut_position_window(int x, int y);
+void libqb_glut_set_window_title(const char *title);
+const char *libqb_glut_get_window_title();
+void libqb_glut_set_fullscreen(bool fullscreen);
+bool libqb_glut_is_fullscreen();
+void libqb_glut_maximize_window();
+bool libqb_glut_is_window_maximized();
+void libqb_glut_minimize_window();
+bool libqb_glut_is_window_minimized();
+void libqb_glut_restore_window();
 void libqb_glut_show_window();
 void libqb_glut_hide_window();
-void libqb_glut_set_window_title(const char *title);
+bool libqb_glut_is_window_visible();
+void libqb_glut_focus_window();
+bool libqb_glut_window_has_focus();
+void libqb_glut_resize_window(int width, int height);
+std::pair<int, int> libqb_glut_get_window_size();
+void libqb_glut_move_window(int x, int y);
+std::pair<int, int> libqb_glut_get_window_position();
+void libqb_glut_set_window_aspect_ratio(int width, int height);
+void libqb_glut_set_window_size_limits(int minWidth, int minHeight, int maxWidth, int maxHeight);
+void libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor style);
+void libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode mode);
+GLUTEnum_MouseCursorMode libqb_glut_get_cursor_mode();
+void libqb_glut_move_mouse(double x, double y);
+std::pair<double, double> libqb_glut_get_mouse_position();
+std::pair<int, int> libqb_glut_get_screen_size();
 void libqb_glut_exit_program(int exitcode);
 
 // Convenience macros, exists a function depending on the state of GLUT
@@ -48,5 +67,3 @@ void libqb_glut_exit_program(int exitcode);
         if (!libqb_is_glut_up())                                                                                                                               \
             return result;                                                                                                                                     \
     } while (0)
-
-#endif

@@ -1,207 +1,266 @@
 //----------------------------------------------------------------------------------------------------------------------
-// QB64-PE GLUT emulation layer
+// QB64-PE GLUT-like emulation layer
 // This abstracts the underlying windowing library and provides a GLUT-like API for QB64-PE
 //----------------------------------------------------------------------------------------------------------------------
 
 #pragma once
 
-#include "../../parts/core/rgfw/RGFW.h"
-#include <stdint.h>
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <utility>
 
-enum : int32_t {
-    GLUT_CURSOR_NONE = -1,
-    GLUT_CURSOR_LEFT_ARROW = RGFW_mouseArrow,
-    GLUT_CURSOR_INFO = RGFW_mousePointingHand,
-    GLUT_CURSOR_TEXT = RGFW_mouseIbeam,
-    GLUT_CURSOR_CROSSHAIR = RGFW_mouseCrosshair,
-    GLUT_CURSOR_UP_DOWN = RGFW_mouseResizeNS,
-    GLUT_CURSOR_LEFT_RIGHT = RGFW_mouseResizeEW,
-    GLUT_CURSOR_TOP_LEFT_CORNER = RGFW_mouseResizeNESW,
-    GLUT_CURSOR_TOP_RIGHT_CORNER = RGFW_mouseResizeNWSE,
-    GLUT_CURSOR_WAIT = RGFW_mouseNotAllowed,
-    GLUT_CURSOR_HELP = RGFW_mouseNormal,
-    GLUT_CURSOR_CYCLE = RGFW_mouseResizeAll
+enum class GLUTEmu_WindowHint : int {
+    WindowResizable = GLFW_RESIZABLE,
+    WindowVisible = GLFW_VISIBLE,
+    WindowDecorated = GLFW_DECORATED,
+    WindowAutoIconify = GLFW_AUTO_ICONIFY,
+    WindowFloating = GLFW_FLOATING,
+    WindowMaximized = GLFW_MAXIMIZED,
+    WindowCenterCursor = GLFW_CENTER_CURSOR,
+    WindowTransparentFramebuffer = GLFW_TRANSPARENT_FRAMEBUFFER,
+    WindowFocusOnShow = GLFW_FOCUS_ON_SHOW,
+    WindowScaleToMonitor = GLFW_SCALE_TO_MONITOR,
+    WindowScaleFramebuffer = GLFW_SCALE_FRAMEBUFFER,
+    WindowMousePassThrough = GLFW_MOUSE_PASSTHROUGH,
+    WindowPositionX = GLFW_POSITION_X,
+    WindowPositionY = GLFW_POSITION_Y,
+    FramebufferSamples = GLFW_SAMPLES,
+    FramebufferDoubleBuffer = GLFW_DOUBLEBUFFER,
+    MonitorRefreshRate = GLFW_REFRESH_RATE,
+    ContextVersionMajor = GLFW_CONTEXT_VERSION_MAJOR,
+    ContextVersionMinor = GLFW_CONTEXT_VERSION_MINOR,
+    ContextOpenGLProfile = GLFW_OPENGL_PROFILE,
+    Win32KeyboardMenu = GLFW_WIN32_KEYBOARD_MENU,
+    Win32ShowDefault = GLFW_WIN32_SHOWDEFAULT,
+    macOSCocoaFrameName = GLFW_COCOA_FRAME_NAME,
+    macOSCocoaGraphicsSwitching = GLFW_COCOA_GRAPHICS_SWITCHING,
+    LinuxX11ClassName = GLFW_X11_CLASS_NAME,
+    LinuxX11InstanceName = GLFW_X11_INSTANCE_NAME
 };
 
-enum : uint32_t {
-    GLUT_WINDOW_X,
-    GLUT_WINDOW_Y,
-    GLUT_WINDOW_WIDTH,
-    GLUT_WINDOW_HEIGHT,
-    GLUT_WINDOW_FULL_SCREEN,
-    GLUT_WINDOW_ICONIFIED,
-    GLUT_WINDOW_HAS_FOCUS,
-    GLUT_SCREEN_WIDTH,
-    GLUT_SCREEN_HEIGHT
+enum class GLUTEmu_KeyboardKey : int {
+    Unknown = GLFW_KEY_UNKNOWN,
+    Space = GLFW_KEY_SPACE,
+    Apostrophe = GLFW_KEY_APOSTROPHE,
+    Comma = GLFW_KEY_COMMA,
+    Minus = GLFW_KEY_MINUS,
+    Period = GLFW_KEY_PERIOD,
+    Slash = GLFW_KEY_SLASH,
+    Zero = GLFW_KEY_0,
+    One = GLFW_KEY_1,
+    Two = GLFW_KEY_2,
+    Three = GLFW_KEY_3,
+    Four = GLFW_KEY_4,
+    Five = GLFW_KEY_5,
+    Six = GLFW_KEY_6,
+    Seven = GLFW_KEY_7,
+    Eight = GLFW_KEY_8,
+    Nine = GLFW_KEY_9,
+    Semicolon = GLFW_KEY_SEMICOLON,
+    Equal = GLFW_KEY_EQUAL,
+    A = GLFW_KEY_A,
+    B = GLFW_KEY_B,
+    C = GLFW_KEY_C,
+    D = GLFW_KEY_D,
+    E = GLFW_KEY_E,
+    F = GLFW_KEY_F,
+    G = GLFW_KEY_G,
+    H = GLFW_KEY_H,
+    I = GLFW_KEY_I,
+    J = GLFW_KEY_J,
+    K = GLFW_KEY_K,
+    L = GLFW_KEY_L,
+    M = GLFW_KEY_M,
+    N = GLFW_KEY_N,
+    O = GLFW_KEY_O,
+    P = GLFW_KEY_P,
+    Q = GLFW_KEY_Q,
+    R = GLFW_KEY_R,
+    S = GLFW_KEY_S,
+    T = GLFW_KEY_T,
+    U = GLFW_KEY_U,
+    V = GLFW_KEY_V,
+    W = GLFW_KEY_W,
+    X = GLFW_KEY_X,
+    Y = GLFW_KEY_Y,
+    Z = GLFW_KEY_Z,
+    LeftBracket = GLFW_KEY_LEFT_BRACKET,
+    Backslash = GLFW_KEY_BACKSLASH,
+    RightBracket = GLFW_KEY_RIGHT_BRACKET,
+    GraveAccent = GLFW_KEY_GRAVE_ACCENT,
+    World1 = GLFW_KEY_WORLD_1,
+    World2 = GLFW_KEY_WORLD_2,
+    Escape = GLFW_KEY_ESCAPE,
+    Enter = GLFW_KEY_ENTER,
+    Tab = GLFW_KEY_TAB,
+    Backspace = GLFW_KEY_BACKSPACE,
+    Insert = GLFW_KEY_INSERT,
+    Delete = GLFW_KEY_DELETE,
+    Right = GLFW_KEY_RIGHT,
+    Left = GLFW_KEY_LEFT,
+    Down = GLFW_KEY_DOWN,
+    Up = GLFW_KEY_UP,
+    PageUp = GLFW_KEY_PAGE_UP,
+    PageDown = GLFW_KEY_PAGE_DOWN,
+    Home = GLFW_KEY_HOME,
+    End = GLFW_KEY_END,
+    CapsLock = GLFW_KEY_CAPS_LOCK,
+    ScrollLock = GLFW_KEY_SCROLL_LOCK,
+    NumLock = GLFW_KEY_NUM_LOCK,
+    PrintScreen = GLFW_KEY_PRINT_SCREEN,
+    Pause = GLFW_KEY_PAUSE,
+    F1 = GLFW_KEY_F1,
+    F2 = GLFW_KEY_F2,
+    F3 = GLFW_KEY_F3,
+    F4 = GLFW_KEY_F4,
+    F5 = GLFW_KEY_F5,
+    F6 = GLFW_KEY_F6,
+    F7 = GLFW_KEY_F7,
+    F8 = GLFW_KEY_F8,
+    F9 = GLFW_KEY_F9,
+    F10 = GLFW_KEY_F10,
+    F11 = GLFW_KEY_F11,
+    F12 = GLFW_KEY_F12,
+    F13 = GLFW_KEY_F13,
+    F14 = GLFW_KEY_F14,
+    F15 = GLFW_KEY_F15,
+    F16 = GLFW_KEY_F16,
+    F17 = GLFW_KEY_F17,
+    F18 = GLFW_KEY_F18,
+    F19 = GLFW_KEY_F19,
+    F20 = GLFW_KEY_F20,
+    F21 = GLFW_KEY_F21,
+    F22 = GLFW_KEY_F22,
+    F23 = GLFW_KEY_F23,
+    F24 = GLFW_KEY_F24,
+    F25 = GLFW_KEY_F25,
+    KP0 = GLFW_KEY_KP_0,
+    KP1 = GLFW_KEY_KP_1,
+    KP2 = GLFW_KEY_KP_2,
+    KP3 = GLFW_KEY_KP_3,
+    KP4 = GLFW_KEY_KP_4,
+    KP5 = GLFW_KEY_KP_5,
+    KP6 = GLFW_KEY_KP_6,
+    KP7 = GLFW_KEY_KP_7,
+    KP8 = GLFW_KEY_KP_8,
+    KP9 = GLFW_KEY_KP_9,
+    KPDecimal = GLFW_KEY_KP_DECIMAL,
+    KPDivide = GLFW_KEY_KP_DIVIDE,
+    KPMultiply = GLFW_KEY_KP_MULTIPLY,
+    KPSubtract = GLFW_KEY_KP_SUBTRACT,
+    KPAdd = GLFW_KEY_KP_ADD,
+    KPEnter = GLFW_KEY_KP_ENTER,
+    KPEqual = GLFW_KEY_KP_EQUAL,
+    LeftShift = GLFW_KEY_LEFT_SHIFT,
+    LeftControl = GLFW_KEY_LEFT_CONTROL,
+    LeftAlt = GLFW_KEY_LEFT_ALT,
+    LeftSuper = GLFW_KEY_LEFT_SUPER,
+    RightShift = GLFW_KEY_RIGHT_SHIFT,
+    RightControl = GLFW_KEY_RIGHT_CONTROL,
+    RightAlt = GLFW_KEY_RIGHT_ALT,
+    RightSuper = GLFW_KEY_RIGHT_SUPER,
+    Menu = GLFW_KEY_MENU
 };
 
-enum : uint32_t {
-    GLUT_WINDOW_FLAG_NO_INIT_API = RGFW_windowNoInitAPI,
-    GLUT_WINDOW_FLAG_NO_BORDER = RGFW_windowNoBorder,
-    GLUT_WINDOW_FLAG_NO_RESIZE = RGFW_windowNoResize,
-    GLUT_WINDOW_FLAG_ALLOW_DND = RGFW_windowAllowDND,
-    GLUT_WINDOW_FLAG_HIDE_MOUSE = RGFW_windowHideMouse,
-    GLUT_WINDOW_FLAG_FULLSCREEN = RGFW_windowFullscreen,
-    GLUT_WINDOW_FLAG_TRANSPARENT = RGFW_windowTransparent,
-    GLUT_WINDOW_FLAG_CENTER = RGFW_windowCenter,
-    GLUT_WINDOW_FLAG_OPENGL_SOFTWARE = RGFW_windowOpenGLSoftware,
-    GLUT_WINDOW_FLAG_COCOA_CHDIR_TO_RES = RGFW_windowCocoaCHDirToRes,
-    GLUT_WINDOW_FLAG_SCALE_TO_MONITOR = RGFW_windowScaleToMonitor,
-    GLUT_WINDOW_FLAG_HIDE = RGFW_windowHide
+enum class GLUTEmu_KeyboardKeyModifier : int {
+    Shift = GLFW_MOD_SHIFT,
+    Control = GLFW_MOD_CONTROL,
+    Alt = GLFW_MOD_ALT,
+    Super = GLFW_MOD_SUPER,
+    CapsLock = GLFW_MOD_CAPS_LOCK,
+    NumLock = GLFW_MOD_NUM_LOCK,
+    ScrollLock = 1 << 16 // GLFW does not define a ScrollLock modifier, so this is a workaround
 };
 
-enum : uint8_t {
-    GLUT_MOUSE_BUTTON_LEFT = RGFW_mouseLeft,
-    GLUT_MOUSE_BUTTON_MIDDLE = RGFW_mouseMiddle,
-    GLUT_MOUSE_BUTTON_RIGHT = RGFW_mouseRight,
-    GLUT_MOUSE_WHEEL_UP = RGFW_mouseScrollUp,
-    GLUT_MOUSE_WHEEL_DOWN = RGFW_mouseScrollDown,
-    GLUT_MOUSE_MISC_1 = RGFW_mouseMisc1,
-    GLUT_MOUSE_MISC_2 = RGFW_mouseMisc2,
-    GLUT_MOUSE_MISC_3 = RGFW_mouseMisc3,
-    GLUT_MOUSE_MISC_4 = RGFW_mouseMisc4,
-    GLUT_MOUSE_MISC_5 = RGFW_mouseMisc5
+enum class GLUTEmu_MouseStandardCursor : int {
+    Arrow = GLFW_ARROW_CURSOR,
+    PointingHand = GLFW_POINTING_HAND_CURSOR,
+    IBeam = GLFW_IBEAM_CURSOR,
+    Crosshair = GLFW_CROSSHAIR_CURSOR,
+    ResizeNESW = GLFW_RESIZE_NESW_CURSOR,
+    ResizeNWSE = GLFW_RESIZE_NWSE_CURSOR,
+    ResizeAll = GLFW_RESIZE_ALL_CURSOR,
+    ResizeNS = GLFW_RESIZE_NS_CURSOR,
+    ResizeEW = GLFW_RESIZE_EW_CURSOR,
+    NotAllowed = GLFW_NOT_ALLOWED_CURSOR
 };
 
-enum : uint8_t {
-    GLUT_KEY_MODIFIER_CAPS_LOCK = RGFW_modCapsLock,
-    GLUT_KEY_MODIFIER_NUM_LOCK = RGFW_modNumLock,
-    GLUT_KEY_MODIFIER_CONTROL = RGFW_modControl,
-    GLUT_KEY_MODIFIER_ALT = RGFW_modAlt,
-    GLUT_KEY_MODIFIER_SHIFT = RGFW_modShift,
-    GLUT_KEY_MODIFIER_SUPER = RGFW_modSuper,
-    GLUT_KEY_MODIFIER_SCROLL_LOCK = RGFW_modScrollLock
+enum class GLUTEnum_MouseCursorMode : int {
+    Normal = GLFW_CURSOR_NORMAL,
+    Hidden = GLFW_CURSOR_HIDDEN,
+    Disabled = GLFW_CURSOR_DISABLED,
+    Captured = GLFW_CURSOR_CAPTURED
 };
 
-enum : uint8_t {
-    GLUT_KEY_NULL = RGFW_keyNULL,
-    GLUT_KEY_ESCAPE = RGFW_escape,
-    GLUT_KEY_BACKTICK = RGFW_backtick,
-    GLUT_KEY_0 = RGFW_0,
-    GLUT_KEY_1 = RGFW_1,
-    GLUT_KEY_2 = RGFW_2,
-    GLUT_KEY_3 = RGFW_3,
-    GLUT_KEY_4 = RGFW_4,
-    GLUT_KEY_5 = RGFW_5,
-    GLUT_KEY_6 = RGFW_6,
-    GLUT_KEY_7 = RGFW_7,
-    GLUT_KEY_8 = RGFW_8,
-    GLUT_KEY_9 = RGFW_9,
-    GLUT_KEY_MINUS = RGFW_minus,
-    GLUT_KEY_EQUALS = RGFW_equals,
-    GLUT_KEY_BACKSPACE = RGFW_backSpace,
-    GLUT_KEY_TAB = RGFW_tab,
-    GLUT_KEY_SPACE = RGFW_space,
-    GLUT_KEY_A = RGFW_a,
-    GLUT_KEY_B = RGFW_b,
-    GLUT_KEY_C = RGFW_c,
-    GLUT_KEY_D = RGFW_d,
-    GLUT_KEY_E = RGFW_e,
-    GLUT_KEY_F = RGFW_f,
-    GLUT_KEY_G = RGFW_g,
-    GLUT_KEY_H = RGFW_h,
-    GLUT_KEY_I = RGFW_i,
-    GLUT_KEY_J = RGFW_j,
-    GLUT_KEY_K = RGFW_k,
-    GLUT_KEY_L = RGFW_l,
-    GLUT_KEY_M = RGFW_m,
-    GLUT_KEY_N = RGFW_n,
-    GLUT_KEY_O = RGFW_o,
-    GLUT_KEY_P = RGFW_p,
-    GLUT_KEY_Q = RGFW_q,
-    GLUT_KEY_R = RGFW_r,
-    GLUT_KEY_S = RGFW_s,
-    GLUT_KEY_T = RGFW_t,
-    GLUT_KEY_U = RGFW_u,
-    GLUT_KEY_V = RGFW_v,
-    GLUT_KEY_W = RGFW_w,
-    GLUT_KEY_X = RGFW_x,
-    GLUT_KEY_Y = RGFW_y,
-    GLUT_KEY_Z = RGFW_z,
-    GLUT_KEY_PERIOD = RGFW_period,
-    GLUT_KEY_COMMA = RGFW_comma,
-    GLUT_KEY_SLASH = RGFW_slash,
-    GLUT_KEY_BRACKET = RGFW_bracket,
-    GLUT_KEY_CLOSE_BRACKET = RGFW_closeBracket,
-    GLUT_KEY_SEMICOLON = RGFW_semicolon,
-    GLUT_KEY_APOSTROPHE = RGFW_apostrophe,
-    GLUT_KEY_BACKSLASH = RGFW_backSlash,
-    GLUT_KEY_RETURN = RGFW_return,
-    GLUT_KEY_DELETE = RGFW_delete,
-
-    GLUT_KEY_F1 = RGFW_F1,
-    GLUT_KEY_F2 = RGFW_F2,
-    GLUT_KEY_F3 = RGFW_F3,
-    GLUT_KEY_F4 = RGFW_F4,
-    GLUT_KEY_F5 = RGFW_F5,
-    GLUT_KEY_F6 = RGFW_F6,
-    GLUT_KEY_F7 = RGFW_F7,
-    GLUT_KEY_F8 = RGFW_F8,
-    GLUT_KEY_F9 = RGFW_F9,
-    GLUT_KEY_F10 = RGFW_F10,
-    GLUT_KEY_F11 = RGFW_F11,
-    GLUT_KEY_F12 = RGFW_F12,
-
-    GLUT_KEY_CAPS_LOCK = RGFW_capsLock,
-    GLUT_KEY_SHIFT_L = RGFW_shiftL,
-    GLUT_KEY_CONTROL_L = RGFW_controlL,
-    GLUT_KEY_ALT_L = RGFW_altL,
-    GLUT_KEY_SUPER_L = RGFW_superL,
-    GLUT_KEY_SHIFT_R = RGFW_shiftR,
-    GLUT_KEY_CONTROL_R = RGFW_controlR,
-    GLUT_KEY_ALT_R = RGFW_altR,
-    GLUT_KEY_SUPER_R = RGFW_superR,
-    GLUT_KEY_SCROLL_LOCK = RGFW_scrollLock,
-
-    GLUT_KEY_UP = RGFW_up,
-    GLUT_KEY_DOWN = RGFW_down,
-    GLUT_KEY_LEFT = RGFW_left,
-    GLUT_KEY_RIGHT = RGFW_right,
-
-    GLUT_KEY_INSERT = RGFW_insert,
-    GLUT_KEY_END = RGFW_end,
-    GLUT_KEY_HOME = RGFW_home,
-    GLUT_KEY_PAGE_UP = RGFW_pageUp,
-    GLUT_KEY_PAGE_DOWN = RGFW_pageDown,
-
-    GLUT_KEY_NUM_LOCK = RGFW_numLock,
-    GLUT_KEY_KP_SLASH = RGFW_KP_Slash,
-    GLUT_KEY_MULTIPLY = RGFW_multiply,
-    GLUT_KEY_KP_MINUS = RGFW_KP_Minus,
-    GLUT_KEY_KP_1 = RGFW_KP_1,
-    GLUT_KEY_KP_2 = RGFW_KP_2,
-    GLUT_KEY_KP_3 = RGFW_KP_3,
-    GLUT_KEY_KP_4 = RGFW_KP_4,
-    GLUT_KEY_KP_5 = RGFW_KP_5,
-    GLUT_KEY_KP_6 = RGFW_KP_6,
-    GLUT_KEY_KP_7 = RGFW_KP_7,
-    GLUT_KEY_KP_8 = RGFW_KP_8,
-    GLUT_KEY_KP_9 = RGFW_KP_9,
-    GLUT_KEY_KP_0 = RGFW_KP_0,
-    GLUT_KEY_KP_PERIOD = RGFW_KP_Period,
-    GLUT_KEY_KP_RETURN = RGFW_KP_Return
+enum class GLUTEmu_MouseButton : int {
+    Left = GLFW_MOUSE_BUTTON_LEFT,
+    Right = GLFW_MOUSE_BUTTON_RIGHT,
+    Middle = GLFW_MOUSE_BUTTON_MIDDLE,
+    One = GLFW_MOUSE_BUTTON_1,
+    Two = GLFW_MOUSE_BUTTON_2,
+    Three = GLFW_MOUSE_BUTTON_3,
+    Four = GLFW_MOUSE_BUTTON_4,
+    Five = GLFW_MOUSE_BUTTON_5,
+    Six = GLFW_MOUSE_BUTTON_6,
+    Seven = GLFW_MOUSE_BUTTON_7,
+    Eight = GLFW_MOUSE_BUTTON_8
 };
 
-bool glutInitWindow(uint32_t width, uint32_t height, const char *title, uint32_t flags);
-void glutPostRedisplay();
-void glutReshapeWindow(int32_t width, int32_t height);
-void glutFullScreen();
-void glutSwapBuffers();
-void glutExitFunc(void (*func)());
-void glutDisplayFunc(void (*func)());
-void glutIdleFunc(void (*func)());
-void glutKeyboardFunc(void (*func)(uint8_t, uint8_t, uint8_t, bool));
-void glutMouseFunc(void (*func)(uint8_t, bool, int32_t, int32_t, int32_t));
-void glutMotionFunc(void (*func)(int32_t, int32_t, int32_t, int32_t));
-void glutReshapeFunc(void (*func)(int32_t, int32_t));
-void glutMainLoop();
-void glutSetCursor(int32_t style);
-void glutWarpPointer(int32_t x, int32_t y);
-int32_t glutGet(uint32_t id);
-void glutIconifyWindow();
-void glutPositionWindow(int32_t x, int32_t y);
-void glutShowWindow();
-void glutHideWindow();
-void glutSetWindowTitle(const char *title);
-const void *glutGetWindowHandle();
-uint8_t glutGetKeyModifiers();
+enum class GLUTEmu_ButtonAction : int { Pressed = GLFW_PRESS, Released = GLFW_RELEASE, Repeated = GLFW_REPEAT };
+
+typedef void (*GLUTEmu_CallbackWindowClose)();
+typedef void (*GLUTEmu_CallbackWindowResized)(int /*width*/, int /*height*/);
+typedef void (*GLUTEmu_CallbackWindowMaximized)(bool /*isMaximized*/);
+typedef void (*GLUTEmu_CallbackWindowRefresh)();
+typedef void (*GLUTEmu_CallbackWindowIdle)();
+typedef void (*GLUTEmu_CallbackKeyboardButton)(GLUTEmu_KeyboardKey /*key*/, int /*scancode*/, GLUTEmu_ButtonAction /*action*/);
+typedef void (*GLUTEmu_CallbackKeyboardChar)(unsigned int /*codepoint*/);
+typedef void (*GLUTEmu_CallbackMouseButton)(GLUTEmu_MouseButton /*button*/, GLUTEmu_ButtonAction /*action*/);
+typedef void (*GLUTEmu_CallbackMouseMotion)(double /*x*/, double /*y*/, bool /*isRaw*/);
+typedef void (*GLUTEmu_CallbackMouseScroll)(double /*xoffset*/, double /*yoffset*/);
+
+template <typename T> void GLUTEmu_WindowSetHint(GLUTEmu_WindowHint hint, const T value);
+bool GLUTEmu_WindowInitialize(int width, int height, const char *title);
+bool GLUTEmu_WindowIsCreated();
+void GLUTEmu_WindowSetTitle(const char *title);
+const char *GLUTEmu_WindowGetTitle();
+void GLUTEmu_WindowFullScreen(bool fullscreen);
+bool GLUTEmu_WindowIsFullscreen();
+void GLUTEmu_WindowMaximize();
+bool GLUTEmu_WindowIsMaximized();
+void GLUTEmu_WindowMinimize();
+bool GLUTEmu_WindowIsMinimized();
+void GLUTEmu_WindowRestore();
+void GLUTEmu_ShowWindow();
+void GLUTEmu_HideWindow();
+bool GLUTEmu_WindowIsVisible();
+void GLUTEmu_WindowFocus();
+bool GLUTEmu_WindowHasFocus();
+void GLUTEmu_WindowResize(int width, int height);
+std::pair<int, int> GLUTEmu_WindowGetSize();
+void GLUTEmu_WindowMove(int x, int y);
+std::pair<int, int> GLUTEmu_WindowGetPosition();
+void GLUTEmu_WindowSetAspectRatio(int width, int height);
+void GLUTEmu_WindowSetSizeLimits(int minWidth, int minHeight, int maxWidth, int maxHeight);
+void GLUTEmu_WindowSetShouldClose(bool shouldClose);
+void GLUTEmu_WindowSwapBuffers();
+void GLUTEmu_WindowRefresh();
+const void *GLUTEmu_WindowGetNativeHandle();
+void GLUTEmu_WindowSetCloseFunction(GLUTEmu_CallbackWindowClose func);
+void GLUTEmu_WindowSetResizedFunction(GLUTEmu_CallbackWindowResized func);
+void GLUTEmu_WindowSetMaximizedFunction(GLUTEmu_CallbackWindowMaximized func);
+void GLUTEmu_WindowSetRefreshFunction(GLUTEmu_CallbackWindowRefresh func);
+void GLUTEmu_WindowSetIdleFunction(GLUTEmu_CallbackWindowIdle func);
+void GLUTEmu_KeyboardSetButtonFunction(GLUTEmu_CallbackKeyboardButton func);
+bool GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier modifier);
+void GLUTEmu_KeyboardSetCharFunction(GLUTEmu_CallbackKeyboardChar func);
+void GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor style);
+void GLUTEmu_MouseSetCursorMode(GLUTEnum_MouseCursorMode mode);
+GLUTEnum_MouseCursorMode GLUTEmu_MouseGetCursorMode();
+void GLUTEmu_MouseMove(double x, double y);
+std::pair<double, double> GLUTEmu_MouseGetPosition();
+void GLUTEmu_MouseSetMotionFunction(GLUTEmu_CallbackMouseMotion func);
+void GLUTEmu_MouseSetButtonFunction(GLUTEmu_CallbackMouseButton func);
+void GLUTEmu_MouseSetScrollFunction(GLUTEmu_CallbackMouseScroll func);
+std::pair<int, int> GLUTEmu_ScreenGetSize();
+void GLUTEmu_MainLoop();

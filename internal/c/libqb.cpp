@@ -29,7 +29,6 @@
 #include "font.h"
 #include "game_controller.h"
 #include "gfs.h"
-#include "glut-emu.h"
 #include "glut-thread.h"
 #include "graphics.h"
 #include "gui.h"
@@ -38,7 +37,7 @@
 #include "image.h"
 #include "keyhandler.h"
 #include "logging.h"
-#include "mem.h"
+#include "memblock.h"
 #include "mutex.h"
 #include "qblist.h"
 #include "qbs.h"
@@ -788,7 +787,6 @@ uint16_t codepage437_to_unicode16[] = {
 */
 
 int64 device_event_index = 0;
-int32 device_mouse_relative = 0; // RGFW_TODO: This is never set to true anywhere! See what we need to do about it.
 
 int32 lock_mainloop = 0; // 0=unlocked, 1=lock requested, 2=locked
 
@@ -1502,9 +1500,6 @@ static const int32 scancode_lookup[]={
 };
 // clang-format on
 
-void keydown(uint32 x);
-void keyup(uint32 x);
-
 uint32 unicode_to_cp437(uint32 x) {
     static int32 i;
     for (i = 0; i <= 255; i++) {
@@ -1612,21 +1607,17 @@ void keyheld_unbind(uint32 x) {
     }
 }
 
-void keydown_ascii(uint32 x) {
-    keydown(x);
-}
-
 void keydown_unicode(uint32 x) {
     keydown_glyph = 1;
     // note: UNICODE 0-127 map directly to ASCII 0-127
     if (x <= 127) {
-        keydown_ascii(x);
+        keydown(x);
         return;
     }
     // note: some UNICODE values map directly to CP437 values found in the extended ASCII set
     auto x2 = unicode_to_cp437(x);
     if (x2) {
-        keydown_ascii(x2);
+        keydown(x2);
         return;
     }
     // note: full width latin characters will be mapped to their normal width equivalents
@@ -1634,35 +1625,27 @@ void keydown_unicode(uint32 x) {
     // This is useful for typesetting Latin characters in a CJK  environment. U+FF00 does not correspond to a fullwidth ASCII 20 (space character), since that
     // role is already fulfilled by U+3000 "ideographic space."
     if ((x >= 0x0000FF01) && (x <= 0x0000FF5E)) {
-        keydown_ascii(x - 0x0000FF01 + 0x21);
+        keydown(x - 0x0000FF01 + 0x21);
         return;
     }
     if (x == 0x3000) {
-        keydown_ascii(32);
+        keydown(32);
         return;
     }
     x |= UC;
     keydown(x);
-}
-
-void keydown_vk(uint32 x) {
-    keydown(x);
-}
-
-void keyup_ascii(uint32 x) {
-    keyup(x);
 }
 
 void keyup_unicode(uint32 x) {
     // note: UNICODE 0-127 map directly to ASCII 0-127
     if (x <= 127) {
-        keyup_ascii(x);
+        keyup(x);
         return;
     }
     // note: some UNICODE values map directly to CP437 values found in the extended ASCII set
     auto x2 = unicode_to_cp437(x);
     if (x2) {
-        keyup_ascii(x2);
+        keyup(x2);
         return;
     }
     // note: full width latin characters will be mapped to their normal width equivalents
@@ -1670,18 +1653,14 @@ void keyup_unicode(uint32 x) {
     // This is useful for typesetting Latin characters in a CJK  environment. U+FF00 does not correspond to a fullwidth ASCII 20 (space character), since that
     // role is already fulfilled by U+3000 "ideographic space."
     if ((x >= 0x0000FF01) && (x <= 0x0000FF5E)) {
-        keyup_ascii(x - 0x0000FF01 + 0x21);
+        keyup(x - 0x0000FF01 + 0x21);
         return;
     }
     if (x == 0x3000) {
-        keyup_ascii(32);
+        keyup(32);
         return;
     }
     x |= UC;
-    keyup(x);
-}
-
-void keyup_vk(uint32 x) {
     keyup(x);
 }
 
@@ -1703,8 +1682,6 @@ void FreeConsole() {
 
 extern void QBMAIN(void *);
 extern void TIMERTHREAD(void *);
-
-void GLUT_MAINLOOP_THREAD(void *);
 
 extern qbs *FUNC__DECODEURL(qbs *_FUNC__DECODEURL_STRING__URL);
 extern qbs *FUNC__WHATISMYIP();
@@ -5468,14 +5445,12 @@ uint32 frame = 0;
 
 extern uint8 cmem[1114099]; // 16*65535+65535+3 (enough for highest referencable dword in conv memory)
 
-static int32 mouse_hiddden = 0;
-
 struct mouse_message {
-    int16 x;
-    int16 y;
-    uint32 buttons;
-    int16 movementx;
-    int16 movementy;
+    int x;
+    int y;
+    uint32_t buttons;
+    float movementx;
+    float movementy;
 };
 
 // Mouse message queue
@@ -13653,7 +13628,7 @@ uintptr_t func__handle() {
 #ifdef QB64_GUI
     OPTIONAL_GLUT(0);
 
-    generic_window_handle = glutGetWindowHandle();
+    generic_window_handle = GLUTEmu_WindowGetNativeHandle();
 
     return reinterpret_cast<uintptr_t>(generic_window_handle);
 #else
@@ -13678,7 +13653,7 @@ void set_foreground_window(ptrszint i) {
 int32_t func__hasfocus() {
 #ifdef QB64_GUI
     OPTIONAL_GLUT(QB_FALSE);
-    return QB_BOOL(glutGet(GLUT_WINDOW_HAS_FOCUS));
+    return QB_BOOL(libqb_glut_window_has_focus());
 #endif
     return QB_TRUE;
 }
@@ -18233,86 +18208,64 @@ void sub__mousehide() {
 #ifdef QB64_GUI
 #    ifdef QB64_GLUT
     OPTIONAL_GLUT();
-    libqb_glut_set_cursor(GLUT_CURSOR_NONE);
+    libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode::Hidden);
 #    endif
 #endif
-    mouse_hiddden = -1;
 }
 
-#ifdef QB64_GLUT
-int mouse_cursor_style = GLUT_CURSOR_LEFT_ARROW;
-#else
-int mouse_cursor_style = 1;
-#endif
-
-void sub__mouseshow(qbs *style, int32 passed) {
+void sub__mouseshow(qbs *qbsStyle, int32 passed) {
     if (is_error_pending())
         return;
 
 #ifdef QB64_GLUT
     OPTIONAL_GLUT();
 
-    static qbs *str = NULL;
-    if (str == NULL)
-        str = qbs_new(0, 0);
-    if (passed) {
-        qbs_set(str, qbs_ucase(style));
-        if (qbs_equal(str, qbs_new_txt("DEFAULT"))) {
-            mouse_cursor_style = GLUT_CURSOR_LEFT_ARROW;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("LINK"))) {
-            mouse_cursor_style = GLUT_CURSOR_INFO;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("TEXT"))) {
-            mouse_cursor_style = GLUT_CURSOR_TEXT;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("CROSSHAIR"))) {
-            mouse_cursor_style = GLUT_CURSOR_CROSSHAIR;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("VERTICAL"))) {
-            mouse_cursor_style = GLUT_CURSOR_UP_DOWN;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("HORIZONTAL"))) {
-            mouse_cursor_style = GLUT_CURSOR_LEFT_RIGHT;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("TOPLEFT_BOTTOMRIGHT"))) {
-            mouse_cursor_style = GLUT_CURSOR_TOP_LEFT_CORNER;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("TOPRIGHT_BOTTOMLEFT"))) {
-            mouse_cursor_style = GLUT_CURSOR_TOP_RIGHT_CORNER;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("WAIT"))) {
-            mouse_cursor_style = GLUT_CURSOR_WAIT;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("HELP"))) {
-            mouse_cursor_style = GLUT_CURSOR_HELP;
-            goto cursor_valid;
-        }
-        if (qbs_equal(str, qbs_new_txt("CYCLE")) || qbs_equal(str, qbs_new_txt("MOVE"))) {
-            mouse_cursor_style = GLUT_CURSOR_CYCLE;
-            goto cursor_valid;
-        }
-        error(5);
-        return;
-    }
-cursor_valid:
+    libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode::Normal);
 
-    libqb_glut_set_cursor(mouse_cursor_style);
+    std::string style;
+    if (passed && qbsStyle) {
+        style.assign((char *)qbsStyle->chr, qbsStyle->len);
+        std::transform(style.begin(), style.end(), style.begin(), ::toupper);
+    } else {
+        style = "DEFAULT";
+    }
+
+    if (style == "DEFAULT" || style == "ARROW") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::Arrow);
+    } else if (style == "LINK" || style == "HELP" || style == "POINTINGHAND") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::PointingHand);
+    } else if (style == "TEXT" || style == "IBEAM") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::IBeam);
+    } else if (style == "CROSSHAIR") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::Crosshair);
+    } else if (style == "VERTICAL" || style == "RESIZENS") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNS);
+    } else if (style == "HORIZONTAL" || style == "RESIZEEW") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeEW);
+    } else if (style == "TOPLEFT_BOTTOMRIGHT" || style == "RESIZENESW") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNESW);
+    } else if (style == "TOPRIGHT_BOTTOMLEFT" || style == "RESIZENWSE") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNWSE);
+    } else if (style == "WAIT" || style == "NOTALLOWED") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::NotAllowed);
+    } else if (style == "CYCLE" || style == "MOVE" || style == "RESIZEALL") {
+        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeAll);
+    } else {
+        error(QB_ERROR_ILLEGAL_FUNCTION_CALL);
+    }
 #endif
-    mouse_hiddden = 0;
 }
 
 int32_t func__mousehidden() {
-    return mouse_hiddden;
+#ifdef QB64_GUI
+#    ifdef QB64_GLUT
+    OPTIONAL_GLUT(QB_FALSE);
+    auto cursor_mode = libqb_glut_get_cursor_mode();
+    return QB_BOOL(cursor_mode == GLUTEnum_MouseCursorMode::Hidden || cursor_mode == GLUTEnum_MouseCursorMode::Disabled);
+#    endif
+#else
+    return QB_FALSE;
+#endif
 }
 
 float func__mousemovementx() {
@@ -18377,7 +18330,7 @@ void sub__mousemove(float x, float y) {
     x2 += environment_2d__screen_x1;
     y2 += environment_2d__screen_y1;
 
-    libqb_glut_warp_pointer(x2, y2);
+    libqb_glut_move_mouse(x2, y2);
     return;
 
 error:
@@ -21681,19 +21634,19 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 } // sub__icon
 #endif // DEPENDENCY_ICON
 
-int32 func_screenwidth() {
+int32_t func_desktopwidth() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return glutGet(GLUT_SCREEN_WIDTH);
+    return libqb_glut_get_screen_size().first;
 #else
     return 0;
 #endif
 }
 
-int32 func_screenheight() {
+int32_t func_desktopheight() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return glutGet(GLUT_SCREEN_HEIGHT);
+    return libqb_glut_get_screen_size().second;
 #else
     return 0;
 #endif
@@ -21702,7 +21655,7 @@ int32 func_screenheight() {
 void sub_screenicon() {
 #ifdef QB64_GLUT
     NEEDS_GLUT();
-    libqb_glut_iconify_window();
+    libqb_glut_minimize_window();
 #endif
 }
 
@@ -21717,7 +21670,7 @@ int32 func_windowexists() {
 int32 func_screenicon() {
 #ifdef QB64_GLUT
     NEEDS_GLUT(0);
-    return QB_BOOL(libqb_glut_get(GLUT_WINDOW_ICONIFIED));
+    return QB_BOOL(libqb_glut_is_window_minimized());
 #else
     return 0;
 #endif
@@ -23746,7 +23699,8 @@ int32 func__screenimage(int32 x1, int32 y1, int32 x2, int32 y2, int32 passed) {
     ReleaseDC(NULL, hdc);
     return i;
 #    else
-    return func__newimage(func_screenwidth(), func_screenheight(), 32, 1);
+    // TODO: Implement screenimage for other platforms
+    return func__newimage(func_desktopwidth(), func_desktopheight(), 32, 1);
 #    endif
 }
 #endif // DEPENDENCY_SCREENIMAGE
@@ -25015,48 +24969,45 @@ qbs *func__os() {
     return qbs_new_txt(QB64_OS_SYSTEM_STR QB64_OS_SYSTEM_EXTRA_STR QB64_OS_BITS_STR QB64_OS_ARCH_STR);
 }
 
-int32 func__screenx() {
+int32_t func__screenx() {
 #if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
-    return libqb_glut_get(GLUT_WINDOW_X);
+    return libqb_glut_get_window_position().first;
 #endif
     return 0;
 }
 
-int32 func__screeny() {
+int32_t func__screeny() {
 #if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
-    return libqb_glut_get(GLUT_WINDOW_Y);
+    return libqb_glut_get_window_position().second;
 #endif
     return 0;
 }
 
 void sub__screenmove(int32 x, int32 y, int32 passed) {
-    if (is_error_pending())
+    if (is_error_pending() || full_screen) {
         return;
-    if (!passed)
+    }
+
+    if (!passed || passed == 3) {
         goto error;
-    if (passed == 3)
-        goto error;
-    if (full_screen)
-        return;
+    }
 
 #if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT();
 
     if (passed == 2) {
-        libqb_glut_position_window(x, y);
+        libqb_glut_move_window(x, y);
     } else {
-        int32_t SW = glutGet(GLUT_SCREEN_WIDTH);
-        int32_t SH = glutGet(GLUT_SCREEN_HEIGHT);
-        int32_t WW = libqb_glut_get(GLUT_WINDOW_WIDTH);
-        int32_t WH = libqb_glut_get(GLUT_WINDOW_HEIGHT);
-        x = (SW - WW) / 2;
-        y = (SH - WH) / 2;
-        libqb_glut_position_window(x, y);
+        // Center the window
+        auto ss = libqb_glut_get_screen_size();
+        auto ws = libqb_glut_get_window_size();
+        x = (ss.first - ws.first) / 2;
+        y = (ss.second - ws.second) / 2;
+        libqb_glut_move_window(x, y);
     }
 #endif
-
     return;
 
 error:
@@ -25711,142 +25662,278 @@ error:
     return b;
 }
 
-void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool isPressed) {
+void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action) {
 #ifdef QB64_GLUT
-    // printf("key = %u, keyChar = %c, modifiers = %X, isPressed = %d\n", key, keyChar, modifiers, isPressed);
-
-    int32_t vk = -1;
+    bool isShift = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Shift);
+    // bool isControl = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Control);
+    // bool isAlt = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Alt);
+    // bool isSuper = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Super);
+    bool isCapsLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::CapsLock);
+    // bool isNumLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::NumLock);
+    // bool isScrollLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::ScrollLock);
+    int qbKey = -1;
 
     switch (key) {
-    case GLUT_KEY_F1:
-        vk = 0x3B00;
+    case GLUTEmu_KeyboardKey::Escape:
+        qbKey = 27;
         break;
-    case GLUT_KEY_F2:
-        vk = 0x3C00;
-        break;
-    case GLUT_KEY_F3:
-        vk = 0x3D00;
-        break;
-    case GLUT_KEY_F4:
-        vk = 0x3E00;
-        break;
-    case GLUT_KEY_F5:
-        vk = 0x3F00;
-        break;
-    case GLUT_KEY_F6:
-        vk = 0x4000;
-        break;
-    case GLUT_KEY_F7:
-        vk = 0x4100;
-        break;
-    case GLUT_KEY_F8:
-        vk = 0x4200;
-        break;
-    case GLUT_KEY_F9:
-        vk = 0x4300;
-        break;
-    case GLUT_KEY_F10:
-        vk = 0x4400;
-        break;
-    case GLUT_KEY_F11:
-        vk = 0x8500;
-        break;
-    case GLUT_KEY_F12:
-        vk = 0x8600;
-        break;
-    case GLUT_KEY_LEFT:
-        vk = 0x4B00;
-        break;
-    case GLUT_KEY_UP:
-        vk = 0x4800;
-        break;
-    case GLUT_KEY_RIGHT:
-        vk = 0x4D00;
-        break;
-    case GLUT_KEY_DOWN:
-        vk = 0x5000;
-        break;
-    case GLUT_KEY_PAGE_UP:
-        vk = 0x4900;
-        break;
-    case GLUT_KEY_PAGE_DOWN:
-        vk = 0x5100;
-        break;
-    case GLUT_KEY_HOME:
-        vk = 0x4700;
-        break;
-    case GLUT_KEY_END:
-        vk = 0x4F00;
-        break;
-    case GLUT_KEY_INSERT:
-        vk = 0x5200;
-        break;
-    case GLUT_KEY_CAPS_LOCK:
-        vk = VK + QBVK_CAPSLOCK;
-        break;
-    case GLUT_KEY_NUM_LOCK:
-        vk = VK + QBVK_NUMLOCK;
-        break;
-    case GLUT_KEY_SHIFT_L:
-        vk = VK + QBVK_LSHIFT;
-        break;
-    case GLUT_KEY_SHIFT_R:
-        vk = VK + QBVK_RSHIFT;
-        break;
-    case GLUT_KEY_CONTROL_L:
-        vk = VK + QBVK_LCTRL;
-        break;
-    case GLUT_KEY_CONTROL_R:
-        vk = VK + QBVK_RCTRL;
-        break;
-    case GLUT_KEY_ALT_L:
-        vk = VK + QBVK_LALT;
-        break;
-    case GLUT_KEY_ALT_R:
-        vk = VK + QBVK_RALT;
-        break;
-    case GLUT_KEY_DELETE:
-        vk = 0x5300;
-        break;
-    case GLUT_KEY_SCROLL_LOCK:
-        vk = QBVK_SCROLLOCK;
-        break;
-    }
 
-    if (vk != -1) {
-        if (isPressed) {
-            keydown_vk(vk);
-        } else {
-            keyup_vk(vk);
-        }
-    }
+    case GLUTEmu_KeyboardKey::Enter:
+        qbKey = 13;
+        break;
 
-    if (keyChar) {
-        if (modifiers & GLUT_KEY_MODIFIER_CONTROL) {
-            if (keyChar == 10) {
-                keyChar = 13;
-            } else if ((keyChar >= 1) && (keyChar <= 26)) {
-                if (modifiers & GLUT_KEY_MODIFIER_SHIFT) {
-                    keyChar = keyChar - 1 + 65;
-                } else {
-                    keyChar = keyChar - 1 + 97; // assume caps lock off
-                }
+    case GLUTEmu_KeyboardKey::Tab:
+        qbKey = 9;
+        break;
+
+    case GLUTEmu_KeyboardKey::Backspace:
+        qbKey = 8;
+        break;
+
+    case GLUTEmu_KeyboardKey::Insert:
+        qbKey = 0x5200;
+        break;
+
+    case GLUTEmu_KeyboardKey::Delete:
+        qbKey = 0x5300;
+        break;
+
+    case GLUTEmu_KeyboardKey::Right:
+        qbKey = 0x4D00;
+        break;
+
+    case GLUTEmu_KeyboardKey::Left:
+        qbKey = 0x4B00;
+        break;
+
+    case GLUTEmu_KeyboardKey::Down:
+        qbKey = 0x5000;
+        break;
+
+    case GLUTEmu_KeyboardKey::Up:
+        qbKey = 0x4800;
+        break;
+
+    case GLUTEmu_KeyboardKey::PageUp:
+        qbKey = 0x4900;
+        break;
+
+    case GLUTEmu_KeyboardKey::PageDown:
+        qbKey = 0x5100;
+        break;
+
+    case GLUTEmu_KeyboardKey::Home:
+        qbKey = 0x4700;
+        break;
+
+    case GLUTEmu_KeyboardKey::End:
+        qbKey = 0x4F00;
+        break;
+
+    case GLUTEmu_KeyboardKey::CapsLock:
+        qbKey = VK + QBVK_CAPSLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::ScrollLock:
+        qbKey = VK + QBVK_SCROLLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::NumLock:
+        qbKey = VK + QBVK_NUMLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::PrintScreen:
+        qbKey = VK + QBVK_PRINT;
+        break;
+
+    case GLUTEmu_KeyboardKey::Pause:
+        qbKey = VK + QBVK_PAUSE;
+        break;
+
+    case GLUTEmu_KeyboardKey::F1:
+        qbKey = 0x3B00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F2:
+        qbKey = 0x3C00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F3:
+        qbKey = 0x3D00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F4:
+        qbKey = 0x3E00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F5:
+        qbKey = 0x3F00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F6:
+        qbKey = 0x4000;
+        break;
+
+    case GLUTEmu_KeyboardKey::F7:
+        qbKey = 0x4100;
+        break;
+
+    case GLUTEmu_KeyboardKey::F8:
+        qbKey = 0x4200;
+        break;
+
+    case GLUTEmu_KeyboardKey::F9:
+        qbKey = 0x4300;
+        break;
+
+    case GLUTEmu_KeyboardKey::F10:
+        qbKey = 0x4400;
+        break;
+
+    case GLUTEmu_KeyboardKey::F11:
+        qbKey = 0x8500;
+        break;
+
+    case GLUTEmu_KeyboardKey::F12:
+        qbKey = 0x8600;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftShift:
+        qbKey = VK + QBVK_LSHIFT;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftControl:
+        qbKey = VK + QBVK_LCTRL;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftAlt:
+        qbKey = VK + QBVK_LALT;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftSuper:
+        qbKey = VK + QBVK_LSUPER;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightShift:
+        qbKey = VK + QBVK_RSHIFT;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightControl:
+        qbKey = VK + QBVK_RCTRL;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightAlt:
+        qbKey = VK + QBVK_RALT;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightSuper:
+        qbKey = VK + QBVK_RSUPER;
+        break;
+
+    case GLUTEmu_KeyboardKey::Menu:
+        qbKey = VK + QBVK_MENU;
+        break;
+
+    default:
+        qbKey = int(key) < 128 ? int(key) : -1;
+
+        if (isShift) {
+            switch (qbKey) {
+            case '1':
+                qbKey = '!';
+                break;
+
+            case '2':
+                qbKey = '@';
+                break;
+
+            case '3':
+                qbKey = '#';
+                break;
+
+            case '4':
+                qbKey = '$';
+                break;
+
+            case '5':
+                qbKey = '%';
+                break;
+
+            case '6':
+                qbKey = '^';
+                break;
+
+            case '7':
+                qbKey = '&';
+                break;
+
+            case '8':
+                qbKey = '*';
+                break;
+
+            case '9':
+                qbKey = '(';
+                break;
+
+            case '0':
+                qbKey = ')';
+                break;
+
+            case '-':
+                qbKey = '_';
+                break;
+
+            case '=':
+                qbKey = '+';
+                break;
+
+            case '[':
+                qbKey = '{';
+                break;
+
+            case ']':
+                qbKey = '}';
+                break;
+
+            case '\\':
+                qbKey = '|';
+                break;
+
+            case ';':
+                qbKey = ':';
+                break;
+
+            case '\'':
+                qbKey = '"';
+                break;
+
+            case ',':
+                qbKey = '<';
+                break;
+
+            case '.':
+                qbKey = '>';
+                break;
+
+            case '/':
+                qbKey = '?';
+                break;
             }
+        } else if (!isCapsLock && qbKey >= 'A' && qbKey <= 'Z') {
+            qbKey = qbKey + 32;
         }
+    }
 
-#    ifdef QB64_MACOSX
-        // swap DEL and backspace keys
-        if (keyChar == 8) {
-            keyChar = 127;
-        } else if (keyChar == 127) {
-            keyChar = 8;
-        }
-#    endif
+    if (qbKey != -1) {
+        switch (action) {
+        case GLUTEmu_ButtonAction::Pressed:
+        case GLUTEmu_ButtonAction::Repeated:
+            keydown(qbKey);
+            break;
 
-        if (isPressed) {
-            keydown_ascii(keyChar);
-        } else {
-            keyup_ascii(keyChar);
+        case GLUTEmu_ButtonAction::Released:
+            keyup(qbKey);
+            break;
         }
     }
 #endif
@@ -25894,7 +25981,7 @@ void GLUT_IDLE_FUNC() {
             deltaTick += ((double)1000 / max_fps);
     }
 
-    glutPostRedisplay();
+    GLUTEmu_WindowRefresh();
 #endif
 }
 
@@ -25975,7 +26062,7 @@ void sub__glrender(int32 method) {
 
 #else // end stubs
 
-void GLUT_RESHAPE_FUNC(int32_t width, int32_t height) {
+void GLUT_RESHAPE_FUNC(int width, int height) {
     resize_event_x = width;
     resize_event_y = height;
     resize_event = -1;
@@ -27190,8 +27277,8 @@ void GLUT_DISPLAY_REQUEST() {
                 }
                 resize_auto_accept_aspect = (float)x / (float)y;
                 resize_pending = 1;
-                glutReshapeWindow(x, y);
-                glutPostRedisplay();
+                libqb_glut_resize_window(x, y);
+                GLUTEmu_WindowRefresh();
 
                 goto auto_resized;
             }
@@ -27199,8 +27286,8 @@ void GLUT_DISPLAY_REQUEST() {
 
         if ((display_required_x != display_x) || (display_required_y != display_y)) {
             if (resize_snapback || framesize_changed) {
-                glutReshapeWindow(display_required_x, display_required_y);
-                glutPostRedisplay();
+                libqb_glut_resize_window(display_required_x, display_required_y);
+                GLUTEmu_WindowRefresh();
                 resize_pending = 1;
             }
         }
@@ -27217,14 +27304,14 @@ void GLUT_DISPLAY_REQUEST() {
                 if (full_screen != 0) {
                     // exit full screen
                     resize_pending = 1;
-                    glutReshapeWindow(display_frame[i].w, display_frame[i].h);
-                    glutPostRedisplay();
+                    libqb_glut_resize_window(display_frame[i].w, display_frame[i].h);
+                    GLUTEmu_WindowRefresh();
                 }
                 full_screen = 0;
                 full_screen_set = -1;
             } else {
                 if (full_screen == 0) {
-                    glutFullScreen();
+                    libqb_glut_set_fullscreen(true);
                 }
                 full_screen = full_screen_set;
                 full_screen_set = -1;
@@ -27608,7 +27695,7 @@ void GLUT_DISPLAY_REQUEST() {
                            // "invisible"
         //...
     } else {
-        glutSwapBuffers();
+        GLUTEmu_WindowSwapBuffers();
     }
 
     in_GLUT_DISPLAY_REQUEST = 0;
@@ -27714,34 +27801,70 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 #    endif
 }
 
-void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y) {
+void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action) {
 #    ifdef QB64_GLUT
-    // RGFW button order is similar to GLUT. Although, the scroll wheel direction is opposite to GLUT.
-    // Since RGFW provides the scroll intensity, we'll make use of it.
+    auto pos = GLUTEmu_MouseGetPosition();
 
-    if (button == GLUT_MOUSE_WHEEL_DOWN || button == GLUT_MOUSE_WHEEL_UP) {
-        if (scroll > 0) {
-            while (scroll) {
-                GLUT_MouseButton_Down(4, x, y);
-                GLUT_MouseButton_Up(4, x, y);
-                --scroll;
-            }
-        } else if (scroll < 0) {
-            while (scroll) {
-                GLUT_MouseButton_Down(5, x, y);
-                GLUT_MouseButton_Up(5, x, y);
-                ++scroll;
-            }
-        }
-    } else if (isPressed) {
-        GLUT_MouseButton_Down(button + 1, x, y);
+    int qbMouseButton;
+
+    if (button == GLUTEmu_MouseButton::Left) {
+        qbMouseButton = 1; // QB64 mouse button 1
+    } else if (button == GLUTEmu_MouseButton::Middle) {
+        qbMouseButton = 2; // QB64 mouse button 3
+    } else if (button == GLUTEmu_MouseButton::Right) {
+        qbMouseButton = 3; // QB64 mouse button 2
     } else {
-        GLUT_MouseButton_Up(button + 1, x, y);
+        qbMouseButton = int(button) + 3; // Extended buttons 6+ (4 and 5 are mouse wheel)
     }
+
+    switch (action) {
+    case GLUTEmu_ButtonAction::Pressed:
+        GLUT_MouseButton_Down(qbMouseButton, pos.first, pos.second);
+        break;
+
+    case GLUTEmu_ButtonAction::Released:
+        GLUT_MouseButton_Up(qbMouseButton, pos.first, pos.second);
+        break;
+
+    default:
+        // Repeat action is not supported
+        break;
+    }
+#    else
+    (void)button;
+    (void)action;
+    (void)mods;
 #    endif
 }
 
-void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy) {
+void GLUT_MOUSE_SCROLL_FUNC(double xOffset, double yOffset) {
+#    ifdef QB64_GLUT
+    (void)xOffset; // GLFW_TODO: xOffset is not used currently, but we should make use of it in the future.
+
+    // GLFW_TODO: yOffset gives fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
+    auto scroll = int(yOffset);
+    auto pos = GLUTEmu_MouseGetPosition();
+
+    if (scroll > 0) {
+        while (scroll) {
+            GLUT_MouseButton_Down(4, pos.first, pos.second);
+            GLUT_MouseButton_Up(4, pos.first, pos.second);
+            --scroll;
+        }
+    } else if (scroll < 0) {
+        while (scroll) {
+            GLUT_MouseButton_Down(5, pos.first, pos.second);
+            GLUT_MouseButton_Up(5, pos.first, pos.second);
+            ++scroll;
+        }
+    }
+#    else
+    (void)xOffset;
+    (void)yOffset;
+#    endif
+}
+
+void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw) {
     int32 i, last_i;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
@@ -27758,33 +27881,56 @@ void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy) {
         queue->current = nextIndex;
     }
 
-    queue->queue[i].x = x;
-    queue->queue[i].y = y;
-    queue->queue[i].movementx = dx;
-    queue->queue[i].movementy = dy;
+    if (isRaw) {
+        queue->queue[i].x = 0;
+        queue->queue[i].y = 0;
+        queue->queue[i].movementx = x;
+        queue->queue[i].movementy = y;
+    } else {
+        queue->queue[i].x = x;
+        queue->queue[i].y = y;
+        queue->queue[i].movementx = x - queue->queue[last_i].x;
+        queue->queue[i].movementy = y - queue->queue[last_i].y;
+    }
+
     queue->queue[i].buttons = queue->queue[last_i].buttons;
     queue->last = i;
 
-    // message #2 (clears movement values to avoid confusion)
-    last_i = queue->last;
-    i = queue->last + 1;
-    if (i > queue->lastIndex)
-        i = 0;
-    if (i == queue->current) {
-        int32 nextIndex = queue->last + 1;
-        if (nextIndex > queue->lastIndex)
-            nextIndex = 0;
-        queue->current = nextIndex;
+    if (isRaw) {
+        // message #2 (clears movement values to avoid confusion)
+        last_i = queue->last;
+        i = queue->last + 1;
+        if (i > queue->lastIndex)
+            i = 0;
+        if (i == queue->current) {
+            int32 nextIndex = queue->last + 1;
+            if (nextIndex > queue->lastIndex)
+                nextIndex = 0;
+            queue->current = nextIndex;
+        }
+        queue->queue[i].x = 0;
+        queue->queue[i].y = 0;
+        queue->queue[i].movementx = 0;
+        queue->queue[i].movementy = 0;
+        queue->queue[i].buttons = queue->queue[last_i].buttons;
+        queue->last = i;
     }
-    queue->queue[i].x = x;
-    queue->queue[i].y = y;
-    queue->queue[i].movementx = 0;
-    queue->queue[i].movementy = 0;
-    queue->queue[i].buttons = queue->queue[last_i].buttons;
-    queue->last = i;
 
     if (device_last) { // core devices required?
-        if (!device_mouse_relative) {
+        if (isRaw) {
+            static device_struct *d;
+            d = &devices[2]; // mouse
+
+            int32 eventIndex = createDeviceEvent(d);
+            setDeviceEventWheelValue(d, eventIndex, 0, x);
+            setDeviceEventWheelValue(d, eventIndex, 1, y);
+            commitDeviceEvent(d);
+
+            eventIndex = createDeviceEvent(d);
+            setDeviceEventWheelValue(d, eventIndex, 0, 0);
+            setDeviceEventWheelValue(d, eventIndex, 1, 0);
+            commitDeviceEvent(d);
+        } else {
             static device_struct *d;
             d = &devices[2]; // mouse
 
@@ -27813,26 +27959,6 @@ void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy) {
             fy -= 1.0;                //-1 to 1
             setDeviceEventAxisValue(d, eventIndex, 0, fx);
             setDeviceEventAxisValue(d, eventIndex, 1, fy);
-            commitDeviceEvent(d);
-
-        } else {
-            static device_struct *d;
-            d = &devices[2]; // mouse
-
-            int32 eventIndex = createDeviceEvent(d);
-            static float fx, fy;
-            static int32 z;
-            fx = dx;
-            fy = dy;
-            setDeviceEventWheelValue(d, eventIndex, 0, fx);
-            setDeviceEventWheelValue(d, eventIndex, 1, fy);
-            commitDeviceEvent(d);
-
-            eventIndex = createDeviceEvent(d);
-            fx = 0;
-            fy = 0;
-            setDeviceEventWheelValue(d, eventIndex, 0, fx);
-            setDeviceEventWheelValue(d, eventIndex, 1, fy);
             commitDeviceEvent(d);
         }
     } // core devices required
@@ -28316,30 +28442,33 @@ int main(int argc, char *argv[]) {
 
     command_initialize(argc, argv);
 
+    /*
+    GLFW_TODO: Check if we really need this at startup
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SHIFT) {
         bindkey = QBVK_LSHIFT;
-        keydown_vk(VK + QBVK_LSHIFT);
+        keydown(VK + QBVK_LSHIFT);
     }
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CONTROL) {
         bindkey = QBVK_LCTRL;
-        keydown_vk(VK + QBVK_LCTRL);
+        keydown(VK + QBVK_LCTRL);
     }
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_ALT) {
         bindkey = QBVK_LALT;
-        keydown_vk(VK + QBVK_LALT);
+        keydown(VK + QBVK_LALT);
     }
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK) {
         bindkey = QBVK_CAPSLOCK;
-        keydown_vk(VK + QBVK_CAPSLOCK);
+        keydown(VK + QBVK_CAPSLOCK);
     }
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK) {
         bindkey = QBVK_NUMLOCK;
-        keydown_vk(VK + QBVK_NUMLOCK);
+        keydown(VK + QBVK_NUMLOCK);
     }
     if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SCROLL_LOCK) {
         bindkey = QBVK_SCROLLOCK;
-        keydown_vk(VK + QBVK_SCROLLOCK);
+        keydown(VK + QBVK_SCROLLOCK);
     }
+    */
     update_shift_state();
     keyhit_next = keyhit_nextfree; // skip hitkey events generated by above code
 
@@ -29524,7 +29653,7 @@ void update_shift_state() {
 int32 keyup_mask_last = -1;
 uint32 keyup_mask[256]; // NULL values indicate removed masks
 
-void keyup(uint32 x) {
+void keyup(uint32_t x) {
 
     if (!x)
         x = QBK + QBK_CHR0;
@@ -29717,7 +29846,7 @@ void keyup(uint32 x) {
 key_handled:;
 }
 
-void keydown(uint32 x) {
+void keydown(uint32_t x) {
 
     if (!x)
         x = QBK + QBK_CHR0;
@@ -30189,8 +30318,8 @@ void keydown(uint32 x) {
 
                             for (i2 = 0; i2 < onkey[i].text->len; i2++) {
                                 block_onkey = 1;
-                                keydown_ascii(onkey[i].text->chr[i2]);
-                                keyup_ascii(onkey[i].text->chr[i2]);
+                                keydown(onkey[i].text->chr[i2]);
+                                keyup(onkey[i].text->chr[i2]);
                                 block_onkey = 0;
                             } // i2
                             goto key_handled;
@@ -30546,31 +30675,32 @@ void qb64_custom_event_relative_mouse_movement(int deltaX, int deltaY) {
 }
 
 void GLUT_EXIT_FUNC() {
+    GLUTEmu_WindowSetShouldClose(false);
     exit_value |= 1;
 }
 
 int32_t func__capslock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK);
+    return QB_BOOL(GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::CapsLock));
 #endif
-    return 0;
+    return QB_FALSE;
 }
 
 int32_t func__scrolllock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SCROLL_LOCK);
+    return QB_BOOL(GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::ScrollLock));
 #endif
-    return 0;
+    return QB_FALSE;
 }
 
 int32_t func__numlock() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return QB_BOOL(glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK);
+    return QB_BOOL(GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::NumLock));
 #endif
-    return 0;
+    return QB_FALSE;
 }
 
 void toggle_lock_key(int32 key_code) {

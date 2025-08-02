@@ -22,7 +22,7 @@
 #include "image.h"
 #include "libqb.h"
 #include "logging.h"
-#include "mem.h"
+#include "memblock.h"
 #include "qbmath.h"
 #include "qbs-mk-cv.h"
 #include "qbs.h"
@@ -120,8 +120,8 @@ extern void sub__screenhide();
 extern int32 func__screenhide();
 extern int32 func_windowexists();
 extern int32 func_screenicon();
-extern int32 func_screenwidth();
-extern int32 func_screenheight();
+extern int32_t func_desktopwidth();
+extern int32_t func_desktopheight();
 extern void sub_screenicon();
 extern void sub__console(int32);
 extern int32 func__console();
@@ -142,8 +142,8 @@ extern void key_on();
 extern void key_off();
 extern void key_list();
 extern void key_assign(int32 i, qbs *str);
-extern int32 func__screeny();
-extern int32 func__screenx();
+extern int32_t func__screeny();
+extern int32_t func__screenx();
 extern void sub__screenmove(int32 x, int32 y, int32 passed);
 extern void sub__mousemove(float x, float y);
 extern qbs *func__os();
@@ -307,7 +307,7 @@ extern int32 func__statusCode(int32 handle);
 
 extern int32 func_freefile();
 extern void sub__mousehide();
-extern void sub__mouseshow(qbs *style, int32 passed);
+extern void sub__mouseshow(qbs *qbsStyle, int32 passed);
 extern int32 func__mousehidden();
 extern float func__mousex();
 extern float func__mousey();

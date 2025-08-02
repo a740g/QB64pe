@@ -1,22 +1,13 @@
 
 #include "libqb-common.h"
 
-#include <GL/glew.h>
-#include <list>
-#include <queue>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <unordered_map>
-
 #include "completion.h"
-#include "glut-emu.h"
 #include "glut-thread.h"
 #include "gui.h"
 #include "logging.h"
-#include "mutex.h"
 #include "thread.h"
+#include <cstdint>
+#include <cstdlib>
 
 // FIXME: These extern variable and function definitions should probably go
 // somewhere more global so that they can be referenced by libqb.cpp
@@ -26,27 +17,25 @@ extern int32_t screen_hide;
 extern const void *generic_window_handle;
 
 void MAIN_LOOP(void *);
-void GLUT_KEYBOARD_FUNC(uint8_t key, uint8_t keyChar, uint8_t modifiers, bool isPressed);
-void GLUT_DISPLAY_REQUEST();
-void GLUT_MOUSE_FUNC(uint8_t button, bool isPressed, int32_t scroll, int32_t x, int32_t y);
-void GLUT_MOTION_FUNC(int32_t x, int32_t y, int32_t dx, int32_t dy);
-void GLUT_RESHAPE_FUNC(int32_t width, int32_t height);
-void GLUT_IDLE_FUNC();
 void GLUT_EXIT_FUNC();
+void GLUT_RESHAPE_FUNC(int width, int height);
+void GLUT_DISPLAY_REQUEST();
+void GLUT_IDLE_FUNC();
+void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action);
+void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action);
+void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw);
+void GLUT_MOUSE_SCROLL_FUNC(double xOffset, double yOffset);
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
-    auto windowTitle = (window_title ? reinterpret_cast<const char *>(window_title) : "Untitled");
-    auto windowFlags = uint32_t(GLUT_WINDOW_FLAG_ALLOW_DND) | (screen_hide ? uint32_t(GLUT_WINDOW_FLAG_HIDE) : 0u);
-
-    if (!glutInitWindow(640, 400, windowTitle, windowFlags)) {
-        gui_alert("Failed to initialize window");
-        exit(EXIT_FAILURE);
+    if (screen_hide) {
+        GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::WindowVisible, false);
     }
+    GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::FramebufferSamples, 4);
+    GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::FramebufferDoubleBuffer, true);
 
-    auto err = glewInit();
-    if (GLEW_OK != err) {
-        gui_alert(reinterpret_cast<const char *>(glewGetErrorString(err)));
+    if (!GLUTEmu_WindowInitialize(640, 400, window_title ? reinterpret_cast<const char *>(window_title) : "Untitled")) {
+        gui_alert("Failed to initialize window");
         exit(EXIT_FAILURE);
     }
 
@@ -56,21 +45,23 @@ static void initialize_glut() {
         libqb_log_trace("GLEW_EXT_framebuffer_object supported");
     }
 
-    generic_window_handle = glutGetWindowHandle();
+    generic_window_handle = GLUTEmu_WindowGetNativeHandle();
 
-    // RGFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
+    // GLFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    glutDisplayFunc(GLUT_DISPLAY_REQUEST);
-    glutIdleFunc(GLUT_IDLE_FUNC);
-    glutKeyboardFunc(GLUT_KEYBOARD_FUNC);
-    glutMouseFunc(GLUT_MOUSE_FUNC);
-    glutMotionFunc(GLUT_MOTION_FUNC);
-    glutReshapeFunc(GLUT_RESHAPE_FUNC);
-    glutExitFunc(GLUT_EXIT_FUNC);
+    GLUTEmu_WindowSetCloseFunction(GLUT_EXIT_FUNC);
+    GLUTEmu_WindowSetResizedFunction(GLUT_RESHAPE_FUNC);
+    // GLFW_TODO: Maximize handling
+    GLUTEmu_WindowSetRefreshFunction(GLUT_DISPLAY_REQUEST);
+    GLUTEmu_WindowSetIdleFunction(GLUT_IDLE_FUNC);
+    GLUTEmu_KeyboardSetButtonFunction(GLUT_KEYBOARD_BUTTON_FUNC);
+    GLUTEmu_MouseSetButtonFunction(GLUT_MOUSE_BUTTON_FUNC);
+    GLUTEmu_MouseSetMotionFunction(GLUT_MOUSE_MOTION_FUNC);
+    GLUTEmu_MouseSetScrollFunction(GLUT_MOUSE_SCROLL_FUNC);
 }
 
 static bool glut_is_started;
@@ -125,7 +116,7 @@ void libqb_start_main_thread() {
             completion_finish(glut_thread_initialized);
     }
 
-    glutMainLoop();
+    GLUTEmu_MainLoop();
 }
 
 // Due to GLUT making use of cleanup via atexit, we have to call exit() from
@@ -135,7 +126,7 @@ void libqb_start_main_thread() {
 //
 // This is accomplished by simply queuing a GLUT message that calls exit() for us.
 void libqb_exit(int exitcode) {
-    libqb_log_info("Program exiting with code: %d\n", exitcode);
+    libqb_log_info("Program exiting with code: %d", exitcode);
     // If GLUT isn't running then we're free to do the exit() call from here
     if (!libqb_is_glut_up())
         exit(exitcode);

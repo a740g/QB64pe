@@ -368,7 +368,7 @@ ifeq ($(OS),win)
 	endif
 
 	ifneq ($(filter y,$(DEP_CONSOLE_ONLY)),)
-		CXXFLAGS := $(filter-out -DRGFWDEF,$(CXXFLAGS))
+		CXXFLAGS := $(filter-out $(GLFW_DEFS),$(CXXFLAGS))
 		EXE_LIBS := $(filter-out $(QB_CORE_LIB),$(EXE_LIBS))
 
 		LICENSE_IN_USE := $(filter-out freeglut,$(LICENSE_IN_USE))
