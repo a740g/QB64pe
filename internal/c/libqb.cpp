@@ -25669,192 +25669,189 @@ error:
 
 void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, GLUTEmu_KeyboardKeyModifier modifiers, bool pressed, bool repeated) {
 #ifdef QB64_GLUT
-    // printf("key=%d, keyChar=%d, action=%d\n", key, keyChar, action);
-    // return;
+    // printf("key=%d, modifiers=%X, pressed=%d, repeated=%d\n", int(key), int(modifiers), int(pressed), int(repeated));
 
-    if (keyChar) {
+    int qbKey = -1;
+
+    switch (key) {
+    case GLUTEmu_KeyboardKey::Escape:
+        qbKey = 27;
+        break;
+
+    case GLUTEmu_KeyboardKey::Enter:
+        qbKey = 13;
+        break;
+
+    case GLUTEmu_KeyboardKey::Tab:
+        qbKey = 9;
+        break;
+
+    case GLUTEmu_KeyboardKey::Backspace:
+        qbKey = 8;
+        break;
+
+    case GLUTEmu_KeyboardKey::Insert:
+        qbKey = 0x5200;
+        break;
+
+    case GLUTEmu_KeyboardKey::Delete:
+        qbKey = 0x5300;
+        break;
+
+    case GLUTEmu_KeyboardKey::Right:
+        qbKey = 0x4D00;
+        break;
+
+    case GLUTEmu_KeyboardKey::Left:
+        qbKey = 0x4B00;
+        break;
+
+    case GLUTEmu_KeyboardKey::Down:
+        qbKey = 0x5000;
+        break;
+
+    case GLUTEmu_KeyboardKey::Up:
+        qbKey = 0x4800;
+        break;
+
+    case GLUTEmu_KeyboardKey::PageUp:
+        qbKey = 0x4900;
+        break;
+
+    case GLUTEmu_KeyboardKey::PageDown:
+        qbKey = 0x5100;
+        break;
+
+    case GLUTEmu_KeyboardKey::Home:
+        qbKey = 0x4700;
+        break;
+
+    case GLUTEmu_KeyboardKey::End:
+        qbKey = 0x4F00;
+        break;
+
+    case GLUTEmu_KeyboardKey::CapsLock:
+        qbKey = VK + QBVK_CAPSLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::ScrollLock:
+        qbKey = VK + QBVK_SCROLLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::NumLock:
+        qbKey = VK + QBVK_NUMLOCK;
+        break;
+
+    case GLUTEmu_KeyboardKey::PrintScreen:
+        qbKey = VK + QBVK_PRINT;
+        break;
+
+    case GLUTEmu_KeyboardKey::Pause:
+        qbKey = VK + QBVK_PAUSE;
+        break;
+
+    case GLUTEmu_KeyboardKey::F1:
+        qbKey = 0x3B00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F2:
+        qbKey = 0x3C00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F3:
+        qbKey = 0x3D00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F4:
+        qbKey = 0x3E00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F5:
+        qbKey = 0x3F00;
+        break;
+
+    case GLUTEmu_KeyboardKey::F6:
+        qbKey = 0x4000;
+        break;
+
+    case GLUTEmu_KeyboardKey::F7:
+        qbKey = 0x4100;
+        break;
+
+    case GLUTEmu_KeyboardKey::F8:
+        qbKey = 0x4200;
+        break;
+
+    case GLUTEmu_KeyboardKey::F9:
+        qbKey = 0x4300;
+        break;
+
+    case GLUTEmu_KeyboardKey::F10:
+        qbKey = 0x4400;
+        break;
+
+    case GLUTEmu_KeyboardKey::F11:
+        qbKey = 0x8500;
+        break;
+
+    case GLUTEmu_KeyboardKey::F12:
+        qbKey = 0x8600;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftShift:
+        qbKey = VK + QBVK_LSHIFT;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftControl:
+        qbKey = VK + QBVK_LCTRL;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftAlt:
+        qbKey = VK + QBVK_LALT;
+        break;
+
+    case GLUTEmu_KeyboardKey::LeftSuper:
+        qbKey = VK + QBVK_LSUPER;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightShift:
+        qbKey = VK + QBVK_RSHIFT;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightControl:
+        qbKey = VK + QBVK_RCTRL;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightAlt:
+        qbKey = VK + QBVK_RALT;
+        break;
+
+    case GLUTEmu_KeyboardKey::RightSuper:
+        qbKey = VK + QBVK_RSUPER;
+        break;
+
+    case GLUTEmu_KeyboardKey::Menu:
+        qbKey = VK + QBVK_MENU;
+        break;
+
+    default:
+        fprintf(stderr, "Unhandled key = %d, modifiers = %X, pressed = %d, repeated = %d\n", int(key), int(modifiers), int(pressed), int(repeated));
+        break;
+    }
+
+    if (qbKey != -1) {
         if (pressed || repeated) {
-            keydown(keyChar);
+            keydown(qbKey);
         } else {
-            keyup(keyChar);
-        }
-    } else {
-        int qbKey = -1;
-
-        switch (key) {
-        case GLUTEmu_KeyboardKey::Escape:
-            qbKey = 27;
-            break;
-
-        case GLUTEmu_KeyboardKey::Enter:
-            qbKey = 13;
-            break;
-
-        case GLUTEmu_KeyboardKey::Tab:
-            qbKey = 9;
-            break;
-
-        case GLUTEmu_KeyboardKey::Backspace:
-            qbKey = 8;
-            break;
-
-        case GLUTEmu_KeyboardKey::Insert:
-            qbKey = 0x5200;
-            break;
-
-        case GLUTEmu_KeyboardKey::Delete:
-            qbKey = 0x5300;
-            break;
-
-        case GLUTEmu_KeyboardKey::Right:
-            qbKey = 0x4D00;
-            break;
-
-        case GLUTEmu_KeyboardKey::Left:
-            qbKey = 0x4B00;
-            break;
-
-        case GLUTEmu_KeyboardKey::Down:
-            qbKey = 0x5000;
-            break;
-
-        case GLUTEmu_KeyboardKey::Up:
-            qbKey = 0x4800;
-            break;
-
-        case GLUTEmu_KeyboardKey::PageUp:
-            qbKey = 0x4900;
-            break;
-
-        case GLUTEmu_KeyboardKey::PageDown:
-            qbKey = 0x5100;
-            break;
-
-        case GLUTEmu_KeyboardKey::Home:
-            qbKey = 0x4700;
-            break;
-
-        case GLUTEmu_KeyboardKey::End:
-            qbKey = 0x4F00;
-            break;
-
-        case GLUTEmu_KeyboardKey::CapsLock:
-            qbKey = VK + QBVK_CAPSLOCK;
-            break;
-
-        case GLUTEmu_KeyboardKey::ScrollLock:
-            qbKey = VK + QBVK_SCROLLOCK;
-            break;
-
-        case GLUTEmu_KeyboardKey::NumLock:
-            qbKey = VK + QBVK_NUMLOCK;
-            break;
-
-        case GLUTEmu_KeyboardKey::PrintScreen:
-            qbKey = VK + QBVK_PRINT;
-            break;
-
-        case GLUTEmu_KeyboardKey::Pause:
-            qbKey = VK + QBVK_PAUSE;
-            break;
-
-        case GLUTEmu_KeyboardKey::F1:
-            qbKey = 0x3B00;
-            break;
-
-        case GLUTEmu_KeyboardKey::F2:
-            qbKey = 0x3C00;
-            break;
-
-        case GLUTEmu_KeyboardKey::F3:
-            qbKey = 0x3D00;
-            break;
-
-        case GLUTEmu_KeyboardKey::F4:
-            qbKey = 0x3E00;
-            break;
-
-        case GLUTEmu_KeyboardKey::F5:
-            qbKey = 0x3F00;
-            break;
-
-        case GLUTEmu_KeyboardKey::F6:
-            qbKey = 0x4000;
-            break;
-
-        case GLUTEmu_KeyboardKey::F7:
-            qbKey = 0x4100;
-            break;
-
-        case GLUTEmu_KeyboardKey::F8:
-            qbKey = 0x4200;
-            break;
-
-        case GLUTEmu_KeyboardKey::F9:
-            qbKey = 0x4300;
-            break;
-
-        case GLUTEmu_KeyboardKey::F10:
-            qbKey = 0x4400;
-            break;
-
-        case GLUTEmu_KeyboardKey::F11:
-            qbKey = 0x8500;
-            break;
-
-        case GLUTEmu_KeyboardKey::F12:
-            qbKey = 0x8600;
-            break;
-
-        case GLUTEmu_KeyboardKey::LeftShift:
-            qbKey = VK + QBVK_LSHIFT;
-            break;
-
-        case GLUTEmu_KeyboardKey::LeftControl:
-            qbKey = VK + QBVK_LCTRL;
-            break;
-
-        case GLUTEmu_KeyboardKey::LeftAlt:
-            qbKey = VK + QBVK_LALT;
-            break;
-
-        case GLUTEmu_KeyboardKey::LeftSuper:
-            qbKey = VK + QBVK_LSUPER;
-            break;
-
-        case GLUTEmu_KeyboardKey::RightShift:
-            qbKey = VK + QBVK_RSHIFT;
-            break;
-
-        case GLUTEmu_KeyboardKey::RightControl:
-            qbKey = VK + QBVK_RCTRL;
-            break;
-
-        case GLUTEmu_KeyboardKey::RightAlt:
-            qbKey = VK + QBVK_RALT;
-            break;
-
-        case GLUTEmu_KeyboardKey::RightSuper:
-            qbKey = VK + QBVK_RSUPER;
-            break;
-
-        case GLUTEmu_KeyboardKey::Menu:
-            qbKey = VK + QBVK_MENU;
-            break;
-
-        default:
-            fprintf(stderr, "key = %d, modifiers = %X, pressed = %d, repeated = %d\n", int(key), int(modifiers), int(pressed), int(repeated));
-            break;
-        }
-
-        if (qbKey != -1) {
-            if (pressed || repeated) {
-                keydown(qbKey);
-            } else {
-                keyup(qbKey);
-            }
+            keyup(qbKey);
         }
     }
+#endif
+}
+
+void GLUT_KEYBOARD_CHARACTER_FUNC(char32_t codepoint) {
+#ifdef QB64_GLUT
+    keydown(codepoint);
 #endif
 }
 
@@ -25981,7 +25978,7 @@ void sub__glrender(int32 method) {
 
 #else // end stubs
 
-void GLUT_RESIZE_FUNC(int32_t x, int32_t y, uint32_t width, uint32_t height) {
+void GLUT_RESIZE_FUNC(uint32_t width, uint32_t height) {
     resize_event_x = width;
     resize_event_y = height;
     resize_event = -1;
@@ -27718,33 +27715,12 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 #    endif
 }
 
-void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, double scroll, GLUTEmu_ButtonAction action) {
+void GLUT_MOUSE_BUTTON_FUNC(int32_t x, int32_t y, GLUTEmu_MouseButton button, bool pressed) {
 #    ifdef QB64_GLUT
-    // RGFW button order is similar to GLUT. Although, the scroll wheel direction is opposite to GLUT.
-    // Since RGFW provides the scroll intensity, we'll make use of it.
-
-    auto pos = GLUTEmu_MouseGetPosition();
-
-    // RGFW_TODO: scroll gives fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
-    if (button == GLUTEmu_MouseButton::ScrollDown || button == GLUTEmu_MouseButton::ScrollUp) {
-        auto iScroll = int(scroll);
-        if (iScroll > 0) {
-            while (iScroll) {
-                GLUT_MouseButton_Down(4, pos.first, pos.second);
-                GLUT_MouseButton_Up(4, pos.first, pos.second);
-                --iScroll;
-            }
-        } else if (iScroll < 0) {
-            while (iScroll) {
-                GLUT_MouseButton_Down(5, pos.first, pos.second);
-                GLUT_MouseButton_Up(5, pos.first, pos.second);
-                ++iScroll;
-            }
-        }
-    } else if (action == GLUTEmu_ButtonAction::Pressed) {
-        GLUT_MouseButton_Down(int(button) + 1, pos.first, pos.second);
+    if (pressed) {
+        GLUT_MouseButton_Down(int(button) + 1, x, y);
     } else {
-        GLUT_MouseButton_Up(int(button) + 1, pos.first, pos.second);
+        GLUT_MouseButton_Up(int(button) + 1, x, y);
     }
 #    else
     (void)button;
@@ -27753,7 +27729,32 @@ void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, double scroll, GLUTEmu_B
 #    endif
 }
 
-void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, bool isRaw) {
+void GLUT_MOUSE_WHEEL_FUNC(int32_t x, int32_t y, float offsetX, float offsetY) {
+#    ifdef QB64_GLUT
+    // RGFW_TODO: scroll provide scroll x and y fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
+    auto iScroll = int(offsetY);
+    if (iScroll > 0) {
+        while (iScroll) {
+            GLUT_MouseButton_Down(4, x, y);
+            GLUT_MouseButton_Up(4, x, y);
+            --iScroll;
+        }
+    } else if (iScroll < 0) {
+        while (iScroll) {
+            GLUT_MouseButton_Down(5, x, y);
+            GLUT_MouseButton_Up(5, x, y);
+            ++iScroll;
+        }
+    }
+#    else
+    (void)x;
+    (void)y;
+    (void)offsetX;
+    (void)offsetY;
+#    endif
+}
+
+void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, float vecX, float vecY, bool isCaptured) {
     int32 i, last_i;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
@@ -27770,11 +27771,11 @@ void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, bool isRaw) {
         queue->current = nextIndex;
     }
 
-    if (isRaw) {
-        queue->queue[i].x = 0;
-        queue->queue[i].y = 0;
-        queue->queue[i].movementx = x;
-        queue->queue[i].movementy = y;
+    if (isCaptured) {
+        queue->queue[i].x = x;
+        queue->queue[i].y = y;
+        queue->queue[i].movementx = vecX;
+        queue->queue[i].movementy = vecY;
     } else {
         queue->queue[i].x = x;
         queue->queue[i].y = y;
@@ -27785,7 +27786,7 @@ void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, bool isRaw) {
     queue->queue[i].buttons = queue->queue[last_i].buttons;
     queue->last = i;
 
-    if (isRaw) {
+    if (isCaptured) {
         // message #2 (clears movement values to avoid confusion)
         last_i = queue->last;
         i = queue->last + 1;
@@ -27806,13 +27807,13 @@ void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, bool isRaw) {
     }
 
     if (device_last) { // core devices required?
-        if (isRaw) {
+        if (isCaptured) {
             static device_struct *d;
             d = &devices[2]; // mouse
 
             int32 eventIndex = createDeviceEvent(d);
-            setDeviceEventWheelValue(d, eventIndex, 0, x);
-            setDeviceEventWheelValue(d, eventIndex, 1, y);
+            setDeviceEventWheelValue(d, eventIndex, 0, vecX);
+            setDeviceEventWheelValue(d, eventIndex, 1, vecY);
             commitDeviceEvent(d);
 
             eventIndex = createDeviceEvent(d);

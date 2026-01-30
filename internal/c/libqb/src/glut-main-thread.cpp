@@ -18,13 +18,15 @@ extern const void *generic_window_handle;
 
 extern void MAIN_LOOP(void *);
 
-extern GLUTEmu_CallbackWindowClose GLUT_EXIT_FUNC;
-extern GLUTEmu_CallbackWindowResized GLUT_RESIZE_FUNC;
-extern GLUTEmu_CallbackWindowRefresh GLUT_DISPLAY_REQUEST;
-extern GLUTEmu_CallbackWindowIdle GLUT_IDLE_FUNC;
-extern GLUTEmu_CallbackKeyboardButton GLUT_KEYBOARD_BUTTON_FUNC;
-extern GLUTEmu_CallbackMouseButton GLUT_MOUSE_BUTTON_FUNC;
-extern GLUTEmu_CallbackMousePosition GLUT_MOUSE_MOTION_FUNC;
+extern void GLUT_EXIT_FUNC();
+extern void GLUT_RESIZE_FUNC(uint32_t width, uint32_t height);
+extern void GLUT_DISPLAY_REQUEST();
+extern void GLUT_IDLE_FUNC();
+extern void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, GLUTEmu_KeyboardKeyModifier modifiers, bool pressed, bool repeated);
+extern void GLUT_KEYBOARD_CHARACTER_FUNC(char32_t codepoint);
+extern void GLUT_MOUSE_BUTTON_FUNC(int32_t x, int32_t y, GLUTEmu_MouseButton button, bool pressed);
+extern void GLUT_MOUSE_WHEEL_FUNC(int32_t x, int32_t y, float offsetX, float offsetY);
+extern void GLUT_MOUSE_MOTION_FUNC(int32_t x, int32_t y, float vecX, float vecY, bool isCaptured);
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
@@ -61,7 +63,9 @@ static void initialize_glut() {
     GLUTEmu_WindowSetRefreshFunction(GLUT_DISPLAY_REQUEST);
     GLUTEmu_WindowSetIdleFunction(GLUT_IDLE_FUNC);
     GLUTEmu_KeyboardSetButtonFunction(GLUT_KEYBOARD_BUTTON_FUNC);
+    GLUTEmu_KeyboardSetCharacterFunction(GLUT_KEYBOARD_CHARACTER_FUNC);
     GLUTEmu_MouseSetButtonFunction(GLUT_MOUSE_BUTTON_FUNC);
+    GLUTEmu_MouseSetScrollFunction(GLUT_MOUSE_WHEEL_FUNC);
     GLUTEmu_MouseSetPositionFunction(GLUT_MOUSE_MOTION_FUNC);
 }
 

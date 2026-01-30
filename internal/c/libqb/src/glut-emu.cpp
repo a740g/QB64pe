@@ -845,7 +845,9 @@ class GLUTEmu {
             RGFW_setMouseButtonCallback([](RGFW_window *win, RGFW_mouseButton button, RGFW_bool pressed) {
                 auto instance = reinterpret_cast<GLUTEmu *>(RGFW_window_getUserPtr(win));
                 if (instance->mouseButtonFunction) {
-                    instance->mouseButtonFunction(GLUTEmu_MouseButton(button), pressed);
+                    int32_t x = 0, y = 0;
+                    RGFW_window_getMouse(win, &x, &y);
+                    instance->mouseButtonFunction(x, y, GLUTEmu_MouseButton(button), pressed);
                 }
             });
 
@@ -876,10 +878,12 @@ class GLUTEmu {
         if (window) {
             mouseScrollFunction = function;
 
-            RGFW_setMouseScrollCallback([](RGFW_window *win, float x, float y) {
+            RGFW_setMouseScrollCallback([](RGFW_window *win, float scrollX, float scrollY) {
                 auto instance = reinterpret_cast<GLUTEmu *>(RGFW_window_getUserPtr(win));
                 if (instance->mouseScrollFunction) {
-                    instance->mouseScrollFunction(x, y);
+                    int32_t x = 0, y = 0;
+                    RGFW_window_getMouse(win, &x, &y);
+                    instance->mouseScrollFunction(x, y, scrollX, scrollY);
                 }
             });
 
