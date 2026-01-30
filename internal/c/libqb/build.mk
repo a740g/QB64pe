@@ -12,7 +12,7 @@ libqb-objs-y += $(PATH_LIBQB)/src/error_handle.o
 libqb-objs-y += $(PATH_LIBQB)/src/gfs.o
 libqb-objs-y += $(PATH_LIBQB)/src/qblist.o
 libqb-objs-y += $(PATH_LIBQB)/src/hexoctbin.o
-libqb-objs-y += $(PATH_LIBQB)/src/mem.o
+libqb-objs-y += $(PATH_LIBQB)/src/memblock.o
 libqb-objs-y += $(PATH_LIBQB)/src/shell.o
 libqb-objs-y += $(PATH_LIBQB)/src/qbs.o
 libqb-objs-y += $(PATH_LIBQB)/src/qbs_str.o
@@ -44,7 +44,6 @@ libqb-objs-y += $(PATH_LIBQB)/src/threading-$(PLATFORM).o
 
 libqb-objs-y$(DEP_CONSOLE_ONLY) += $(PATH_LIBQB)/src/glut-emu.o
 libqb-objs-y$(DEP_CONSOLE_ONLY) += $(PATH_LIBQB)/src/glut-main-thread.o
-libqb-objs-y$(DEP_CONSOLE_ONLY) += $(PATH_LIBQB)/src/glut-message.o
 libqb-objs-y$(DEP_CONSOLE_ONLY) += $(PATH_LIBQB)/src/glut-msg-queue.o
 
 libqb-objs-$(DEP_CONSOLE_ONLY) += $(PATH_LIBQB)/src/console-only-main-thread.o

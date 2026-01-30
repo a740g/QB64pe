@@ -1,4 +1,7 @@
 #define RGFW_USE_XDL
+#define RGFW_NO_LOAD_WGL
 #define RGFW_NO_LOAD_WINMM
+#define RGFW_COCOA_GRAPHICS_SWITCHING
+#define RGFW_OPENGL
 #define RGFW_IMPLEMENTATION
 #include "RGFW.h"

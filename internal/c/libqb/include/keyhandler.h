@@ -5,8 +5,8 @@
 
 int32_t keyheld(uint32_t x);
 
-void keydown_vk(uint32_t key);
-void keyup_vk(uint32_t key);
+void keydown(uint32_t key);
+void keyup(uint32_t key);
 
 #define QBK 200000
 #define VK 100000
