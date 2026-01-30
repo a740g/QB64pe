@@ -25835,7 +25835,66 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, GLUTEmu_KeyboardKeyModif
         break;
 
     default:
-        fprintf(stderr, "Unhandled key = %d, modifiers = %X, pressed = %d, repeated = %d\n", int(key), int(modifiers), int(pressed), int(repeated));
+        // handle printable keys
+        if (key >= GLUTEmu_KeyboardKey::A && key <= GLUTEmu_KeyboardKey::Z) {
+            qbKey = 'a' + (int(key) - int(GLUTEmu_KeyboardKey::A));
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey -= 32;
+        } else if (key >= GLUTEmu_KeyboardKey::Zero && key <= GLUTEmu_KeyboardKey::Nine) {
+            qbKey = '0' + (int(key) - int(GLUTEmu_KeyboardKey::Zero));
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift) {
+                const char shifted[] = ")!@#$%^&*(";
+                qbKey = shifted[qbKey - '0'];
+            }
+        } else if (key == GLUTEmu_KeyboardKey::Space) {
+            qbKey = ' ';
+        } else if (key == GLUTEmu_KeyboardKey::Minus) {
+            qbKey = '-';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '_';
+        } else if (key == GLUTEmu_KeyboardKey::Equal) {
+            qbKey = '=';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '+';
+        } else if (key == GLUTEmu_KeyboardKey::LeftBracket) {
+            qbKey = '[';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '{';
+        } else if (key == GLUTEmu_KeyboardKey::RightBracket) {
+            qbKey = ']';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '}';
+        } else if (key == GLUTEmu_KeyboardKey::Backslash) {
+            qbKey = '\\';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '|';
+        } else if (key == GLUTEmu_KeyboardKey::Semicolon) {
+            qbKey = ';';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = ':';
+        } else if (key == GLUTEmu_KeyboardKey::Apostrophe) {
+            qbKey = '\'';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '"';
+        } else if (key == GLUTEmu_KeyboardKey::Comma) {
+            qbKey = ',';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '<';
+        } else if (key == GLUTEmu_KeyboardKey::Period) {
+            qbKey = '.';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '>';
+        } else if (key == GLUTEmu_KeyboardKey::Slash) {
+            qbKey = '/';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '?';
+        } else if (key == GLUTEmu_KeyboardKey::Backtick) {
+            qbKey = '`';
+            if (modifiers & GLUTEmu_KeyboardKeyModifier::Shift)
+                qbKey = '~';
+        } else {
+            fprintf(stderr, "Unhandled key = %d, modifiers = %X, pressed = %d, repeated = %d\n", int(key), int(modifiers), int(pressed), int(repeated));
+        }
         break;
     }
 
@@ -25846,12 +25905,6 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, GLUTEmu_KeyboardKeyModif
             keyup(qbKey);
         }
     }
-#endif
-}
-
-void GLUT_KEYBOARD_CHARACTER_FUNC(char32_t codepoint) {
-#ifdef QB64_GLUT
-    keydown(codepoint);
 #endif
 }
 
