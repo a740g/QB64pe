@@ -516,7 +516,9 @@ class GLUTEmu {
     }
 
     void WindowRefresh() {
-        windowShouldRefresh = true;
+        if (window && windowRefreshFunction) {
+            windowRefreshFunction();
+        }
     }
 
     const void *WindowGetNativeHandle(int32_t type) const {
@@ -932,17 +934,20 @@ class GLUTEmu {
 
         while (!RGFW_window_shouldClose(window)) {
             if (windowShouldRefresh) {
-                windowShouldRefresh = false;
                 if (windowRefreshFunction) {
                     windowRefreshFunction();
                 }
+
+                windowShouldRefresh = false;
             }
+
+            RGFW_pollEvents();
 
             if (windowIdleFunction) {
                 windowIdleFunction();
             }
 
-            RGFW_pollEvents();
+            RGFW_waitForEvent(16);
         }
 
         libqb_log_trace("Exiting main loop");

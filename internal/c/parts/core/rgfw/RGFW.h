@@ -467,6 +467,12 @@ typedef RGFW_ENUM(u8, RGFW_format) {
 	RGFW_formatCount
 };
 
+/*! @brief layout struct for mapping out format types */
+typedef struct RGFW_colorLayout {  i32 r, g, b, a; u32 channels;  } RGFW_colorLayout;
+
+/*! @brief function type converting raw image data between formats */
+typedef void (* RGFW_convertImageDataFunc)(u8* dest_data, u8* src_data, const RGFW_colorLayout* srcLayout, const RGFW_colorLayout* destLayout, size_t count);
+
 /*! @brief a stucture for interfacing with the underlying native image (e.g. XImage, HBITMAP, etc) */
 typedef struct RGFW_nativeImage RGFW_nativeImage;
 
@@ -1115,7 +1121,7 @@ RGFWDEF void RGFW_setXInstName(const char* name);
 RGFWDEF void RGFW_moveToMacOSResourceDir(void);
 
 /*! copy image to another image, respecting each image's format */
-RGFWDEF void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format);
+RGFWDEF void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format, RGFW_convertImageDataFunc func);
 
 /**!
  * @brief Returns the size (in bytes) of the RGFW_nativeImage structure.
@@ -1128,6 +1134,12 @@ RGFWDEF size_t RGFW_sizeofNativeImage(void);
  * @return The size of the RGFW_surface structure.
 */
 RGFWDEF size_t RGFW_sizeofSurface(void);
+
+/**!
+ * @brief Returns the native format type for the system
+ * @return the native format type for the system as a RGFW_format enum value
+*/
+RGFWDEF RGFW_format RGFW_nativeFormat(void);
 
 /**!
  * @brief Creates a new surface from raw pixel data.
@@ -1207,6 +1219,7 @@ RGFWDEF RGFW_monitorMode* RGFW_monitor_getModes(RGFW_monitor* monitor, size_t* c
  * @param modes a pointer to an allocated array of modes
 */
 RGFWDEF void RGFW_freeModes(RGFW_monitorMode* modes);
+
 /**!
  * @brief Get the supported modes of a monitor using a pre-allocated array
  * @param monitor the source monitor object
@@ -1214,6 +1227,16 @@ RGFWDEF void RGFW_freeModes(RGFW_monitorMode* modes);
  * @return the number of (possible) modes, if [modes == NULL] the possible nodes *may* be less than the actual modes
 */
 RGFWDEF size_t RGFW_monitor_getModesPtr(RGFW_monitor* monitor, RGFW_monitorMode** modes);
+
+/**!
+ * @brief find the closest monitor mode based on the give mode with size being the highest priority, format being the second and refreshrate being the third.
+ * @param monitor the source monitor object
+ * @param mode user filled mode to use for comparison
+ * @param modes [OUTPUT] a pointer to be filled with the output closest monitor
+ * @return returns true if a suitable monitor was found and false if no suitable monitor was found at all
+*/
+
+RGFWDEF RGFW_bool RGFW_monitor_findClosestMode(RGFW_monitor* monitor, RGFW_monitorMode* mode, RGFW_monitorMode* closest);
 
 /**!
  * @brief Get the allocated gamma ramp
@@ -1544,6 +1567,13 @@ RGFWDEF RGFW_surface* RGFW_window_createSurface(RGFW_window* win, u8* data, i32 
  * @return a bool if the creation was successful or not
 */
 RGFWDEF RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
+
+/**!
+ * @brief set the function/callback used for converting surface data between formats
+ * @param surface a pointer to the surface
+ * @param a function pointer for the function to use [if NULL the default function is used]
+*/
+RGFWDEF void RGFW_surface_setConvertFunc(RGFW_surface* surface, RGFW_convertImageDataFunc func);
 
 /**!
  * @brief blits a surface stucture to the window
@@ -3020,6 +3050,7 @@ RGFWDEF RGFW_info* RGFW_getInfo(void);
 	struct RGFW_nativeImage {
 		RGFW_format format;
 		u8* buffer;
+		void* rep;
 	};
 
 	#ifdef RGFW_OPENGL
@@ -3068,6 +3099,7 @@ struct RGFW_surface {
 	u8* data;
 	i32 w, h;
 	RGFW_format format;
+	RGFW_convertImageDataFunc convertFunc;
 	RGFW_nativeImage native;
 };
 
@@ -3320,7 +3352,7 @@ RGFWDEF void RGFW_window_captureMousePlatform(RGFW_window* win, RGFW_bool state)
 RGFWDEF void RGFW_window_setRawMouseModePlatform(RGFW_window *win, RGFW_bool state);
 
 RGFWDEF void RGFW_copyImageData64(u8* dest_data, i32 w, i32 h, RGFW_format dest_format,
-							u8* src_data, RGFW_format src_format,			RGFW_bool is64bit);
+							u8* src_data, RGFW_format src_format, RGFW_bool is64bit, RGFW_convertImageDataFunc func);
 
 RGFWDEF RGFW_bool RGFW_loadEGL(void);
 
@@ -3336,8 +3368,6 @@ RGFWDEF void RGFW_attribStack_pushAttribs(RGFW_attribStack* stack, i32 attrib1, 
 
 RGFWDEF RGFW_bool RGFW_extensionSupportedStr(const char* extensions, const char* ext, size_t len);
 #endif
-
-typedef struct RGFW_colorLayout {  i32 r, g, b, a; } RGFW_colorLayout;
 
 #ifdef RGFW_X11
 RGFWDEF void RGFW_XCreateWindow (XVisualInfo visual, const char* name, RGFW_windowFlags flags, RGFW_window* win);
@@ -4403,6 +4433,10 @@ RGFW_surface* RGFW_createSurface(u8* data, i32 w, i32 h, RGFW_format format) {
 	return surface;
 }
 
+void RGFW_surface_setConvertFunc(RGFW_surface* surface, RGFW_convertImageDataFunc func) {
+	surface->convertFunc = func;
+}
+
 void RGFW_surface_free(RGFW_surface* surface) {
 	RGFW_surface_freePtr(surface);
 	RGFW_FREE(surface);
@@ -4418,6 +4452,7 @@ RGFW_surface* RGFW_window_createSurface(RGFW_window* win, u8* data, i32 w, i32 h
 	RGFW_window_createSurfacePtr(win, data, w, h, format, surface);
 	return surface;
 }
+
 #ifndef RGFW_X11
 RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	RGFW_UNUSED(win);
@@ -4426,54 +4461,60 @@ RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h,
 #endif
 
 const RGFW_colorLayout RGFW_layouts[RGFW_formatCount] = {
-	{ 0, 1, 2, 3 }, /* RGFW_formatRGB8 */
-	{ 2, 1, 0, 3 }, /* RGFW_formatBGR8 */
-	{ 0, 1, 2, 3 }, /* RGFW_formatRGBA8 */
-	{ 1, 2, 3, 0 }, /* RGFW_formatARGB8 */
-	{ 2, 1, 0, 3 }, /* RGFW_formatBGRA8 */
-	{ 3, 2, 1, 0 }, /* RGFW_formatABGR8 */
+	{ 0, 1, 2, 3, 3 }, /* RGFW_formatRGB8 */
+	{ 2, 1, 0, 3, 3 }, /* RGFW_formatBGR8 */
+	{ 0, 1, 2, 3, 4 }, /* RGFW_formatRGBA8 */
+	{ 1, 2, 3, 0, 4 }, /* RGFW_formatARGB8 */
+	{ 2, 1, 0, 3, 4 }, /* RGFW_formatBGRA8 */
+	{ 3, 2, 1, 0, 4 }, /* RGFW_formatABGR8 */
 };
 
 
-void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format) {
-	RGFW_copyImageData64(dest_data, w, h, dest_format, src_data, src_format, RGFW_FALSE);
+void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format, RGFW_convertImageDataFunc func) {
+	RGFW_copyImageData64(dest_data, w, h, dest_format, src_data, src_format, RGFW_FALSE, func);
 }
 
-void RGFW_copyImageData64(u8* dest_data, i32 dest_w, i32 dest_h, RGFW_format dest_format, u8* src_data, RGFW_format src_format, RGFW_bool is64bit) {
+RGFWDEF void RGFW_convertImageData64(u8* dest_data, u8* src_data, const RGFW_colorLayout* srcLayout, const RGFW_colorLayout* destLayout, size_t count, RGFW_bool is64bit);
+void RGFW_convertImageData64(u8* dest_data, u8* src_data, const RGFW_colorLayout* srcLayout, const RGFW_colorLayout* destLayout, size_t count, RGFW_bool is64bit) {
+	u32 i, i2 = 0;
+	u8 rgba[4] = {0};
+
+	for (i = 0; i < count; i++) {
+		const u8* src_px = &src_data[i * srcLayout->channels];
+		u8* dst_px = &dest_data[i2 * destLayout->channels];
+        rgba[0] = src_px[srcLayout->r];
+        rgba[1] = src_px[srcLayout->g];
+        rgba[2] = src_px[srcLayout->b];
+        rgba[3] = (srcLayout->channels == 4) ? src_px[srcLayout->a] : 255;
+
+        dst_px[destLayout->r] = rgba[0];
+        dst_px[destLayout->g] = rgba[1];
+        dst_px[destLayout->b] = rgba[2];
+		if (destLayout->channels == 4)
+			dst_px[destLayout->a] = rgba[3];
+
+		i2 += 1 + is64bit;
+	}
+}
+
+void RGFW_copyImageData64(u8* dest_data, i32 dest_w, i32 dest_h, RGFW_format dest_format, u8* src_data, RGFW_format src_format, RGFW_bool is64bit, RGFW_convertImageDataFunc func) {
 	RGFW_ASSERT(dest_data && src_data);
 
-	u32 src_channels = (src_format >= RGFW_formatRGBA8) ? 4 : 3;
-	u32 dest_channels = (dest_format >= RGFW_formatRGBA8) ? 4 : 3;
-
-    u32 pixel_count = (u32)(dest_w * dest_h);
+    u32 count = (u32)(dest_w * dest_h);
 
 	if (src_format == dest_format) {
-        RGFW_MEMCPY(dest_data, src_data, pixel_count * dest_channels);
+		u32 channels = (dest_format >= RGFW_formatRGBA8) ? 4 : 3;
+        RGFW_MEMCPY(dest_data, src_data, count * channels);
         return;
     }
 
-    const RGFW_colorLayout* src_layout  = &RGFW_layouts[src_format];
-    const RGFW_colorLayout* dest_layout = &RGFW_layouts[dest_format];
+    const RGFW_colorLayout* srcLayout  = &RGFW_layouts[src_format];
+    const RGFW_colorLayout* destLayout = &RGFW_layouts[dest_format];
 
-	u32 i, i2 = 0;
-	for (i = 0; i < pixel_count; i++) {
-		const u8* src_px = &src_data[i * src_channels];
-		u8* dst_px = &dest_data[i2 * dest_channels];
-		u8 rgba[4] = {0};
-        rgba[0] = src_px[src_layout->r];
-        rgba[1] = src_px[src_layout->g];
-        rgba[2] = src_px[src_layout->b];
-        rgba[3] = 255;
-		if (src_channels == 4)
-			rgba[3] = src_px[src_layout->a];
-
-        dst_px[dest_layout->r] = rgba[0];
-        dst_px[dest_layout->g] = rgba[1];
-        dst_px[dest_layout->b] = rgba[2];
-		if (dest_channels == 4)
-			dst_px[dest_layout->a] = rgba[3];
-
-		i2 += 1 + is64bit;
+	if (is64bit || func == NULL) {
+		RGFW_convertImageData64(dest_data, src_data, srcLayout, destLayout, count, is64bit);
+	} else {
+		func(dest_data, src_data, srcLayout, destLayout, count);
 	}
 }
 
@@ -4550,6 +4591,36 @@ RGFW_monitorMode* RGFW_monitor_getModes(RGFW_monitor* monitor, size_t* count) {
 
 void RGFW_freeModes(RGFW_monitorMode* modes) {
 	RGFW_FREE(modes);
+}
+
+RGFW_bool RGFW_monitor_findClosestMode(RGFW_monitor* monitor, RGFW_monitorMode* mode, RGFW_monitorMode* closest) {
+	size_t count = RGFW_monitor_getModesPtr(monitor, NULL);
+	RGFW_monitorMode* modes = (RGFW_monitorMode*)RGFW_ALLOC(count * sizeof(RGFW_monitorNode));
+	count = RGFW_monitor_getModesPtr(monitor, &modes);
+
+	RGFW_monitorMode* chosen = NULL;
+
+	u32 topScore = 1;
+	for (size_t i = 0; i < count; i++) {
+		RGFW_monitorMode* mode2 = &modes[i];
+
+		u32 score = 0;
+		if (mode->w == mode2->w && mode->h == mode2->h) score += 1000;
+		if (mode->red == mode2->red && mode->green == mode2->green && mode->blue == mode2->blue) score += 100;
+		if (mode->refreshRate == mode->refreshRate) score += 10;
+
+		if (score > topScore) {
+			topScore = score;
+			chosen = mode2;
+		}
+	}
+
+	if (chosen && closest) *closest = *chosen;
+
+
+	RGFW_FREE(modes);
+
+	return (chosen == NULL) ? RGFW_FALSE : RGFW_TRUE;
 }
 
 RGFW_bool RGFW_monitor_getPosition(RGFW_monitor* monitor, i32* x, i32* y) {
@@ -4781,7 +4852,7 @@ u32 RGFW_decodeUTF8(const char* string, size_t* starting_index) {
 
 	*starting_index += count;
 
-    assert(count <= 6);
+    RGFW_ASSERT(count <= 6);
     return codepoint - offsets[count - 1];
 }
 
@@ -6147,6 +6218,7 @@ RGFW_format RGFW_XImage_getFormat(XImage* image) {
 	return RGFW_formatARGB8;
 }
 
+
 RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	RGFW_ASSERT(surface != NULL);
 	surface->data = data;
@@ -6175,6 +6247,8 @@ RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h,
 	return RGFW_TRUE;
 }
 
+RGFW_format RGFW_FUNC(RGFW_nativeFormat)(void) { return RGFW_formatBGRA8; }
+
 RGFW_bool RGFW_FUNC(RGFW_createSurfacePtr) (u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	return RGFW_window_createSurfacePtr(_RGFW->root, data, w, h, format, surface);
 }
@@ -6182,7 +6256,7 @@ RGFW_bool RGFW_FUNC(RGFW_createSurfacePtr) (u8* data, i32 w, i32 h, RGFW_format 
 void RGFW_FUNC(RGFW_window_blitSurface) (RGFW_window* win, RGFW_surface* surface) {
 	RGFW_ASSERT(surface != NULL);
 	surface->native.bitmap->data = (char*)surface->native.buffer;
-	RGFW_copyImageData((u8*)surface->native.buffer, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format);
+	RGFW_copyImageData((u8*)surface->native.buffer, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format, surface->convertFunc);
 
 	XPutImage(_RGFW->display, win->src.window, win->src.gc, surface->native.bitmap, 0, 0, 0, 0, (u32)RGFW_MIN(win->w, surface->w), (u32)RGFW_MIN(win->h, surface->h));
 	surface->native.bitmap->data = NULL;
@@ -7387,7 +7461,7 @@ RGFW_bool RGFW_FUNC(RGFW_window_setIconEx) (RGFW_window* win, u8* data_src, i32 
     data[0] = (unsigned long)w;
 	data[1] = (unsigned long)h;
 
-	RGFW_copyImageData64((u8*)&data[2], w, h, RGFW_formatBGRA8, data_src, format, RGFW_TRUE);
+	RGFW_copyImageData64((u8*)&data[2], w, h, RGFW_formatBGRA8, data_src, format, RGFW_TRUE, NULL);
 	RGFW_bool res = RGFW_TRUE;
 	if (type & RGFW_iconTaskbar) {
 		res = (RGFW_bool)XChangeProperty(
@@ -7396,7 +7470,7 @@ RGFW_bool RGFW_FUNC(RGFW_window_setIconEx) (RGFW_window* win, u8* data_src, i32 
 		);
 	}
 
-	RGFW_copyImageData64((u8*)&data[2], w, h, RGFW_formatBGRA8, data_src, format, RGFW_FALSE);
+	RGFW_copyImageData64((u8*)&data[2], w, h, RGFW_formatBGRA8, data_src, format, RGFW_FALSE, NULL);
 
 	if (type & RGFW_iconWindow) {
 		XWMHints wm_hints;
@@ -7427,7 +7501,7 @@ RGFW_mouse* RGFW_FUNC(RGFW_loadMouse) (u8* data, i32 w, i32 h, RGFW_format forma
 	native->xhot = 0;
 	native->yhot = 0;
 	RGFW_MEMSET(native->pixels, 0, (u32)(w * h * 4));
-	RGFW_copyImageData((u8*)native->pixels, w, h, RGFW_formatBGRA8, data, format);
+	RGFW_copyImageData((u8*)native->pixels, w, h, RGFW_formatBGRA8, data, format, NULL);
 
 	Cursor cursor = XcursorImageLoadCursor(_RGFW->display, native);
 	XcursorImageDestroy(native);
@@ -7862,6 +7936,8 @@ void RGFW_FUNC(RGFW_pollMonitors) (void) {
 
 		monitor.scaleX = dpi / 96.0f;
 		monitor.scaleY = dpi / 96.0f;
+
+		monitor.pixelRatio = dpi >= 192.0f ? 2.0f : 1.0f;
 
 		XRRModeInfo* mi = RGFW_XGetMode(ci, res, ci->mode, &monitor.mode);
 
@@ -9463,6 +9539,8 @@ void RGFW_deinitPlatform_Wayland(void) {
 	wl_display_disconnect(_RGFW->wl_display);
 }
 
+RGFW_format RGFW_FUNC(RGFW_nativeFormat)(void) { return RGFW_formatBGRA8; }
+
 RGFW_bool RGFW_FUNC(RGFW_createSurfacePtr) (u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	RGFW_ASSERT(surface != NULL);
 	surface->data = data;
@@ -9495,8 +9573,7 @@ void RGFW_FUNC(RGFW_window_blitSurface) (RGFW_window* win, RGFW_surface* surface
 	RGFW_ASSERT(surface != NULL);
 
 	surface->native.wl_buffer = wl_shm_pool_create_buffer(surface->native.pool, 0, RGFW_MIN(win->w, surface->w), RGFW_MIN(win->h, surface->h), (i32)surface->w * 4, WL_SHM_FORMAT_ARGB8888);
-	RGFW_copyImageData(surface->native.buffer, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format);
-
+	RGFW_copyImageData(surface->native.buffer, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format, surface->convertFunc);
 
 	wl_surface_attach(win->src.surface, surface->native.wl_buffer, 0, 0);
 	wl_surface_damage(win->src.surface, 0, 0, RGFW_MIN(win->w, surface->w), RGFW_MIN(win->h, surface->h));
@@ -9942,7 +10019,7 @@ RGFW_bool RGFW_FUNC(RGFW_window_setIconEx) (RGFW_window* win, u8* data, i32 w, i
 
 	if (surface == NULL) return RGFW_FALSE;
 
-	RGFW_copyImageData(surface->native.buffer, RGFW_MIN(w, surface->w), RGFW_MIN(h, surface->h), surface->native.format, surface->data, surface->format);
+	RGFW_copyImageData(surface->native.buffer, RGFW_MIN(w, surface->w), RGFW_MIN(h, surface->h), surface->native.format, surface->data, surface->format, NULL);
 
 	win->src.icon = xdg_toplevel_icon_manager_v1_create_icon(_RGFW->icon_manager);
 	xdg_toplevel_icon_v1_add_buffer(win->src.icon, surface->native.wl_buffer, 1);
@@ -9958,7 +10035,7 @@ RGFW_mouse* RGFW_FUNC(RGFW_loadMouse)(u8* data, i32 w, i32 h, RGFW_format format
 
 	if (mouse_surface == NULL) return NULL;
 
-	RGFW_copyImageData(mouse_surface->native.buffer, RGFW_MIN(w, mouse_surface->w), RGFW_MIN(h, mouse_surface->h), mouse_surface->native.format, mouse_surface->data, mouse_surface->format);
+	RGFW_copyImageData(mouse_surface->native.buffer, RGFW_MIN(w, mouse_surface->w), RGFW_MIN(h, mouse_surface->h), mouse_surface->native.format, mouse_surface->data, mouse_surface->format, NULL);
 
 	return (void*) mouse_surface;
 }
@@ -10833,6 +10910,8 @@ LRESULT CALLBACK WndProcW(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                         RGFW_ASSERT(name##SRC != NULL); \
                                     }
 
+RGFW_format RGFW_nativeFormat(void) { return RGFW_formatBGRA8; }
+
 RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	RGFW_ASSERT(surface != NULL);
 	surface->data = data;
@@ -10875,7 +10954,7 @@ void RGFW_surface_freePtr(RGFW_surface* surface) {
 }
 
 void RGFW_window_blitSurface(RGFW_window* win, RGFW_surface* surface) {
-	RGFW_copyImageData(surface->native.bitmapBits, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format);
+	RGFW_copyImageData(surface->native.bitmapBits, surface->w, RGFW_MIN(win->h, surface->h), surface->native.format, surface->data, surface->format, surface->convertFunc);
 	BitBlt(win->src.hdc, 0, 0, RGFW_MIN(win->w, surface->w), RGFW_MIN(win->h, surface->h), surface->native.hdcMem, 0, 0, SRCCOPY);
 }
 
@@ -11791,7 +11870,7 @@ HICON RGFW_loadHandleImage(u8* data, i32 w, i32 h, RGFW_format format, BOOL icon
 		(BITMAPINFO*) &bi, DIB_RGB_COLORS, (void**) &target,
 		NULL, (DWORD) 0);
 
-	RGFW_copyImageData(target, w, h, RGFW_formatBGRA8, data, format);
+	RGFW_copyImageData(target, w, h, RGFW_formatBGRA8, data, format, NULL);
     ReleaseDC(NULL, dc);
 
 	HBITMAP mask = CreateBitmap((i32)w, (i32)h, 1, 1, NULL);
@@ -13206,6 +13285,8 @@ static void RGFW__osxScrollWheel(id self, SEL _cmd, id event) {
     RGFW_mouseScrollCallback(win, deltaX, deltaY);
 }
 
+RGFW_format RGFW_nativeFormat(void) { return RGFW_formatRGBA8; }
+
 RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) {
 	surface->data = data;
 	surface->w = w;
@@ -13217,40 +13298,37 @@ RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW
 	return RGFW_TRUE;
 }
 
-void RGFW_surface_freePtr(RGFW_surface* surface) { RGFW_FREE(surface->native.buffer); }
+void RGFW_surface_freePtr(RGFW_surface* surface) {
+	RGFW_FREE(surface->native.buffer);
+}
 
 void RGFW_window_blitSurface(RGFW_window* win, RGFW_surface* surface) {
 	id pool = objc_msgSend_class(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc"));
 	pool = objc_msgSend_id(pool, sel_registerName("init"));
 
-	int minX = RGFW_MIN(win->w, surface->w);
-	int minY = RGFW_MIN(win->h, surface->h);
+	int minW = RGFW_MIN(win->w, surface->w);
+	int minH = RGFW_MIN(win->h, surface->h);
 
 	RGFW_monitor* mon = RGFW_window_getMonitor(win);
 	if (mon == NULL) return;
 
-	minX =  (i32)((float)minX * mon->pixelRatio);
-	minY = (i32)((float)minY * mon->pixelRatio);
+	minW =  (i32)((float)minW * mon->pixelRatio);
+	minH = (i32)((float)minH * mon->pixelRatio);
 
-	RGFW_copyImageData(surface->native.buffer, surface->w, minY, surface->native.format, surface->data, surface->format);
+	surface->native.rep = (void*)NSBitmapImageRep_initWithBitmapData(&surface->native.buffer, minW, minH, 8, 4, true, false, "NSDeviceRGBColorSpace", 1 << 1, (u32)surface->w * 4, 32);
 
 	id image = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSImage"), sel_getUid("alloc"));
-	NSSize size = (NSSize){(double)surface->w, (double)surface->h};
+	NSSize size = (NSSize){(double)minW, (double)minH};
 	image = ((id (*)(id, SEL, NSSize))objc_msgSend)((id)image, sel_getUid("initWithSize:"), size);
 
-	id rep  = NSBitmapImageRep_initWithBitmapData(&surface->native.buffer, minX, minY, 8, 4, true, false, "NSDeviceRGBColorSpace", 1 << 1, (u32)surface->w  * 4, 32);
-	RGFW_copyImageData(NSBitmapImageRep_bitmapData(rep), minX, minY , RGFW_formatRGBA8, surface->native.buffer, surface->native.format);
-	((void (*)(id, SEL, id))objc_msgSend)((id)image, sel_getUid("addRepresentation:"), rep);
+	RGFW_copyImageData(NSBitmapImageRep_bitmapData((id)surface->native.rep), surface->w, minH, RGFW_formatRGBA8, surface->data, surface->native.format, surface->convertFunc);
+	((void (*)(id, SEL, id))objc_msgSend)((id)image, sel_getUid("addRepresentation:"), (id)surface->native.rep);
 
-	id contentView = ((id (*)(id, SEL))objc_msgSend)((id)win->src.window, sel_getUid("contentView"));
-	((void (*)(id, SEL, BOOL))objc_msgSend)(contentView, sel_getUid("setWantsLayer:"), YES);
-	id layer = ((id (*)(id, SEL))objc_msgSend)(contentView, sel_getUid("layer"));
-
+	id layer = ((id (*)(id, SEL))objc_msgSend)((id)win->src.view, sel_getUid("layer"));
 	((void (*)(id, SEL, id))objc_msgSend)(layer, sel_getUid("setContents:"), (id)image);
-	((void (*)(id, SEL, BOOL))objc_msgSend)(contentView, sel_getUid("setNeedsDisplay:"), YES);
 
-	NSRelease(rep);
 	NSRelease(image);
+	NSRelease(surface->native.rep);
 
 	objc_msgSend_bool_void(pool, sel_registerName("drain"));
 }
@@ -13848,13 +13926,17 @@ RGFW_bool RGFW_window_setIconEx(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_f
 	RGFW_ASSERT(win != NULL);
 	RGFW_UNUSED(type);
 
+	id pool = objc_msgSend_class(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc"));
+	pool = objc_msgSend_id(pool, sel_registerName("init"));
+
 	if (data == NULL) {
 		objc_msgSend_void_id((id)_RGFW->NSApp, sel_registerName("setApplicationIconImage:"), NULL);
+		objc_msgSend_bool_void(pool, sel_registerName("drain"));
 		return RGFW_TRUE;
 	}
 
 	id representation = NSBitmapImageRep_initWithBitmapData(NULL, w, h, 8, (NSInteger)4, true, false, "NSCalibratedRGBColorSpace", 1 << 1, w * 4, 32);
-	RGFW_copyImageData(NSBitmapImageRep_bitmapData(representation), w, h, RGFW_formatRGBA8, data, format);
+	RGFW_copyImageData(NSBitmapImageRep_bitmapData(representation), w, h, RGFW_formatRGBA8, data, format, NULL);
 
 	id dock_image = ((id(*)(id, SEL, NSSize))objc_msgSend) (NSAlloc((id)objc_getClass("NSImage")), sel_registerName("initWithSize:"), ((NSSize){(CGFloat)w, (CGFloat)h}));
 
@@ -13864,6 +13946,8 @@ RGFW_bool RGFW_window_setIconEx(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_f
 
 	NSRelease(dock_image);
 	NSRelease(representation);
+
+	objc_msgSend_bool_void(pool, sel_registerName("drain"));
 
 	return RGFW_TRUE;
 }
@@ -13876,13 +13960,18 @@ id NSCursor_arrowStr(const char* str) {
 }
 
 RGFW_mouse* RGFW_loadMouse(u8* data, i32 w, i32 h, RGFW_format format) {
+	id pool = objc_msgSend_class(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc"));
+	pool = objc_msgSend_id(pool, sel_registerName("init"));
+
 	if (data == NULL) {
 		objc_msgSend_void(NSCursor_arrowStr("arrowCursor"), sel_registerName("set"));
+
+		objc_msgSend_bool_void(pool, sel_registerName("drain"));
 		return NULL;
 	}
 
 	id representation = (id)NSBitmapImageRep_initWithBitmapData(NULL, w, h, 8, (NSInteger)4, true, false, "NSCalibratedRGBColorSpace", 1 << 1, w * 4, 32);
-	RGFW_copyImageData(NSBitmapImageRep_bitmapData(representation), w, h, RGFW_formatRGBA8, data, format);
+	RGFW_copyImageData(NSBitmapImageRep_bitmapData(representation), w, h, RGFW_formatRGBA8, data, format, NULL);
 
 	id cursor_image = ((id(*)(id, SEL, NSSize))objc_msgSend) (NSAlloc((id)objc_getClass("NSImage")), sel_registerName("initWithSize:"), ((NSSize){(CGFloat)w, (CGFloat)h}));
 
@@ -13893,6 +13982,8 @@ RGFW_mouse* RGFW_loadMouse(u8* data, i32 w, i32 h, RGFW_format format) {
 
 	NSRelease(cursor_image);
 	NSRelease(representation);
+
+	objc_msgSend_bool_void(pool, sel_registerName("drain"));
 
 	return (void*)cursor;
 }
@@ -14781,7 +14872,7 @@ RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW
 
 void RGFW_window_blitSurface(RGFW_window* win, RGFW_surface* surface) {
 	/* TODO: Needs fixing. */
-	RGFW_copyImageData(surface->data, surface->w, RGFW_MIN(win->h, surface->h), RGFW_formatRGBA8, surface->data, surface->format);
+	RGFW_copyImageData(surface->data, surface->w, RGFW_MIN(win->h, surface->h), RGFW_formatRGBA8, surface->data, surface->format, surface->convertFunc);
 	EM_ASM_({
 		var data = Module.HEAPU8.slice($0, $0 + $1 * $2 * 4);
 		let context = document.getElementById("canvas").getContext("2d");
@@ -15481,6 +15572,7 @@ typedef RGFW_bool (*RGFW_monitor_setGammaRamp_ptr) (RGFW_monitor* monitor, RGFW_
 typedef RGFW_bool (*RGFW_monitor_setMode_ptr)(RGFW_monitor* mon, RGFW_monitorMode* mode);
 typedef RGFW_monitor* (*RGFW_window_getMonitor_ptr)(RGFW_window* win);
 typedef void (*RGFW_window_closePlatform_ptr)(RGFW_window* win);
+typedef RGFW_format (*RGFW_nativeFormat_ptr)(void);
 typedef RGFW_bool (*RGFW_createSurfacePtr_ptr)(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
 typedef void (*RGFW_window_blitSurface_ptr)(RGFW_window* win, RGFW_surface* surface);
 typedef void (*RGFW_surface_freePtr_ptr)(RGFW_surface* surface);
@@ -15504,7 +15596,8 @@ typedef WGPUSurface (*RGFW_window_createSurface_WebGPU_ptr)(RGFW_window* window,
 
 /* Structure to hold all function pointers */
 typedef struct RGFW_FunctionPointers {
-   RGFW_createSurfacePtr_ptr createSurfacePtr;
+	RGFW_nativeFormat_ptr nativeFormat;
+	RGFW_createSurfacePtr_ptr createSurfacePtr;
     RGFW_window_blitSurface_ptr window_blitSurface;
 	RGFW_surface_freePtr_ptr surface_freePtr;
 	RGFW_freeMouse_ptr freeMouse;
@@ -15571,6 +15664,7 @@ typedef struct RGFW_FunctionPointers {
 
 RGFW_functionPointers RGFW_api;
 
+RGFW_format RGFW_nativeFormat(void) { return RGFW_api.nativeFormat(); }
 RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface) { return RGFW_api.createSurfacePtr(data, w, h, format, surface); }
 void RGFW_surface_freePtr(RGFW_surface* surface) { RGFW_api.surface_freePtr(surface); }
 void RGFW_freeMouse(RGFW_mouse* mouse) { RGFW_api.freeMouse(mouse); }
@@ -15649,7 +15743,8 @@ WGPUSurface RGFW_window_createSurface_WebGPU(RGFW_window* window, WGPUInstance i
 */
 #if defined(RGFW_WAYLAND) && defined(RGFW_X11)
 void RGFW_load_X11(void) {
-    RGFW_api.createSurfacePtr = RGFW_createSurfacePtr_X11;
+	RGFW_api.nativeFormat = RGFW_nativeFormat_X11;
+	RGFW_api.createSurfacePtr = RGFW_createSurfacePtr_X11;
     RGFW_api.window_blitSurface = RGFW_window_blitSurface_X11;
 	RGFW_api.surface_freePtr = RGFW_surface_freePtr_X11;
 	RGFW_api.freeMouse = RGFW_freeMouse_X11;
@@ -15716,6 +15811,7 @@ void RGFW_load_X11(void) {
 }
 
 void RGFW_load_Wayland(void) {
+	RGFW_api.nativeFormat = RGFW_nativeFormat_Wayland;
 	RGFW_api.createSurfacePtr = RGFW_createSurfacePtr_Wayland;
 	RGFW_api.window_blitSurface = RGFW_window_blitSurface_Wayland;
     RGFW_api.surface_freePtr = RGFW_surface_freePtr_Wayland;
