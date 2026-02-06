@@ -92,8 +92,8 @@ $(PATH_INTERNAL_C)/parts/core/glfw/src/%.o: $(PATH_INTERNAL_C)/parts/core/glfw/s
 	$(CC) -O3 $(CFLAGS) $(CORE_INCLUDE) $(GLFW_DEFS) -w $< -c -o $@
 
 ifeq ($(OS),osx)
-	$(PATH_INTERNAL_C)/parts/core/glfw/src/%.o: $(PATH_INTERNAL_C)/parts/core/glfw/src/%.m
-		$(CXX) -O3 $(CXXFLAGS) $(CORE_INCLUDE) $(GLFW_DEFS) -w $< -c -o $@
+$(PATH_INTERNAL_C)/parts/core/glfw/src/%.o: $(PATH_INTERNAL_C)/parts/core/glfw/src/%.m
+	$(CC) -O3 $(CFLAGS) $(CORE_INCLUDE) $(GLFW_DEFS) -w $< -c -o $@
 endif
 
 $(CORE_LIB): $(GLFW_OBJS) $(GLEW_OBJS)
