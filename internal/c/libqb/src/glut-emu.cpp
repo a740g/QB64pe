@@ -941,13 +941,13 @@ class GLUTEmu {
                 windowShouldRefresh = false;
             }
 
-            RGFW_pollEvents();
-
             if (windowIdleFunction) {
-                windowIdleFunction();
-            }
+                RGFW_pollEvents();
 
-            RGFW_waitForEvent(16);
+                windowIdleFunction();
+            } else {
+                RGFW_waitForEvent(std::numeric_limits<int32_t>::max());
+            }
         }
 
         libqb_log_trace("Exiting main loop");
