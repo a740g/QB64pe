@@ -709,17 +709,19 @@ class GLUTEmu {
         while (!glfwWindowShouldClose(window)) {
             if (windowShouldRefresh) {
                 windowShouldRefresh = false;
+
                 if (windowRefreshFunction) {
                     windowRefreshFunction();
                 }
             }
 
             if (windowIdleFunction) {
-                windowIdleFunction();
-            }
+                glfwPollEvents();
 
-            // glfwWaitEventsTimeout(0.01);
-            glfwPollEvents();
+                windowIdleFunction();
+            } else {
+                glfwWaitEvents();
+            }
         }
 
         libqb_log_trace("Exiting main loop");
