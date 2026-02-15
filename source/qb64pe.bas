@@ -149,6 +149,10 @@ DIM SHARED VersionInfoSet AS _BYTE
 REDIM SHARED embedFileList$(3, 10)
 CONST eflLine = 0, eflUsed = 1, eflFile = 2, eflHand = 3 '1st index IDs
 
+'Array to handle $USELIBRARY metacommand:
+REDIM SHARED useLibList$(4, 10)
+CONST ullName = 0, ullNeedy = 1, ullTop = 2, ullMain = 3, ullBottom = 4 '1st index IDs
+
 'Variables to handle $VERSIONINFO metacommand:
 DIM SHARED viFileVersionNum$, viProductVersionNum$, viCompanyName$
 DIM SHARED viFileDescription$, viFileVersion$, viInternalName$
@@ -340,6 +344,16 @@ END IF
 
 IF Debug THEN OPEN tmpdir$ + "debug.txt" FOR OUTPUT AS #9
 
+'look if the Libraries Pack add-on is available,
+'and if so, find the Library Explorer executable
+LibExplorer$ = ""
+IF _DIREXISTS("libraries") _ORELSE _DIREXISTS("./libraries") THEN
+    IF _FILEEXISTS("LibraryExplorer.exe") THEN LibExplorer$ = "LibraryExplorer.exe"
+    IF _FILEEXISTS("./LibraryExplorer") THEN LibExplorer$ = "./LibraryExplorer"
+    IF _FILEEXISTS("libraries\LibraryExplorer.exe") THEN LibExplorer$ = "libraries\LibraryExplorer.exe"
+    IF _FILEEXISTS("./libraries/LibraryExplorer") THEN LibExplorer$ = "./libraries/LibraryExplorer"
+END IF
+
 ON ERROR GOTO qberror
 
 
@@ -379,15 +393,15 @@ DIM SHARED IDEStartAtLine AS LONG, errorLineInInclude AS LONG
 DIM SHARED warningInInclude AS LONG, warningInIncludeLine AS LONG
 DIM SHARED compilelog$
 
-DIM OutputIsRelativeToStartDir AS _BYTE
-
 '$INCLUDE:'ide\config\cfg_global.bas'
 ReadInitialConfig
 
 CMDLineSrcFile$ = ParseCMDLineArgs$
-IF CMDLineSrcFile$ <> "" AND _FILEEXISTS(_STARTDIR$ + "/" + CMDLineSrcFile$) THEN
-    CMDLineSrcFile$ = _STARTDIR$ + "/" + CMDLineSrcFile$
-    OutputIsRelativeToStartDir = _TRUE
+IF LEN(CMDLineSrcFile$) > 0 _ANDALSO _FILEEXISTS(_STARTDIR$ + CMDLineSrcFile$) THEN
+    CMDLineSrcFile$ = _STARTDIR$ + CMDLineSrcFile$
+END IF
+IF LEN(CMDLineOutFile$) > 0 _ANDALSO _DIREXISTS(_STARTDIR$ + getfilepath$(CMDLineOutFile$)) THEN
+    CMDLineOutFile$ = _STARTDIR$ + CMDLineOutFile$
 END IF
 
 IF ConsoleMode THEN
@@ -644,12 +658,11 @@ DIM SHARED addmetainclude AS STRING
 DIM SHARED autoIncludingFile AS INTEGER
 DIM SHARED autoIncForceUScore AS INTEGER
 
-DIM SHARED closedmain AS INTEGER
 DIM SHARED module AS STRING
 
 DIM SHARED subfunc AS STRING
 DIM SHARED subfuncn AS LONG
-DIM SHARED closedsubfunc AS _BYTE
+DIM SHARED subfuncnlast AS LONG
 DIM SHARED subfuncid AS LONG
 
 DIM SHARED defdatahandle AS INTEGER
@@ -808,13 +821,12 @@ IF C = 4 THEN 'next line
 END IF
 
 IF C = 5 THEN 'end of program reached
-
     lastLine = 1
     lastLineReturn = 1
     IF idepass = 1 THEN
         wholeline$ = ""
         GOTO ideprepass
-        '(returns to ideret2: above, then to lastLinePrepassReturn below)
+        '(returns to ideret2: above, then to lastLineReturn below)
     END IF
     'idepass>1
     a3$ = ""
@@ -850,7 +862,7 @@ IF C = 9 THEN 'run
         'locate accessible file and truncate
         f$ = file$
 
-        path.exe$ = ""
+        path.exe$ = DefaultExeSaveFolder$
         IF SaveExeWithSource THEN
             IF LEN(ideprogname) THEN path.exe$ = idepath$ + pathsep$
         END IF
@@ -931,7 +943,7 @@ IF C = 9 THEN 'run
             prefix$ = "": suffix$ = ""
         END IF
 
-        ExecuteLine$ = prefix$ + QuotedFilename$(lastBinaryGenerated$) + ModifyCOMMAND$ + suffix$
+        ExecuteLine$ = prefix$ + QuotedFilename$(_FULLPATH$(lastBinaryGenerated$)) + ModifyCOMMAND$ + suffix$
     ELSEIF os$ = "LNX" THEN
         IF path.exe$ = "" THEN path.exe$ = "./"
 
@@ -939,18 +951,18 @@ IF C = 9 THEN 'run
             ExecuteLine$ = DefaultTerminal$
 
             IF LEFT$(lastBinaryGenerated$, LEN(path.exe$)) = path.exe$ THEN
-                ExecuteLine$ = StrReplace$(ExecuteLine$, "$$", QuotedFilename$(lastBinaryGenerated$))
+                ExecuteLine$ = StrReplace$(ExecuteLine$, "$$", QuotedFilename$(_FULLPATH$(lastBinaryGenerated$)))
             ELSE
-                ExecuteLine$ = StrReplace$(ExecuteLine$, "$$", QuotedFilename$(path.exe$ + lastBinaryGenerated$))
+                ExecuteLine$ = StrReplace$(ExecuteLine$, "$$", QuotedFilename$(_FULLPATH$(path.exe$ + lastBinaryGenerated$)))
             END IF
 
             ExecuteLine$ = StrReplace$(ExecuteLine$, "$@", ModifyCOMMAND$)
             ExecuteLine$ = ExecuteLine$ + _IIF(LogToConsole, " && read -rsn1 -p 'Press any key...'; echo", "")
         ELSE
             IF LEFT$(lastBinaryGenerated$, LEN(path.exe$)) = path.exe$ THEN
-                ExecuteLine$ = QuotedFilename$(lastBinaryGenerated$) + ModifyCOMMAND$
+                ExecuteLine$ = QuotedFilename$(_FULLPATH$(lastBinaryGenerated$)) + ModifyCOMMAND$
             ELSE
-                ExecuteLine$ = QuotedFilename$(path.exe$ + lastBinaryGenerated$) + ModifyCOMMAND$
+                ExecuteLine$ = QuotedFilename$(_FULLPATH$(path.exe$ + lastBinaryGenerated$)) + ModifyCOMMAND$
             END IF
         END IF
 
@@ -1049,7 +1061,7 @@ CMDLineSrcFile$ = sourcefile$
 'derive name from sourcefile
 f$ = RemoveFileExtension$(f$)
 
-path.exe$ = ""
+path.exe$ = DefaultExeSaveFolder$
 currentdir$ = _CWD$
 path.source$ = getfilepath$(sourcefile$)
 IF LEN(path.source$) THEN
@@ -1111,6 +1123,9 @@ sflistn = -1 'no entries
 
 SubNameLabels = sp 'QB64 will perform a repass to resolve sub names used as labels
 
+'Reset used libraries tracking list (fullrecompile only)
+REDIM SHARED useLibList$(4, 10)
+
 'RCStateVars (feature and required recompile tracking)
 ClearRCStateVar ColorSet
 ClearRCStateVar OptExpl: IF ForceOptExpl THEN ForceRCStateVar OptExpl, 1
@@ -1136,6 +1151,7 @@ ExecuteRCStateVar SockDepOn
 lastLineReturn = 0
 lastLine = 0
 firstLine = 1
+mainEndLine = 0
 autoIncludeBuffer = -1
 
 UseGL = 0
@@ -1335,7 +1351,6 @@ REDIM SHARED udtenext(1000) AS LONG
 definingtype = 0
 definingtypeerror = 0
 constlast = -1
-closedmain = 0
 addmetastatic = 0
 addmetadynamic = 0
 DynamicMode = 0
@@ -1361,7 +1376,7 @@ arrayprocessinghappened = 0
 stringprocessinghappened = 0
 inputfunctioncalled = 0
 subfuncn = 0
-closedsubfunc = 0
+subfuncnlast = 0
 subfunc = ""
 SelectCaseCounter = 0
 ExecCounter = 0
@@ -1452,10 +1467,10 @@ udtetypesize(i2) = 0 'tsize
 udtenext(i3) = i2
 udtenext(i2) = 0
 
-' Reset all unstable flags
+'Reset all unstable flags
 FOR i = 1 TO UBOUND(unstableFlags): unstableFlags(i) = 0: NEXT
 
-' Reset embedded files tracking list
+'Reset embedded files tracking list
 REDIM SHARED embedFileList$(3, 10)
 
 'External dependencies buffer
@@ -1522,7 +1537,8 @@ RETURN
 
 autoIncludeManager:
 autoIncludeBuffer = OpenBuffer%("O", tmpdir$ + "autoinc.txt")
-IF firstLine <> 0 THEN
+'following IF blocks must be independent, don't connect them using ELSEIF
+IF firstLine = 1 THEN
     IF ideprogname$ <> "beforefirstline.bi" THEN
         WriteBufLine autoIncludeBuffer, "internal\support\include\beforefirstline.bi"
     ELSE
@@ -1533,6 +1549,12 @@ IF firstLine <> 0 THEN
     ELSEIF GetRCStateVar(ColorSet) = 2 AND ideprogname$ <> "color0.bi" AND ideprogname$ <> "color32.bi" THEN
         WriteBufLine autoIncludeBuffer, "internal\support\color\color32.bi"
     END IF
+    'add "AtTop" files of used libraries
+    ullUB = UBOUND(useLibList$, 2)
+    FOR i = ullUB TO 0 STEP -1 'in reversed order to pull dependencies before they're needed
+        ull$ = useLibList$(ullTop, i)
+        IF LEN(ull$) > 0 THEN WriteBufLine autoIncludeBuffer, ull$
+    NEXT i
     'add more files in between here
     'add more files in between here
     IF GetRCStateVar(vWatchOn) = 1 OR ideprogname$ = "vwatch.bm" THEN
@@ -1540,12 +1562,35 @@ IF firstLine <> 0 THEN
             WriteBufLine autoIncludeBuffer, "internal\support\vwatch\vwatch.bi"
         END IF
     END IF
-ELSEIF lastLine <> 0 THEN
+    firstLine = 2 'change state to "in progress"
+END IF
+IF mainEndLine = 1 THEN
+    WriteBufLine autoIncludeBuffer, "internal\support\include\aftermain.bas"
+    'add "AfterMain" files of used libraries
+    ullUB = UBOUND(useLibList$, 2)
+    FOR i = 0 TO ullUB 'in order of appearance
+        ull$ = useLibList$(ullMain, i)
+        IF LEN(ull$) > 0 THEN WriteBufLine autoIncludeBuffer, ull$
+    NEXT i
+    'add more files in between here
+    'add more files in between here
+    mainEndLine = 2 'change state to "in progress"
+END IF
+IF lastLine = 1 THEN
+    'for SUB/FUNC-less main code "AfterMain" and "AtBottom" are triggered at the same time, hence we first
+    'need a marker in the buffer to know when "AfterMain" files are done and the "AtBottom" files start
+    WriteBufLine autoIncludeBuffer, "-----" 'a simple bar will do that for us (see Include Managers #1/#2)
     IF GetRCStateVar(vWatchOn) THEN
         IF LEFT$(ideprogname$, 6) <> "vwatch" THEN WriteBufLine autoIncludeBuffer, "internal\support\vwatch\vwatch.bm"
     ELSE
         IF LEFT$(ideprogname$, 6) <> "vwatch" THEN WriteBufLine autoIncludeBuffer, "internal\support\vwatch\vwatch_stub.bm"
     END IF
+    'add "AtBottom" files of used libraries
+    ullUB = UBOUND(useLibList$, 2)
+    FOR i = 0 TO ullUB 'in order of appearance
+        ull$ = useLibList$(ullBottom, i)
+        IF LEN(ull$) > 0 THEN WriteBufLine autoIncludeBuffer, ull$
+    NEXT i
     'add more files in between here
     'add more files in between here
     IF ideprogname$ <> "afterlastline.bm" THEN
@@ -1553,36 +1598,38 @@ ELSEIF lastLine <> 0 THEN
     ELSE
         SetDependency DEPENDENCY_SOCKETS 'force dependency for direct editing
     END IF
+    lastLine = 2 'change state to "in progress"
 END IF
-firstLine = 0: lastLine = 0
 IF GetBufLen&(autoIncludeBuffer) > 0 THEN
     nul& = SeekBuf&(autoIncludeBuffer, 0, SBM_BufStart)
     ON ABS(SGN(prepass)) + 1 GOSUB autoInclude, autoInclude_prepass
 END IF
+'change states from "in progress" to "done"
+IF firstLine = 2 THEN firstLine = 3
+IF mainEndLine = 2 THEN mainEndLine = 3
+IF lastLine = 2 THEN lastLine = 3
 ClearBuffers tmpdir$ + "autoinc.txt": autoIncludeBuffer = -1 'invalidate buffer
 RETURN
 '=== END: pass dependent GOSUB routines ===
 
 startPrepass:
 DO
-
-    '### STEVE EDIT FOR CONST EXPANSION 10/11/2013
-
-    wholeline$ = lineinput3$
-    IF wholeline$ = CHR$(13) THEN EXIT DO
-
     ideprepass:
-    prepassLastLine:
     prepass = 1
 
-    IF firstLine <> 0 OR lastLine <> 0 THEN
-        lineBackup$ = wholeline$ 'backup the real line (will be blank when lastline is set)
+    'wholeline$ is passed in idemode, from $include and CLI lastLine trigger
+    IF idemode = 0 AND inclevel = 0 AND lastLine = 0 THEN
+        wholeline$ = lineinput3$ 'otherwise read from source
+        IF wholeline$ = CHR$(13) THEN EXIT DO 'check for end
+    END IF
+    IF lastLine = 1 AND mainEndLine = 0 THEN mainEndLine = 1
+    'perform auto-including according to code position
+    IF firstLine = 1 OR (mainEndLine = 1 AND firstLine = 3) OR lastLine = 1 THEN
+        lineBackup$ = wholeline$ 'backup the real line
         GOSUB setPrecompFlags
         GOSUB autoIncludeManager
         wholeline$ = lineBackup$
     END IF
-
-    wholestv$ = wholeline$ '### STEVE EDIT FOR CONST EXPANSION 10/11/2013
 
     layout = ""
     layoutok = 0
@@ -1597,8 +1644,7 @@ DO
 
     IF LEN(wholeline$) THEN
 
-        temp$ = LTRIM$(RTRIM$(UCASE$(wholestv$)))
-
+        temp$ = LTRIM$(RTRIM$(UCASE$(wholeline$)))
 
         IF LEFT$(temp$, 4) = "$IF " THEN
             IF RIGHT$(temp$, 5) <> " THEN" THEN a$ = "$IF without THEN": GOTO errmes
@@ -1679,29 +1725,98 @@ DO
             GOTO finishedlinepp
         END IF
 
+        IF LEFT$(temp$, 11) = "$USELIBRARY" THEN
+            a$ = "Expected $USELIBRARY:'author/library'"
+            'check for lib-spec
+            bra = INSTR(temp$, "'"): IF bra = 0 GOTO errmes
+            ket = INSTR(bra + 1, temp$, "'"): IF ket = 0 GOTO errmes
+            UseLib$ = _TRIM$(MID$(_TRIM$(wholeline$), bra + 1, ket - bra - 1))
+            IF LEN(UseLib$) = 0 GOTO errmes
+            'verify library existence
+            a$ = "Library descriptor for '" + UseLib$ + "' not found"
+            UseLibFile$ = "libraries/descriptors/" + UseLib$ + ".ini"
+            IF _FILEEXISTS(UseLibFile$) = 0 GOTO errmes
+            '-----
+            a$ = "Library source for '" + UseLib$ + "' not found ("
+            UseLibSrc$ = "libraries/includes/" + UseLib$ + "/": UseLibSect$ = "[LIBRARY INCLUDES]"
+            UseLibEntr$ = "IncAtTop": UseLibTop$ = ReadSetting$(UseLibFile$, UseLibSect$, UseLibEntr$)
+            IF LEN(UseLibTop$) > 0 THEN
+                UseLibTop$ = UseLibSrc$ + UseLibTop$
+                IF _FILEEXISTS(UseLibTop$) = 0 THEN a$ = a$ + UseLibEntr$ + ")": GOTO errmes
+            END IF
+            UseLibEntr$ = "IncAfterMain": UseLibMain$ = ReadSetting$(UseLibFile$, UseLibSect$, UseLibEntr$)
+            IF LEN(UseLibMain$) > 0 THEN
+                UseLibMain$ = UseLibSrc$ + UseLibMain$
+                IF _FILEEXISTS(UseLibMain$) = 0 THEN a$ = a$ + UseLibEntr$ + ")": GOTO errmes
+            END IF
+            UseLibEntr$ = "IncAtBottom": UseLibBottom$ = ReadSetting$(UseLibFile$, UseLibSect$, UseLibEntr$)
+            IF LEN(UseLibBottom$) > 0 THEN
+                UseLibBottom$ = UseLibSrc$ + UseLibBottom$
+                IF _FILEEXISTS(UseLibBottom$) = 0 THEN a$ = a$ + UseLibEntr$ + ")": GOTO errmes
+            END IF
+            'who's the referrer (in need of this library)
+            IF inclevel = 0 THEN
+                IF NoIDEMode THEN
+                    UseLibNeedy$ = sourcefile$ + STR$(linenumber)
+                ELSE
+                    UseLibNeedy$ = ideprogname$ + STR$(linenumber)
+                END IF
+            ELSE
+                UseLibNeedy$ = incname$(inclevel) + STR$(inclinenumber(inclevel))
+            END IF
+            'avoid duplicate definitions but maintain new dependencies
+            ullUB = UBOUND(useLibList$, 2): ullND = -1
+            FOR i = 0 TO ullUB
+                IF useLibList$(ullName, i) = UseLib$ THEN
+                    IF useLibList$(ullNeedy, i) = UseLibNeedy$ THEN ullND = 0
+                END IF
+            NEXT i
+            IF NOT ullND GOTO finishedlinepp
+            'register new library (or dependency) for auto-including
+            FOR i = 0 TO ullUB
+                IF useLibList$(ullName, i) = "" THEN EXIT FOR
+            NEXT i
+            IF i > ullUB THEN
+                REDIM _PRESERVE useLibList$(4, ullUB + 10)
+                i = ullUB + 1
+            END IF
+            useLibList$(ullName, i) = UseLib$
+            useLibList$(ullNeedy, i) = UseLibNeedy$
+            useLibList$(ullTop, i) = UseLibTop$
+            useLibList$(ullMain, i) = UseLibMain$
+            useLibList$(ullBottom, i) = UseLibBottom$
+            GOTO do_recompile
+        END IF
+
         IF temp$ = "$ASSERTS" THEN
             SetRCStateVar AssertsOn, 1
+            SetPreLET "_ASSERTS_", "1"
             GOTO finishedlinepp
         END IF
 
         IF temp$ = "$ASSERTS:CONSOLE" THEN
             SetRCStateVar AssertsOn, 1
             SetRCStateVar ConsoleOn, 1
+            SetPreLET "_ASSERTS_", "1"
+            SetPreLET "_CONSOLE_", "1"
             GOTO finishedlinepp
         END IF
 
         IF temp$ = "$CONSOLE" THEN
             SetRCStateVar ConsoleOn, 1
+            SetPreLET "_CONSOLE_", "1"
             GOTO finishedlinepp
         END IF
 
         IF temp$ = "$CONSOLE:ONLY" THEN
             SetRCStateVar ConsoleOn, 2
+            SetPreLET "_CONSOLE_", "2"
             GOTO finishedlinepp
         END IF
 
         IF temp$ = "$DEBUG" THEN
             SetRCStateVar vWatchOn, 1
+            SetPreLET "_DEBUG_", "1"
             GOTO finishedlinepp
         END IF
 
@@ -1833,7 +1948,7 @@ DO
                         '========================================
 
                         IF n = 2 AND firstelement$ = "END" AND (secondelement$ = "SUB" OR secondelement$ = "FUNCTION") THEN
-                            closedsubfunc = -1
+                            subfuncn = 0
                         END IF
 
                         'declare library
@@ -1847,7 +1962,7 @@ DO
 
                             declaringlibrary = 2
 
-                            IF firstelement$ = "SUB" OR firstelement$ = "FUNCTION" THEN subfuncn = subfuncn - 1: GOTO declaresubfunc
+                            IF firstelement$ = "SUB" OR firstelement$ = "FUNCTION" THEN GOTO declaresubfunc
 
                             a$ = "Expected SUB/FUNCTION definition or END DECLARE (#2)": GOTO errmes
                         END IF
@@ -2061,8 +2176,6 @@ DO
                             'l$ = "CONST"
                             'DEF... do not change type, the expression is stored in a suitable type
                             'based on its value if type isn't forced/specified
-
-                            IF subfuncn > 0 AND closedsubfunc <> 0 THEN a$ = "Statement cannot be placed between SUB/FUNCTIONs": GOTO errmes
 
                             'convert periods to _046_
                             i2 = INSTR(a$, sp + "." + sp)
@@ -2298,8 +2411,10 @@ DO
                         IF firstelement$ = "SUB" THEN sf = 2
                         IF sf THEN
 
-                            subfuncn = subfuncn + 1
-                            closedsubfunc = 0
+                            IF declaringlibrary = 0 THEN
+                                subfuncnlast = subfuncnlast + 1
+                                subfuncn = subfuncnlast
+                            END IF
 
                             IF n = 1 THEN a$ = "Expected name after SUB/FUNCTION": GOTO errmes
 
@@ -2345,7 +2460,7 @@ DO
                                     IF LEN(e$) = 0 THEN a$ = "Expected ALIAS name-in-library": GOTO errmes
                                     FOR x = 1 TO LEN(e$)
                                         a = ASC(e$, x)
-                                        IF _NEGATE alphanumeric(a) _ANDALSO a <> _ASC_LEFTBRACKET _ANDALSO a <> _ASC_RIGHTBRACKET _ANDALSO a <> _ASC_MINUS _ANDALSO a <> _ASC_FULLSTOP _ANDALSO a <> _ASC_COLON _ANDALSO a <> _ASC_LESSTHAN _ANDALSO a <> _ASC_GREATERTHAN _ANDALSO a <> _ASC_LEFTSQUAREBRACKET _ANDALSO a <> _ASC_RIGHTSQUAREBRACKET THEN
+                                        IF alphanumeric(a) = 0 _ANDALSO INSTR(" !%&()*+,-./:;<=>?[]^{|}~", CHR$(a)) = 0 THEN
                                             a$ = "Expected ALIAS name-in-library": GOTO errmes
                                         END IF
                                     NEXT
@@ -2597,7 +2712,6 @@ DO
 
                         '========================================
                         finishedlinepp:
-                        firstLine = 0
                     END IF
                     a$ = ""
                     ca$ = ""
@@ -2624,6 +2738,7 @@ DO
             autoInclude_prepass:
             IF autoIncludeBuffer <> -1 THEN
                 a$ = ReadBufLine$(autoIncludeBuffer)
+                IF a$ = "-----" THEN mainEndLine = 3: GOTO autoInclude_prepass '"AfterMain" is done
                 autoIncludingFile = 1
                 IF RIGHT$(a$, 18) = "beforefirstline.bi" OR RIGHT$(a$, 16) = "afterlastline.bm" THEN
                     autoIncludingFile = -1
@@ -2730,7 +2845,7 @@ DO
         CLOSE #fh
         inclevel = inclevel - 1
         skipInc1:
-        IF autoIncludingFile <> 0 AND inclevel = 0 THEN
+        IF autoIncludingFile <> 0 AND (inclevel = 0 OR mainEndLine = 2) THEN
             IF NOT EndOfBuf%(autoIncludeBuffer) GOTO autoInclude_prepass
             autoIncludingFile = 0
             RETURN 'to auto-include manager
@@ -2739,6 +2854,7 @@ DO
     '(end manager)
 
     IF idemode THEN GOTO ideret2
+    IF lastLineReturn = 1 THEN EXIT DO
 LOOP
 
 'add final line
@@ -2746,7 +2862,7 @@ IF lastLineReturn = 0 THEN
     lastLineReturn = 1
     lastLine = 1
     wholeline$ = ""
-    GOTO prepassLastLine
+    GOTO ideprepass
 END IF
 
 IF definingtype THEN definingtype = 0 'ignore this error so that auto-formatting can be performed and catch it again later
@@ -2768,9 +2884,11 @@ IncOneBuf = OpenBuffer%("O", tmpdir$ + "incone.txt") 'and $INCLUDEONCE buffer
 DataOffset = 0
 inclevel = 0
 subfuncn = 0
+subfuncnlast = 0
 lastLineReturn = 0
 lastLine = 0
 firstLine = 1
+mainEndLine = 0
 autoIncludeBuffer = -1
 UserDefineList$ = UserDefineListPresets$
 UserDefineCount = UserDefineCountPresets
@@ -2781,8 +2899,10 @@ FOR i = 1 TO 27: defineaz(i) = "SINGLE": defineextaz(i) = "!": NEXT
 
 DIM SHARED DataBinBuf: DataBinBuf = OpenBuffer%("O", tmpdir$ + "data.bin")
 
-DIM SHARED MainTxtBuf: MainTxtBuf = OpenBuffer%("O", tmpdir$ + "main.txt")
+DIM SHARED MainTxtBuf: MainTxtBuf = OpenBuffer%("O", tmpdir$ + "main0.txt")
 DIM SHARED DataTxtBuf: DataTxtBuf = OpenBuffer%("O", tmpdir$ + "maindata.txt")
+DIM SHARED VWatchMainDispatchBuf: VWatchMainDispatchBuf = OpenBuffer%("O", tmpdir$ + "vw_main_dispatch.txt")
+DIM SHARED VWatchMainSkipBuf: VWatchMainSkipBuf = OpenBuffer%("O", tmpdir$ + "vw_main_skip.txt")
 
 DIM SHARED RegTxtBuf: RegTxtBuf = OpenBuffer%("O", tmpdir$ + "regsf.txt")
 
@@ -2849,16 +2969,6 @@ DO
     prepass = 0
     IF recompile GOTO do_recompile
 
-    IF firstLine <> 0 OR lastLine <> 0 THEN
-        lineBackup$ = a3$ 'backup the real line (will be blank when lastline is set)
-        GOSUB setPrecompFlags
-        GOSUB autoIncludeManager
-        a3$ = lineBackup$
-        idecompiledline$ = a3$ 'restore 1st/last compiled line for IDE ops
-        'start of pass, reset formatting to defaults after auto-includes
-        IDEAutoIndent = DEFAutoIndent: IDEAutoLayout = DEFAutoLayout
-    END IF
-
     stringprocessinghappened = 0
 
     IF continuelinefrom THEN
@@ -2881,9 +2991,23 @@ DO
     IF addmetadynamic = 1 THEN addmetadynamic = 0: DynamicMode = 1
     IF addmetastatic = 1 THEN addmetastatic = 0: DynamicMode = 0
 
-    'a3$ is passed in idemode and when using $include
-    IF idemode = 0 AND inclevel = 0 THEN a3$ = lineinput3$
-    IF a3$ = CHR$(13) THEN EXIT DO
+    'a3$ is passed in idemode, from $include and CLI lastLine trigger
+    IF idemode = 0 AND inclevel = 0 AND lastLine = 0 THEN
+        a3$ = lineinput3$ 'otherwise read from source
+        IF a3$ = CHR$(13) THEN EXIT DO 'check for end
+    END IF
+    IF lastLine = 1 AND mainEndLine = 0 THEN mainEndLine = 1
+    'perform auto-including according to code position
+    IF firstLine = 1 OR (mainEndLine = 1 AND firstLine = 3) OR lastLine = 1 THEN
+        lineBackup$ = a3$ 'backup the real line
+        GOSUB setPrecompFlags
+        GOSUB autoIncludeManager
+        a3$ = lineBackup$
+        idecompiledline$ = a3$ 'also restore compiled line for IDE ops
+        'start of pass, reset formatting to defaults after auto-includes
+        IDEAutoIndent = DEFAutoIndent: IDEAutoLayout = DEFAutoLayout
+    END IF
+
     linenumber = linenumber + 1
     reallinenumber = reallinenumber + 1
     layout = ""
@@ -3309,6 +3433,14 @@ DO
             GOTO finishednonexec
         END IF
 
+        IF LEFT$(a3u$, 11) = "$USELIBRARY" THEN
+            'fix layout
+            bra = INSTR(a3u$, "'"): ket = INSTR(bra + 1, a3u$, "'")
+            UseLib$ = _TRIM$(MID$(a3$, bra + 1, ket - bra - 1))
+            layout$ = SCase$("$UseLibrary:'") + UseLib$ + "'" + MID$(a3$, ket + 1)
+            GOTO finishednonexec
+        END IF
+
         IF LEFT$(a3u$, 8) = "$EXEICON" THEN
             'Basic syntax check. Multi-platform.
             IF ExeIconSet <> 0 THEN a$ = "$EXEICON already defined in line" + STR$(ExeIconSet): GOTO errmes
@@ -3425,8 +3557,6 @@ DO
         label$ = getelement(entireline$, 1)
         IF validlabel(label$) THEN
 
-            IF closedmain <> 0 AND subfunc = "" THEN a$ = "Labels cannot be placed between SUB/FUNCTIONs": GOTO errmes
-
             v = HashFind(label$, HASHFLAG_LABEL, ignore, r)
             addlabchk100:
             IF v THEN
@@ -3489,8 +3619,6 @@ DO
             IF validlabel(a$) THEN
 
                 IF validname(a$) = 0 THEN a$ = "Invalid name": GOTO errmes
-
-                IF closedmain <> 0 AND subfunc = "" THEN a$ = "Labels cannot be placed between SUB/FUNCTIONs": GOTO errmes
 
                 v = HashFind(a$, HASHFLAG_LABEL, ignore, r)
                 addlabchk:
@@ -4800,9 +4928,6 @@ DO
 
             IF declaringlibrary THEN GOTO declibjmp1
 
-
-            IF closedmain = 0 THEN closemain
-
             'check for open controls (copy #2)
             IF controllevel <> 0 AND controltype(controllevel) <> 6 THEN 'It's OK for subs to be inside $IF blocks
                 a$ = "Unidentified open control block"
@@ -4826,12 +4951,18 @@ DO
             subfunc = RTRIM$(id.callname) 'SUB_..."
             IF id.subfunc = 1 THEN subfuncoriginalname$ = "FUNCTION " ELSE subfuncoriginalname$ = "SUB "
             subfuncoriginalname$ = subfuncoriginalname$ + RTRIM$(id.cn)
-            subfuncn = subfuncn + 1
-            closedsubfunc = 0
+            subfuncnlast = subfuncnlast + 1
+            subfuncn = subfuncnlast
             subfuncid = targetid
 
             subfuncret$ = ""
+            IF GetRCStateVar(vWatchOn) = 1 AND firstLineNumberLabelvWatch > 0 THEN
+                vWatchAddLabel linenumber, -1
+                closeMainVwatchSection
+                firstLineNumberLabelvWatch = 0
+            END IF
 
+            MainTxtBuf = OpenBuffer%("O", tmpdir$ + "main" + _TOSTR$(subfuncn) + ".txt")
             DataTxtBuf = OpenBuffer%("O", tmpdir$ + "data" + _TOSTR$(subfuncn) + ".txt")
             FreeTxtBuf = OpenBuffer%("O", tmpdir$ + "free" + _TOSTR$(subfuncn) + ".txt")
             RetTxtBuf = OpenBuffer%("O", tmpdir$ + "ret" + _TOSTR$(subfuncn) + ".txt")
@@ -5392,7 +5523,12 @@ DO
                 WriteBufLine RetTxtBuf, "}"
                 WriteBufLine RetTxtBuf, "error(3);" 'no valid return possible
                 subfunc = ""
-                closedsubfunc = -1
+                subfuncn = 0
+                MainTxtBuf = OpenBuffer%("A", tmpdir$ + "main0.txt")
+                DataTxtBuf = OpenBuffer%("A", tmpdir$ + "maindata.txt")
+                defdatahandle = GlobTxtBuf
+                FreeTxtBuf = OpenBuffer%("A", tmpdir$ + "mainfree.txt")
+                RetTxtBuf = OpenBuffer%("A", tmpdir$ + "ret0.txt")
 
                 'unshare temp. shared variables
                 FOR i = 1 TO idn
@@ -5557,8 +5693,6 @@ DO
         END IF '_DEFINE
     END IF '2
     IF predefining = 1 THEN GOTO predefined
-
-    IF closedmain <> 0 AND subfunc = "" THEN a$ = "Statement cannot be placed between SUB/FUNCTIONs": GOTO errmes
 
     'executable section:
 
@@ -7410,28 +7544,6 @@ DO
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     'SHARED (SUB)
     IF n >= 1 THEN
         IF firstelement$ = "SHARED" THEN
@@ -8465,7 +8577,8 @@ DO
 
                         use_global_byte_elements = 1
 
-                        'switch output from main.txt to chain.txt
+                        'switch output from main to chain.txt
+                        maintxtbufprev = MainTxtBuf
                         MainTxtBuf = OpenBuffer%("A", tmpdir$ + "chain.txt")
                         l2$ = tlayout$
 
@@ -8506,13 +8619,10 @@ DO
                         WriteBufLine MainTxtBuf, "sub_put(FF,NULL," + e$ + ",0);"
 
                         tlayout$ = l2$
-                        'revert output to main.txt
-                        MainTxtBuf = OpenBuffer%("A", tmpdir$ + "main.txt")
-
 
                         'INPCHAIN.TXT (load)
 
-                        'switch output from main.txt to chain.txt
+                        'switch output from chain.txt to inpchain.txt
                         MainTxtBuf = OpenBuffer%("A", tmpdir$ + "inpchain.txt")
                         l2$ = tlayout$
 
@@ -8549,8 +8659,8 @@ DO
                         WriteBufLine MainTxtBuf, "}"
 
                         tlayout$ = l2$
-                        'revert output to main.txt
-                        MainTxtBuf = OpenBuffer%("A", tmpdir$ + "main.txt")
+                        'revert output to main
+                        MainTxtBuf = maintxtbufprev
 
                         use_global_byte_elements = 0
 
@@ -10205,7 +10315,9 @@ DO
                         redosemi:
                         FOR i = elementon TO n - 1
                             nextchar$ = getelement$(a$, i + 1)
-                            IF nextchar$ <> ";" AND nextchar$ <> "," AND nextchar$ <> "+" AND nextchar$ <> ")" THEN
+                            'Only insert ; if next char cannot continue an expression from a string literal.
+                            'The cute pattern is a match for all the less-equal-greater than operators.
+                            IF INSTR(";,+)<=>=<>", nextchar$) = 0 THEN
                                 temp1$ = getelement$(a$, i)
                                 beginpoint = INSTR(beginpoint, temp1$, CHR$(34))
                                 endpoint = INSTR(beginpoint + 1, temp1$, CHR$(34) + ",")
@@ -10223,7 +10335,8 @@ DO
                                 END IF
                                 IF temp1$ <> "USING" THEN
                                     IF LEFT$(LTRIM$(nextchar$), 1) = CHR$(34) THEN
-                                        IF temp1$ <> ";" AND temp1$ <> "," AND temp1$ <> "+" AND temp1$ <> "(" THEN
+                                        IF INSTR(";,+(<=>=<>", temp1$) = 0 THEN
+                                            'Current element can't appear before a string literal in an expression
                                             insertelements a$, i, ";"
                                             insertelements ca$, i, ";"
                                             n = n + 1
@@ -11291,8 +11404,6 @@ DO
 
     finishednonexec:
 
-    firstLine = 0
-
     IF layoutdone = 0 THEN layoutok = 0 'invalidate layout if not handled
 
     IF continuelinefrom = 0 THEN 'note: manager #2 requires this condition
@@ -11319,6 +11430,7 @@ DO
                 autoInclude:
                 IF autoIncludeBuffer <> -1 THEN
                     a$ = ReadBufLine$(autoIncludeBuffer)
+                    IF a$ = "-----" THEN mainEndLine = 3: GOTO autoInclude '"AfterMain" is done
                     autoIncludingFile = 1
                     IF RIGHT$(a$, 18) = "beforefirstline.bi" OR RIGHT$(a$, 16) = "afterlastline.bm" THEN
                         autoIncludingFile = -1
@@ -11422,18 +11534,20 @@ DO
             CLOSE #fh
             inclevel = inclevel - 1
             skipInc2:
-            IF inclevel = 0 THEN
+            IF (inclevel = 0 OR mainEndLine = 2) THEN
                 IF autoIncludingFile <> 0 THEN
                     IF NOT EndOfBuf%(autoIncludeBuffer) GOTO autoInclude
                 END IF
-                'restore line formatting
-                layoutok = layoutok_backup
-                layout$ = layout_backup$
-                layoutcomment$ = layoutcomment_backup$
-                layoutoriginal$ = layoutoriginal_backup$
-                idecompiledline$ = idecompiledline_backup$
-                IDEAutoIndent = IDEAutoIndent_backup
-                IDEAutoLayout = IDEAutoLayout_backup
+                IF inclevel = 0 THEN
+                    'restore line formatting
+                    layoutok = layoutok_backup
+                    layout$ = layout_backup$
+                    layoutcomment$ = layoutcomment_backup$
+                    layoutoriginal$ = layoutoriginal_backup$
+                    idecompiledline$ = idecompiledline_backup$
+                    IDEAutoIndent = IDEAutoIndent_backup
+                    IDEAutoLayout = IDEAutoLayout_backup
+                END IF
                 IF autoIncludingFile <> 0 THEN
                     autoIncludingFile = 0
                     RETURN 'to auto-include manager
@@ -11474,6 +11588,7 @@ DO
     IF linecontinuation THEN layout$ = ""
 
     IF idemode THEN GOTO ideret4 'return control to IDE
+    IF lastLineReturn = 1 THEN EXIT DO
 
     skip_invalidated_line:
     IF FormatMode THEN
@@ -11492,14 +11607,13 @@ LOOP
 IF lastLineReturn = 0 THEN
     lastLineReturn = 1
     lastLine = 1
-    wholeline$ = ""
+    a3$ = ""
     GOTO compileline
 END IF
 
 ide5:
 linenumber = 0
-
-IF closedmain = 0 THEN closemain
+closemain
 
 IF definingtype THEN linenumber = definingtypeerror: a$ = "TYPE without END TYPE": GOTO errmes
 
@@ -12269,8 +12383,8 @@ IF idemode = 0 AND NOT NoCCompileMode THEN
         END IF
     END IF
 
-    ' Fixup the output path if either we got an `-o` argument, or we're relative to `_StartDir$`
-    IF LEN(CMDLineOutFile$) > 0 OR OutputIsRelativeToStartDir THEN
+    ' Fixup the output path if we got an `-o` argument
+    IF LEN(CMDLineOutFile$) > 0 THEN
         IF LEN(CMDLineOutFile$) THEN
             'resolve relative path for output file
             path.out$ = getfilepath$(CMDLineOutFile$)
@@ -12283,22 +12397,8 @@ IF idemode = 0 AND NOT NoCCompileMode THEN
             END IF
         END IF
 
-        IF LEN(path.out$) > 0 OR OutputIsRelativeToStartDir THEN
+        IF LEN(path.out$) > 0 THEN
             currentdir$ = _CWD$
-
-            IF OutputIsRelativeToStartDir THEN
-                ' This CHDIR makes the next CHDIR relative to _STARTDIR$
-                ' We do this if the provided source file was also relative to _STARTDIR$
-                CHDIR _STARTDIR$
-
-                ' If there was no provided path then that is the same as the
-                ' output file being directly in _STARTDIR$. Assigning it here
-                ' is perfectly fine and avoids failing the error check below
-                ' with a blank string.
-                IF LEN(path.out$) = 0 THEN
-                    path.out$ = _STARTDIR$
-                END IF
-            END IF
 
             IF _DIREXISTS(path.out$) = 0 THEN
                 PRINT
@@ -12953,7 +13053,7 @@ IF os$ = "LNX" THEN
 
     IF INSTR(_OS$, "[MACOSX]") THEN
         ff = FREEFILE
-        IF path.exe$ = "./" OR path.exe$ = "../../" OR path.exe$ = "..\..\" THEN path.exe$ = ""
+        IF path.exe$ = "./" OR path.exe$ = "../../" OR path.exe$ = "..\..\" THEN path.exe$ = DefaultExeSaveFolder$
         OPEN path.exe$ + file$ + extension$ + "_start.command" FOR OUTPUT AS #ff
         PRINT #ff, "cd " + CHR$(34) + "$(dirname " + CHR$(34) + "$0" + CHR$(34) + ")" + CHR$(34);
         PRINT #ff, CHR$(10);
@@ -12972,7 +13072,7 @@ IF os$ = "LNX" THEN
 END IF
 
 IF NoCCompileMode THEN compfailed = 0: GOTO NoCCompile
-IF path.exe$ = "../../" OR path.exe$ = "..\..\" THEN path.exe$ = ""
+IF path.exe$ = "../../" OR path.exe$ = "..\..\" THEN path.exe$ = DefaultExeSaveFolder$
 IF _FILEEXISTS(path.exe$ + file$ + extension$) THEN
     compfailed = 0
     lastBinaryGenerated$ = path.exe$ + file$ + extension$
@@ -12990,7 +13090,11 @@ IF compfailed THEN
         PRINT "Check " + compilelog$ + " for details."
     END IF
 ELSE
-    IF idemode = 0 AND NOT QuietMode THEN PRINT "Output: "; lastBinaryGenerated$
+    IF idemode = 0 AND NOT QuietMode THEN
+        location$ = lastBinaryGenerated$
+        IF path.exe$ = "" THEN location$ = _CWD$ + location$
+        PRINT "Output: "; RemoveDoubleSlashes$(location$)
+    END IF
 END IF
 
 Skip_Build:
@@ -13087,9 +13191,10 @@ layout$ = "": layoutok = 0 'invalidate layout
 
 erldiff = 0
 IF autoIncludingFile = 1 THEN 'IMPORTANT: don't omit "= 1" or change to "<> 0" !!
-    'rewrite errors caused by vwatch includes to be less confusing
+    'rewrite errors caused by vwatch/library auto-includes to be less confusing
     IF INSTR(a$, "END SUB/FUNCTION before") THEN a$ = "Expected END SUB/FUNCTION": incerror$ = ""
     IF a$ = "Name already in use (vwatch)" THEN a$ = "Syntax Error": incerror$ = "": erldiff = 1
+    IF INSTR(a$, "SUB/FUNCTION not allowed") THEN erldiff = 1
 END IF
 IF inclevel > 0 AND incerror$ <> "" THEN a$ = a$ + CHR$(1) + incerror$
 
@@ -13243,6 +13348,7 @@ FUNCTION ParseCMDLineArgs$ ()
                     CASE ""
                         PRINT "DebugInfo     = "; BoolToTFString$(IncludeDebugInfo)
                         PRINT "ExeWithSource = "; BoolToTFString$(SaveExeWithSource)
+                        PRINT "ExeDefaultDir = "; _IIF(LEN(DefaultExeSaveFolder$), DefaultExeSaveFolder$, "unset (= qb64pe folder)")
                         SYSTEM
                     CASE ":"
                         CMDLineSettingsError "Missing setting specification: " + token$, 0, 0
@@ -13259,6 +13365,21 @@ FUNCTION ParseCMDLineArgs$ ()
                             WriteConfigSetting generalSettingsSection$, "SaveExeWithSource", BoolToTFString$(SaveExeWithSource)
                         END IF
                         PRINT "ExeWithSource = "; BoolToTFString$(SaveExeWithSource)
+                    CASE ":exedefaultdir"
+                        IF NOT eos THEN
+                            IF NOT ParseStringSetting&(token$, dexf$) THEN CMDLineSettingsError token$, 3, 0
+                            IF LEN(dexf$) THEN
+                                IF _DIREXISTS(_STARTDIR$ + dexf$) THEN dexf$ = _STARTDIR$ + dexf$
+                                IF _DIREXISTS(dexf$) THEN
+                                    dexf$ = _FULLPATH$(dexf$)
+                                    WriteConfigSetting generalSettingsSection$, "DefaultExeSaveFolder", dexf$
+                                    IF RIGHT$(dexf$, 1) <> pathsep$ THEN dexf$ = dexf$ + pathsep$
+                                    DefaultExeSaveFolder$ = dexf$: dexf$ = "-1"
+                                END IF
+                            END IF
+                            IF dexf$ <> "-1" THEN CMDLineSettingsError "Path not found: " + token$, 0, 0
+                        END IF
+                        PRINT "ExeDefaultDir = "; _IIF(LEN(DefaultExeSaveFolder$), DefaultExeSaveFolder$, "unset (= qb64pe folder)")
                     CASE ELSE
                         CMDLineSettingsError "Unsupported setting: " + token$, 0, 0
                 END SELECT
@@ -13284,11 +13405,11 @@ FUNCTION ParseCMDLineArgs$ ()
                     CASE ":stripdebugsymbols"
                         IF NOT ParseBooleanSetting&(token$, StripDebugSymbols) THEN CMDLineSettingsError token$, 1, 1
                     CASE ":extracppflags"
-                        IF NOT ParseStringSetting&(token$, ExtraCppFlags$) THEN CMDLineSettingsError token$, 1, 1
+                        IF NOT ParseStringSetting&(token$, ExtraCppFlags$) THEN CMDLineSettingsError token$, 3, 1
                     CASE ":extralinkerflags"
-                        IF NOT ParseStringSetting&(token$, ExtraLinkerFlags$) THEN CMDLineSettingsError token$, 1, 1
+                        IF NOT ParseStringSetting&(token$, ExtraLinkerFlags$) THEN CMDLineSettingsError token$, 3, 1
                     CASE ":maxcompilerprocesses"
-                        IF NOT ParseLongSetting&(token$, MaxParallelProcesses) THEN CMDLineSettingsError token$, 1, 1
+                        IF NOT ParseLongSetting&(token$, MaxParallelProcesses) THEN CMDLineSettingsError token$, 2, 1
                         IF MaxParallelProcesses < 1 OR MaxParallelProcesses > 128 THEN CMDLineSettingsError "MaxCompilerProcesses must be in range 1-128.", 0, 1
                     CASE ":generatelicensefile"
                         IF NOT ParseBooleanSetting&(token$, GenerateLicenseFile) THEN CMDLineSettingsError token$, 1, 1
@@ -13298,7 +13419,7 @@ FUNCTION ParseCMDLineArgs$ ()
                         IF NOT ParseBooleanSetting&(token$, IDEAutoIndent) THEN CMDLineSettingsError token$, 1, 1
                         DEFAutoIndent = IDEAutoIndent 'for restoring after '$FORMAT:OFF
                     CASE ":autoindentsize"
-                        IF NOT ParseLongSetting&(token$, IDEAutoIndentSize) THEN CMDLineSettingsError token$, 1, 1
+                        IF NOT ParseLongSetting&(token$, IDEAutoIndentSize) THEN CMDLineSettingsError token$, 2, 1
                         IF IDEAutoIndentSize < 1 OR IDEAutoIndentSize > 64 THEN CMDLineSettingsError "AutoIndentSize must be in range 1-64.", 0, 1
                     CASE ":indentsubs"
                         IF NOT ParseBooleanSetting&(token$, IDEIndentSubs) THEN CMDLineSettingsError token$, 1, 1
@@ -13329,7 +13450,7 @@ FUNCTION ParseCMDLineArgs$ ()
                 Help_Recaching = 2: Help_IgnoreCache = 1
                 IF ideupdatehelpbox THEN
                     _DEST _CONSOLE
-                    PRINT "Update failed: Can't make connection to Wiki."
+                    PRINT "Help update failed: Can't make connection to Wiki."
                     SYSTEM 1
                 END IF
                 SYSTEM
@@ -13364,19 +13485,24 @@ FUNCTION ParseCMDLineArgs$ ()
     END IF
 END FUNCTION
 
-SUB CMDLineSettingsError (errstr$, inv%, tmp%)
-    'inv% <> 0 (invalid bool) / = 0 (any other message)
+SUB CMDLineSettingsError (errstr$, typ%, tmp%)
+    'errstr$ = the token$ only for types 1-3, else any custom message
+    'typ% = 1 (invalid bool) / = 2 (missing integer) / = 3 (missing string) / else (custom message)
     'tmp% <> 0 (-f temp setting) / = 0 (-s permanent setting)
     _DEST _CONSOLE
     IF NOT QB64VersionPrinted THEN QB64VersionPrinted = _TRUE: PRINT "QB64-PE Compiler V" + Version$: PRINT
 
-    IF inv% THEN
-        PRINT "Invalid boolean value for "; _IIF(tmp%, "temporary (-f)", "(-s)"); " setting: "; errstr$
-        PRINT "   enable: "; _IIF(tmp%, "-f", "-s"); ":setting= true , on , yes, 1, -1"
-        PRINT "  disable: "; _IIF(tmp%, "-f", "-s"); ":setting= false, off, no , 0"
-    ELSE
-        PRINT errstr$
-    END IF
+    SELECT CASE typ%
+        CASE 1
+            PRINT "Invalid boolean value for "; _IIF(tmp%, "temporary (-f)", "(-s)"); " setting: "; errstr$
+            PRINT "   enable: "; _IIF(tmp%, "-f", "-s"); ":setting=[true|on|yes|1|-1]"
+            PRINT "  disable: "; _IIF(tmp%, "-f", "-s"); ":setting=[false|off|no|0]"
+        CASE 2, 3
+            PRINT "Missing value for "; _IIF(tmp%, "temporary (-f)", "(-s)"); " setting: "; errstr$
+            PRINT "  expected: "; _IIF(tmp%, "-f", "-s"); ":setting=["; _IIF(typ% = 2, "number", "string"); "]"
+        CASE ELSE
+            PRINT errstr$
+    END SELECT
     PRINT
 
     IF tmp% THEN CMDLineTemporarySettingsHelp ELSE CMDLineSettingsHelp
@@ -13388,6 +13514,8 @@ SUB CMDLineSettingsHelp
     PRINT "  -s                              Show the current state of all settings"
     PRINT "  -s:DebugInfo=[true|false]       Embed C++ debug info into executable"
     PRINT "  -s:ExeWithSource=[true|false]   Save executable in the source folder"
+    PRINT "  -s:ExeDefaultDir=[string]       Save executables here per default,"
+    PRINT "                                  if not saving with source"
     PRINT "      You may specify a setting without equal sign and value to"
     PRINT "      show the current state of that specific setting only."
 END SUB
@@ -14260,21 +14388,31 @@ SUB vWatchAddLabel (this AS LONG, lastLine AS _BYTE)
     END IF
 END SUB
 
+SUB closeMainVwatchSection
+    FOR i = firstLineNumberLabelvWatch TO lastLineNumberLabelvWatch
+        IF ASC(vWatchUsedLabels, i) = 1 THEN
+            WriteBufLine VWatchMainDispatchBuf, "    case " + _TOSTR$(i) + ":"
+            WriteBufLine VWatchMainDispatchBuf, "        goto VWATCH_LABEL_" + _TOSTR$(i) + ";"
+            WriteBufLine VWatchMainDispatchBuf, "        break;"
+        END IF
+    NEXT
+    FOR i = firstLineNumberLabelvWatch TO lastLineNumberLabelvWatch
+        IF ASC(vWatchUsedSkipLabels, i) = 1 THEN
+            WriteBufLine VWatchMainSkipBuf, "    case -" + _TOSTR$(i) + ":"
+            WriteBufLine VWatchMainSkipBuf, "        goto VWATCH_SKIPLABEL_" + _TOSTR$(i) + ";"
+            WriteBufLine VWatchMainSkipBuf, "        break;"
+        END IF
+    NEXT
+END SUB
+
 SUB closemain
+    IF GetRCStateVar(vWatchOn) = 1 THEN vWatchAddLabel 0, -1
     xend
-
     WriteBufLine MainTxtBuf, "return;"
-
-    IF GetRCStateVar(vWatchOn) = 1 AND firstLineNumberLabelvWatch > 0 THEN
+    IF GetRCStateVar(vWatchOn) = 1 THEN
         WriteBufLine MainTxtBuf, "VWATCH_SETNEXTLINE:;"
         WriteBufLine MainTxtBuf, "switch (*__LONG_VWATCH_GOTO) {"
-        FOR i = firstLineNumberLabelvWatch TO lastLineNumberLabelvWatch
-            IF ASC(vWatchUsedLabels, i) = 1 THEN
-                WriteBufLine MainTxtBuf, "    case " + _TOSTR$(i) + ":"
-                WriteBufLine MainTxtBuf, "        goto VWATCH_LABEL_" + _TOSTR$(i) + ";"
-                WriteBufLine MainTxtBuf, "        break;"
-            END IF
-        NEXT
+        WriteBufLine MainTxtBuf, "#include " + CHR$(34) + "vw_main_dispatch.txt" + CHR$(34)
         WriteBufLine MainTxtBuf, "    default:"
         WriteBufLine MainTxtBuf, "        *__LONG_VWATCH_GOTO=*__LONG_VWATCH_LINENUMBER;"
         WriteBufLine MainTxtBuf, "        goto VWATCH_SETNEXTLINE;"
@@ -14282,15 +14420,8 @@ SUB closemain
 
         WriteBufLine MainTxtBuf, "VWATCH_SKIPLINE:;"
         WriteBufLine MainTxtBuf, "switch (*__LONG_VWATCH_GOTO) {"
-        FOR i = firstLineNumberLabelvWatch TO lastLineNumberLabelvWatch
-            IF ASC(vWatchUsedSkipLabels, i) = 1 THEN
-                WriteBufLine MainTxtBuf, "    case -" + _TOSTR$(i) + ":"
-                WriteBufLine MainTxtBuf, "        goto VWATCH_SKIPLABEL_" + _TOSTR$(i) + ";"
-                WriteBufLine MainTxtBuf, "        break;"
-            END IF
-        NEXT
+        WriteBufLine MainTxtBuf, "#include " + CHR$(34) + "vw_main_skip.txt" + CHR$(34)
         WriteBufLine MainTxtBuf, "}"
-
     END IF
 
     WriteBufLine MainTxtBuf, "}"
@@ -14298,7 +14429,11 @@ SUB closemain
     WriteBufLine RetTxtBuf, "}"
     WriteBufLine RetTxtBuf, "error(3);" 'no valid return possible
 
-    closedmain = 1
+    mainincbuf = OpenBuffer%("O", tmpdir$ + "main.txt")
+    FOR i = 0 TO subfuncnlast
+        WriteBufLine mainincbuf, "#include " + CHR$(34) + "main" + _TOSTR$(i) + ".txt" + CHR$(34)
+    NEXT i
+
     firstLineNumberLabelvWatch = 0
 END SUB
 
@@ -18689,7 +18824,7 @@ FUNCTION evaluatetotyp$ (a2$, targettyp AS LONG)
             ELSE
                 bytes = (sourcetyp AND 511) \ 8
             END IF
-            bytes$ = bytes$ + "-(" + _TOSTR$(bytes) + "*(" + index$ + "))"
+            bytes$ = "(" + bytes$ + "-(" + _TOSTR$(bytes) + "*(" + index$ + ")))"
             evaluatetotyp$ = "byte_element((uint64)" + e$ + "," + bytes$ + "," + NewByteElement$ + ")"
             IF targettyp = -5 THEN evaluatetotyp$ = bytes$
             IF targettyp = -6 THEN evaluatetotyp$ = e$
@@ -22560,8 +22695,6 @@ END FUNCTION
 
 SUB xend
     IF GetRCStateVar(vWatchOn) THEN
-        'check if closedmain = 0 in case a main module ends in an include.
-        IF (inclinenumber(inclevel) = 0 OR closedmain = 0) THEN vWatchAddLabel 0, -1
         WriteBufLine MainTxtBuf, "*__LONG_VWATCH_LINENUMBER= 0; SUB_VWATCH((ptrszint*)vwatch_global_vars,(ptrszint*)vwatch_local_vars);"
     END IF
     WriteBufLine MainTxtBuf, "sub_end();"
