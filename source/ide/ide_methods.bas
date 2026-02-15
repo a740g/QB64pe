@@ -327,6 +327,8 @@ FUNCTION ide2 (ignore)
             menu$(m, i) = "Change #Terminal...": i = i + 1
             menuDesc$(m, i - 1) = "Configure the terminal used for $CONSOLE and logging output"
         END IF
+        menu$(m, i) = "Set #Default EXE Folder...": i = i + 1
+        menuDesc$(m, i - 1) = "Set default EXE output folder used if 'Output EXE to Source Folder' is off"
         menu$(m, i) = "Configure #Logging...": i = i + 1
         menuDesc$(m, i - 1) = "Configure logging options used when running a program from the IDE"
         menusize(m) = i - 1
@@ -403,6 +405,12 @@ FUNCTION ide2 (ignore)
         IF PasteCursorAtEnd THEN
             menu$(OptionsMenuID, OptionsMenuPasteCursor) = CHR$(7) + menu$(OptionsMenuID, OptionsMenuPasteCursor)
         END IF
+        OptionsMenuAutoCloseBrackets = i
+        menu$(m, i) = "Auto-Close #Brackets": i = i + 1
+        menuDesc$(m, i - 1) = "Toggles auto-closing of brackets and quotes"
+        IF AutoCloseBrackets THEN
+            menu$(OptionsMenuID, OptionsMenuAutoCloseBrackets) = CHR$(7) + menu$(OptionsMenuID, OptionsMenuAutoCloseBrackets)
+        END IF
         OptionsMenuShowErrorsImmediately = i
         menu$(m, i) = "Syntax Ch#ecker": i = i + 1
         menuDesc$(m, i - 1) = "Toggles instant syntax checker (status area)"
@@ -427,6 +435,10 @@ FUNCTION ide2 (ignore)
         menuDesc$(m, i - 1) = "Displays ASCII characters and allows inserting in current program"
         menu$(m, i) = "Insert Quick #Keycode  Ctrl+K": i = i + 1
         menuDesc$(m, i - 1) = "Captures key codes and inserts in current program"
+        IF LEN(LibExplorer$) > 0 THEN
+            menu$(m, i) = "#Library Explorer...  Ctrl+L": i = i + 1
+            menuDesc$(m, i - 1) = "Starts the Library Explorer from the Libraries Pack add-on"
+        END IF
         menu$(m, i) = "#Math Evaluator...": i = i + 1
         menuDesc$(m, i - 1) = "Displays the math evaluator dialog"
         menu$(m, i) = "#RGB Color Mixer...": i = i + 1
@@ -907,17 +919,15 @@ FUNCTION ide2 (ignore)
                     _PRINTSTRING (2, idewy - 3), ".EXE file created"
                 END IF
 
-                IF SaveExeWithSource THEN
-                    COLOR 11, 1
-                    location$ = lastBinaryGenerated$
-                    IF path.exe$ = "" THEN location$ = _STARTDIR$ + location$
-                    msg$ = "Location: " + location$
-                    IF 2 + LEN(msg$) > idewx THEN
-                        msg$ = "Location: " + STRING$(3, 250) + RIGHT$(location$, idewx - 15)
-                    END IF
-                    _PRINTSTRING (2, idewy - 2), msg$
-                    statusarealink = 3
+                COLOR 11, 1
+                location$ = lastBinaryGenerated$
+                IF path.exe$ = "" THEN location$ = _CWD$ + location$
+                msg$ = "Location: " + RemoveDoubleSlashes$(location$)
+                IF 2 + LEN(msg$) > idewx THEN
+                    msg$ = "Location: " + STRING$(3, 250) + RIGHT$(location$, idewx - 15)
                 END IF
+                _PRINTSTRING (2, idewy - 2), msg$
+                statusarealink = 3
 
             END IF
         END IF
@@ -1733,13 +1743,20 @@ FUNCTION ide2 (ignore)
 
             IF NOT ExeToSourceFolderFirstTimeMsg THEN
                 IF SaveExeWithSource THEN
-                    result = idemessagebox("Run", "Your program will be compiled to the same folder where your\n" + _
-                                           "source code is saved. You can change that by unchecking the\n" + _
-                                           "option 'Output EXE to Source Folder' in the Run menu.", "#OK;#Don't show this again;#Cancel")
+                    result = idemessagebox("Run", _
+                                           "Your program will be compiled to the same folder where your\n" + _
+                                           "source code is saved. To compile into a default location\n" + _
+                                           "instead, uncheck the option 'Output EXE to Source Folder'\n" + _
+                                           "in the Run menu and set the desired location via the entry\n" + _
+                                           "'Set Default EXE Folder' (the 'qb64pe' folder if unset).", _
+                                           "#OK;#Don't show this again;#Cancel")
                 ELSE
-                    result = idemessagebox("Run", "Your program will be compiled to your 'qb64pe' folder. You can\n" + _
-                                         "change that by checking the option 'Output EXE to Source\n" + _
-                                         "Folder' in the Run menu.", "#OK;#Don't show this again;#Cancel")
+                    result = idemessagebox("Run", _
+                                           "Your program will be compiled to your set default location\n" + _
+                                           "for EXEs (the 'qb64pe' folder if yet unset). You can set it\n" + _
+                                           "via the 'Set Default EXE Folder' entry in the Run menu.\n" + _
+                                           "In alternative check the option 'Output EXE to Source Folder'.", _
+                                           "#OK;#Don't show this again;#Cancel")
                 END IF
                 IF result = 2 THEN
                     WriteConfigSetting generalSettingsSection$, "ExeToSourceFolderFirstTimeMsg", "True"
@@ -1817,8 +1834,8 @@ FUNCTION ide2 (ignore)
 
                         COLOR 11, 1
                         location$ = lastBinaryGenerated$
-                        IF path.exe$ = "" THEN location$ = _STARTDIR$ + location$
-                        msg$ = "Location: " + location$
+                        IF path.exe$ = "" THEN location$ = _CWD$ + location$
+                        msg$ = "Location: " + RemoveDoubleSlashes$(location$)
                         IF 2 + LEN(msg$) > idewx THEN
                             msg$ = "Location: " + STRING$(3, 250) + RIGHT$(location$, idewx - 15)
                         END IF
@@ -3019,7 +3036,7 @@ FUNCTION ide2 (ignore)
             GOTO specialchar
         END IF
 
-        IF KALT AND (KB = _KEY_DOWN OR KB = _KEY_UP) THEN
+        IF KALT AND KSHIFT = 0 AND (KB = _KEY_DOWN OR KB = _KEY_UP) THEN
             IF IdeBmkN = 0 THEN
                 result = idemessagebox("Bookmarks", "No bookmarks exist (Use Alt+Left to create a bookmark)", "")
                 SCREEN , , 3, 0
@@ -3456,6 +3473,17 @@ FUNCTION ide2 (ignore)
             GOTO specialchar
         END IF
 
+        IF LEN(LibExplorer$) > 0 THEN
+            IF KCONTROL AND UCASE$(K$) = "L" THEN 'Tools -> #Library Explorer
+                'Somehow Windows console (at least Win7) prevents the launched
+                'app from opening its window if CTRL is down while SHELL'ing.
+                'After that TaskManager must be used to to kill the app, so we
+                'better wait until CTRL is released.
+                WHILE _KEYDOWN(_KEY_LCTRL) OR _KEYDOWN(_KEY_RCTRL): _LIMIT 20: WEND
+                GOTO ctrlLibExpl
+            END IF
+        END IF
+
         IF KCONTROL AND UCASE$(K$) = "N" THEN 'File -> #New
             GOTO ctrlNew
         END IF
@@ -3479,6 +3507,10 @@ FUNCTION ide2 (ignore)
 
         IF KSHIFT AND KCONTROL AND UCASE$(K$) = "R" THEN 'uncomment (remove ')
             GOTO ctrlRemoveComment
+        END IF
+
+        IF KCONTROL AND UCASE$(K$) = "D" THEN 'Duplicate Line
+            GOTO ctrlDuplicateLine
         END IF
 
         IF KCONTROL AND UCASE$(K$) = "S" THEN 'File -> #Save
@@ -3760,6 +3792,25 @@ FUNCTION ide2 (ignore)
         END IF
 
         IF KB = _KEY_UP THEN
+            IF KALT AND KSHIFT THEN
+                y1 = idecy: y2 = idecy
+                IF ideselect THEN
+                    y1 = ideselecty1
+                    IF y1 > y2 THEN SWAP y1, y2
+                END IF
+                IF y1 > 1 THEN
+                    lineAbove$ = idegetline$(y1 - 1)
+                    FOR i = y1 TO y2
+                        idesetline i - 1, idegetline$(i)
+                    NEXT
+                    idesetline y2, lineAbove$
+                    idecy = idecy - 1
+                    IF ideselect THEN ideselecty1 = ideselecty1 - 1
+                    idechangemade = 1
+                    startPausedPending = 0
+                END IF
+                GOTO specialchar
+            END IF
             IF KCONTROL THEN 'scroll the window, instead of moving the cursor
                 idesy = idesy - 1
                 IF idesy < 1 THEN idesy = 1
@@ -3773,6 +3824,25 @@ FUNCTION ide2 (ignore)
         END IF
 
         IF KB = _KEY_DOWN THEN
+            IF KALT AND KSHIFT THEN
+                y1 = idecy: y2 = idecy
+                IF ideselect THEN
+                    y1 = ideselecty1
+                    IF y1 > y2 THEN SWAP y1, y2
+                END IF
+                IF y2 < iden THEN
+                    lineBelow$ = idegetline$(y2 + 1)
+                    FOR i = y2 TO y1 STEP -1
+                        idesetline i + 1, idegetline$(i)
+                    NEXT
+                    idesetline y1, lineBelow$
+                    idecy = idecy + 1
+                    IF ideselect THEN ideselecty1 = ideselecty1 + 1
+                    idechangemade = 1
+                    startPausedPending = 0
+                END IF
+                GOTO specialchar
+            END IF
             IF KCONTROL THEN 'scroll the window, instead of moving the cursor
                 idesy = idesy + 1
                 IF idesy > iden THEN idesy = iden
@@ -4329,6 +4399,48 @@ FUNCTION ide2 (ignore)
         a$ = idegetline(idecy)
         IF LEN(a$) < idecx - 1 THEN a$ = a$ + SPACE$(idecx - 1 - LEN(a$))
 
+
+     IF AutoCloseBrackets THEN 'enable new behavior if autoclosebrackets is in use
+        skipInsert = 0
+        IF ideinsert = 0 THEN 'Insert mode
+            nextChar$ = MID$(a$, idecx, 1)
+            IF (K$ = ")" AND nextChar$ = ")") OR _
+               (K$ = "]" AND nextChar$ = "]") OR _
+               (K$ = "}" AND nextChar$ = "}") OR _
+               (K$ = CHR$(34) AND nextChar$ = CHR$(34)) THEN
+                skipInsert = 1
+            END IF
+        END IF
+
+        IF skipInsert = 0 THEN
+            IF ideinsert THEN
+                a2$ = RIGHT$(a$, LEN(a$) - idecx + 1)
+                IF LEN(a2$) THEN a2$ = RIGHT$(a$, LEN(a$) - idecx)
+                a$ = LEFT$(a$, idecx - 1) + K$ + a2$
+            ELSE
+                extraChar$ = ""
+                IF AutoCloseBrackets THEN
+                    IF K$ = "(" THEN extraChar$ = ")"
+                    IF K$ = "[" THEN extraChar$ = "]"
+                    IF K$ = "{" THEN extraChar$ = "}"
+                    IF K$ = CHR$(34) THEN
+                        'Check if we are inside a string (odd number of quotes before cursor)
+                        quoteCount = 0
+                        tempStr$ = LEFT$(a$, idecx - 1)
+                        FOR i = 1 TO LEN(tempStr$)
+                            IF MID$(tempStr$, i, 1) = CHR$(34) THEN quoteCount = quoteCount + 1
+                        NEXT
+                        IF (quoteCount MOD 2) = 0 THEN extraChar$ = CHR$(34)
+                    END IF
+                END IF
+
+                a$ = LEFT$(a$, idecx - 1) + K$ + extraChar$ + RIGHT$(a$, LEN(a$) - idecx + 1)
+            END IF
+            idesetline idecy, a$
+        END IF
+      ELSE 'otherwise go back to the old behavior
+        'Replace old code back
+
         IF ideinsert THEN
             a2$ = RIGHT$(a$, LEN(a$) - idecx + 1)
             IF LEN(a2$) THEN a2$ = RIGHT$(a$, LEN(a$) - idecx)
@@ -4338,6 +4450,9 @@ FUNCTION ide2 (ignore)
         END IF
 
         idesetline idecy, a$
+        'end of old code
+       END IF
+
         idecx = idecx + LEN(K$)
         specialchar:
         'In case there is a selection, let's show the number of
@@ -4954,6 +5069,29 @@ FUNCTION ide2 (ignore)
                 GOTO ideloop
             END IF
 
+            IF menu$(m, s) = "#Duplicate Line  Ctrl+D" THEN
+                ctrlDuplicateLine:
+                idechangemade = 1
+                startPausedPending = 0
+                IF ideselect THEN
+                    y1 = ideselecty1: y2 = idecy
+                    IF y1 > y2 THEN SWAP y1, y2
+                    count = y2 - y1 + 1
+                    FOR i = 1 TO count
+                        a$ = idegetline$(y1 + i - 1)
+                        ideinsline y2 + i, a$
+                    NEXT
+                    idecy = y2 + count
+                    ideselecty1 = y2 + 1
+                    ideselect = 1
+                ELSE
+                    a$ = idegetline$(idecy)
+                    ideinsline idecy + 1, a$
+                    idecy = idecy + 1
+                END IF
+                GOTO specialchar
+            END IF
+
             IF menu$(m, s) = "Remove Comme#nt (')  Ctrl+Shift+R" THEN
                 ctrlRemoveComment:
                 PCOPY 3, 0: SCREEN , , 3, 0
@@ -5129,6 +5267,20 @@ FUNCTION ide2 (ignore)
                 ELSE
                     WriteConfigSetting generalSettingsSection$, "PasteCursorAtEnd", "False"
                     menu$(OptionsMenuID, OptionsMenuPasteCursor) = "Cursor After #Paste"
+                END IF
+                PCOPY 3, 0: SCREEN , , 3, 0
+                GOTO ideloop
+            END IF
+
+            IF RIGHT$(menu$(m, s), 20) = "Auto-Close #Brackets" THEN
+                PCOPY 2, 0
+                AutoCloseBrackets = NOT AutoCloseBrackets
+                IF AutoCloseBrackets THEN
+                    WriteConfigSetting generalSettingsSection$, "AutoCloseBrackets", "True"
+                    menu$(OptionsMenuID, OptionsMenuAutoCloseBrackets) = CHR$(7) + "Auto-Close #Brackets"
+                ELSE
+                    WriteConfigSetting generalSettingsSection$, "AutoCloseBrackets", "False"
+                    menu$(OptionsMenuID, OptionsMenuAutoCloseBrackets) = "Auto-Close #Brackets"
                 END IF
                 PCOPY 3, 0: SCREEN , , 3, 0
                 GOTO ideloop
@@ -5435,6 +5587,14 @@ FUNCTION ide2 (ignore)
                 KCTRL = 0: KCONTROL = 0
                 GOSUB redrawItAll
                 GOTO ideloop
+            END IF
+
+            IF LEN(LibExplorer$) > 0 THEN
+                IF menu$(m, s) = "#Library Explorer...  Ctrl+L" THEN
+                    ctrlLibExpl:
+                    SHELL _HIDE _DONTWAIT QuotedFilename$(LibExplorer$)
+                    GOTO ideloop
+                END IF
             END IF
 
             IF LEFT$(menu$(m, s), 10) = "#Help On '" THEN 'Contextual menu Help
@@ -6039,6 +6199,28 @@ FUNCTION ide2 (ignore)
                 PCOPY 2, 0
                 ModifyCOMMAND$ = " " + ideinputbox$("Modify COMMAND$", "#Enter text for COMMAND$", _TRIM$(ModifyCOMMAND$), "", 60, 0, 0)
                 IF _TRIM$(ModifyCOMMAND$) = "" THEN ModifyCOMMAND$ = ""
+                PCOPY 3, 0: SCREEN , , 3, 0
+                GOTO ideloop
+            END IF
+
+            IF menu$(m, s) = "Set #Default EXE Folder..." THEN
+                PCOPY 3, 0: SCREEN , , 3, 0
+                clearStatusWindow 0
+                _PRINTSTRING (2, idewy - 3), "Default EXE output folder (cancel request to keep)..."
+                COLOR 11, 1: msg$ = "No folder set yet, hence it defaults to the 'qb64pe' folder"
+                IF LEN(DefaultExeSaveFolder$) THEN msg$ = DefaultExeSaveFolder$
+                IF 2 + LEN(msg$) > idewx THEN msg$ = STRING$(3, 250) + RIGHT$(msg$, idewx - 5)
+                _PRINTSTRING (2, idewy - 2), msg$
+                PCOPY 3, 0
+                dexf$ = _SELECTFOLDERDIALOG$("Select your desired EXE output folder...")
+                IF LEN(dexf$) THEN
+                    WriteConfigSetting generalSettingsSection$, "DefaultExeSaveFolder", dexf$
+                    IF RIGHT$(dexf$, 1) <> pathsep$ THEN dexf$ = dexf$ + pathsep$
+                    DefaultExeSaveFolder$ = dexf$
+                    lastBinaryGenerated$ = "" 'invalidate EXE in old location
+                END IF
+                clearStatusWindow 0
+                _PRINTSTRING (2, idewy - 3), "Ok"
                 PCOPY 3, 0: SCREEN , , 3, 0
                 GOTO ideloop
             END IF
@@ -12985,7 +13167,7 @@ SUB ideshowtext
 
                 COLOR 13
 
-                IF InvalidLine(l) THEN COLOR 7: GOTO SkipSyntaxHighlighter
+                IF l > iden _ORELSE InvalidLine(l) THEN COLOR 7: GOTO SkipSyntaxHighlighter
 
                 IF (LEN(oldChar$) > 0 OR m = 1) AND inquote = 0 AND isKeyword = 0 THEN
                     IF INSTR(initialNum.char$, thisChar$) > 0 AND oldChar$ <> ")" AND (INSTR(char.sep$, oldChar$) > 0 OR oldChar$ = "?") THEN
@@ -19101,6 +19283,8 @@ SUB IdeMakeEditMenu
     menuDesc$(m, i - 1) = "Selects all contents of current program"
 
     IF IdeSystem = 1 THEN
+        menu$(m, i) = "#Duplicate Line  Ctrl+D": i = i + 1
+        menuDesc$(m, i - 1) = "Duplicates the current line"
         menu$(m, i) = "-": i = i + 1
         menu$(m, i) = "To#ggle Comment  Ctrl+T": i = i + 1
         menuDesc$(m, i - 1) = "Toggles comment (') on the current selection"

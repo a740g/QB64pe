@@ -99,6 +99,18 @@ SUB ReadInitialConfig
         WriteConfigSetting generalSettingsSection$, "PasteCursorAtEnd", "True"
     END IF
 
+    IF ReadConfigSetting(generalSettingsSection$, "AutoCloseBrackets", value$) THEN
+        IF UCASE$(value$) = "TRUE" OR VAL(value$) <> 0 THEN
+            AutoCloseBrackets = _TRUE
+        ELSE
+            AutoCloseBrackets = _FALSE
+            WriteConfigSetting generalSettingsSection$, "AutoCloseBrackets", "False"
+        END IF
+    ELSE
+        AutoCloseBrackets = _TRUE
+        WriteConfigSetting generalSettingsSection$, "AutoCloseBrackets", "True"
+    END IF
+
     IF ReadConfigSetting(generalSettingsSection$, "ExeToSourceFolderFirstTimeMsg", value$) THEN
         IF UCASE$(value$) = "TRUE" OR VAL(value$) <> 0 THEN
             ExeToSourceFolderFirstTimeMsg = _TRUE
@@ -121,6 +133,14 @@ SUB ReadInitialConfig
     ELSE
         WhiteListQB64FirstTimeMsg = _FALSE
         WriteConfigSetting generalSettingsSection$, "WhiteListQB64FirstTimeMsg", "False"
+    END IF
+
+    DefaultExeSaveFolder$ = "" 'means QB64pe folder
+    IF ReadConfigSetting(generalSettingsSection$, "DefaultExeSaveFolder", value$) THEN
+        IF _DIREXISTS(value$) THEN
+            IF RIGHT$(value$, 1) <> pathsep$ THEN value$ = value$ + pathsep$
+            DefaultExeSaveFolder$ = value$
+        END IF
     END IF
 
     IF ReadConfigSetting(generalSettingsSection$, "SaveExeWithSource", value$) THEN
@@ -495,18 +515,18 @@ SUB ReadInitialConfig
         listOfCustomKeywords$ = tempList$
         customKeywordsLength = LEN(listOfCustomKeywords$)
     ELSE
-        IniSetAddQuotes -1
+        IniSetAddQuotes _TRUE
         WriteConfigSetting customDictionarySection$, "Instructions1", "Add custom keywords separated by the 'at' sign."
         WriteConfigSetting customDictionarySection$, "Instructions2", "Useful to colorize constants (eg @true@false@)."
-        IniSetAddQuotes 0
+        IniSetAddQuotes _FALSE
         WriteConfigSetting customDictionarySection$, "CustomKeywords$", "@"
     END IF
 
     '--- Color schemes
-    IniSetAddQuotes -1
+    IniSetAddQuotes _TRUE
     WriteConfigSetting colorSchemesSection$, "Instructions1", "Create custom color schemes in the IDE (Options->IDE Colors)."
     WriteConfigSetting colorSchemesSection$, "Instructions2", "Custom color schemes will be stored in this section."
-    IniSetAddQuotes 0
+    IniSetAddQuotes _FALSE
 
     '--- Individual window settings (per instance)
     IF ReadConfigSetting(windowSettingsSection$, "IDE_TopPosition", value$) THEN

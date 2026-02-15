@@ -1,27 +1,27 @@
-qbs *_FUNC_GETFILEPATH_STRING_GETFILEPATH=NULL;
-if (!_FUNC_GETFILEPATH_STRING_GETFILEPATH)_FUNC_GETFILEPATH_STRING_GETFILEPATH=qbs_new(0,0);
-qbs*oldstr3673=NULL;
-if(_FUNC_GETFILEPATH_STRING_F->tmp||_FUNC_GETFILEPATH_STRING_F->fixed||_FUNC_GETFILEPATH_STRING_F->readonly){
-oldstr3673=_FUNC_GETFILEPATH_STRING_F;
-if (oldstr3673->cmem_descriptor){
-_FUNC_GETFILEPATH_STRING_F=qbs_new_cmem(oldstr3673->len,0);
+int32 *_FUNC_COPYFILE_LONG_COPYFILE=NULL;
+if(_FUNC_COPYFILE_LONG_COPYFILE==NULL){
+_FUNC_COPYFILE_LONG_COPYFILE=(int32*)mem_static_malloc(4);
+*_FUNC_COPYFILE_LONG_COPYFILE=0;
+}
+qbs*oldstr3714=NULL;
+if(_FUNC_COPYFILE_STRING_SOURCEFILE->tmp||_FUNC_COPYFILE_STRING_SOURCEFILE->fixed||_FUNC_COPYFILE_STRING_SOURCEFILE->readonly){
+oldstr3714=_FUNC_COPYFILE_STRING_SOURCEFILE;
+if (oldstr3714->cmem_descriptor){
+_FUNC_COPYFILE_STRING_SOURCEFILE=qbs_new_cmem(oldstr3714->len,0);
 }else{
-_FUNC_GETFILEPATH_STRING_F=qbs_new(oldstr3673->len,0);
+_FUNC_COPYFILE_STRING_SOURCEFILE=qbs_new(oldstr3714->len,0);
 }
-memcpy(_FUNC_GETFILEPATH_STRING_F->chr,oldstr3673->chr,oldstr3673->len);
+memcpy(_FUNC_COPYFILE_STRING_SOURCEFILE->chr,oldstr3714->chr,oldstr3714->len);
 }
-int32 *_FUNC_GETFILEPATH_LONG_I=NULL;
-if(_FUNC_GETFILEPATH_LONG_I==NULL){
-_FUNC_GETFILEPATH_LONG_I=(int32*)mem_static_malloc(4);
-*_FUNC_GETFILEPATH_LONG_I=0;
+qbs*oldstr3715=NULL;
+if(_FUNC_COPYFILE_STRING_DESTFILE->tmp||_FUNC_COPYFILE_STRING_DESTFILE->fixed||_FUNC_COPYFILE_STRING_DESTFILE->readonly){
+oldstr3715=_FUNC_COPYFILE_STRING_DESTFILE;
+if (oldstr3715->cmem_descriptor){
+_FUNC_COPYFILE_STRING_DESTFILE=qbs_new_cmem(oldstr3715->len,0);
+}else{
+_FUNC_COPYFILE_STRING_DESTFILE=qbs_new(oldstr3715->len,0);
 }
-int64 fornext_value3675;
-int64 fornext_finalvalue3675;
-int64 fornext_step3675;
-uint8 fornext_step_negative3675;
-byte_element_struct *byte_element_3676=NULL;
-if (!byte_element_3676){
-if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3676=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3676=(byte_element_struct*)mem_static_malloc(12);
+memcpy(_FUNC_COPYFILE_STRING_DESTFILE->chr,oldstr3715->chr,oldstr3715->len);
 }
-qbs *_FUNC_GETFILEPATH_STRING_A=NULL;
-if (!_FUNC_GETFILEPATH_STRING_A)_FUNC_GETFILEPATH_STRING_A=qbs_new(0,0);
+qbs *_FUNC_COPYFILE_STRING_DAT=NULL;
+if (!_FUNC_COPYFILE_STRING_DAT)_FUNC_COPYFILE_STRING_DAT=qbs_new(0,0);

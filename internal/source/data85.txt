@@ -1,30 +1,33 @@
-qbs *_FUNC_REMOVEFILEEXTENSION_STRING_REMOVEFILEEXTENSION=NULL;
-if (!_FUNC_REMOVEFILEEXTENSION_STRING_REMOVEFILEEXTENSION)_FUNC_REMOVEFILEEXTENSION_STRING_REMOVEFILEEXTENSION=qbs_new(0,0);
-qbs*oldstr3681=NULL;
-if(_FUNC_REMOVEFILEEXTENSION_STRING_F->tmp||_FUNC_REMOVEFILEEXTENSION_STRING_F->fixed||_FUNC_REMOVEFILEEXTENSION_STRING_F->readonly){
-oldstr3681=_FUNC_REMOVEFILEEXTENSION_STRING_F;
-if (oldstr3681->cmem_descriptor){
-_FUNC_REMOVEFILEEXTENSION_STRING_F=qbs_new_cmem(oldstr3681->len,0);
+int32 *_FUNC_FILEHASEXTENSION_LONG_FILEHASEXTENSION=NULL;
+if(_FUNC_FILEHASEXTENSION_LONG_FILEHASEXTENSION==NULL){
+_FUNC_FILEHASEXTENSION_LONG_FILEHASEXTENSION=(int32*)mem_static_malloc(4);
+*_FUNC_FILEHASEXTENSION_LONG_FILEHASEXTENSION=0;
+}
+qbs*oldstr3720=NULL;
+if(_FUNC_FILEHASEXTENSION_STRING_F->tmp||_FUNC_FILEHASEXTENSION_STRING_F->fixed||_FUNC_FILEHASEXTENSION_STRING_F->readonly){
+oldstr3720=_FUNC_FILEHASEXTENSION_STRING_F;
+if (oldstr3720->cmem_descriptor){
+_FUNC_FILEHASEXTENSION_STRING_F=qbs_new_cmem(oldstr3720->len,0);
 }else{
-_FUNC_REMOVEFILEEXTENSION_STRING_F=qbs_new(oldstr3681->len,0);
+_FUNC_FILEHASEXTENSION_STRING_F=qbs_new(oldstr3720->len,0);
 }
-memcpy(_FUNC_REMOVEFILEEXTENSION_STRING_F->chr,oldstr3681->chr,oldstr3681->len);
+memcpy(_FUNC_FILEHASEXTENSION_STRING_F->chr,oldstr3720->chr,oldstr3720->len);
 }
-int32 *_FUNC_REMOVEFILEEXTENSION_LONG_I=NULL;
-if(_FUNC_REMOVEFILEEXTENSION_LONG_I==NULL){
-_FUNC_REMOVEFILEEXTENSION_LONG_I=(int32*)mem_static_malloc(4);
-*_FUNC_REMOVEFILEEXTENSION_LONG_I=0;
+int32 *_FUNC_FILEHASEXTENSION_LONG_I=NULL;
+if(_FUNC_FILEHASEXTENSION_LONG_I==NULL){
+_FUNC_FILEHASEXTENSION_LONG_I=(int32*)mem_static_malloc(4);
+*_FUNC_FILEHASEXTENSION_LONG_I=0;
 }
-int64 fornext_value3683;
-int64 fornext_finalvalue3683;
-int64 fornext_step3683;
-uint8 fornext_step_negative3683;
-byte_element_struct *byte_element_3684=NULL;
-if (!byte_element_3684){
-if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3684=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3684=(byte_element_struct*)mem_static_malloc(12);
+int64 fornext_value3722;
+int64 fornext_finalvalue3722;
+int64 fornext_step3722;
+uint8 fornext_step_negative3722;
+byte_element_struct *byte_element_3723=NULL;
+if (!byte_element_3723){
+if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3723=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3723=(byte_element_struct*)mem_static_malloc(12);
 }
-int32 *_FUNC_REMOVEFILEEXTENSION_LONG_A=NULL;
-if(_FUNC_REMOVEFILEEXTENSION_LONG_A==NULL){
-_FUNC_REMOVEFILEEXTENSION_LONG_A=(int32*)mem_static_malloc(4);
-*_FUNC_REMOVEFILEEXTENSION_LONG_A=0;
+int32 *_FUNC_FILEHASEXTENSION_LONG_A=NULL;
+if(_FUNC_FILEHASEXTENSION_LONG_A==NULL){
+_FUNC_FILEHASEXTENSION_LONG_A=(int32*)mem_static_malloc(4);
+*_FUNC_FILEHASEXTENSION_LONG_A=0;
 }

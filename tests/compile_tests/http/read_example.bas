@@ -1,30 +1,30 @@
-$Console:Only
+$CONSOLE:ONLY
 
-h& = _OpenClient("https://www.example.com")
-Print h&
+h& = _OPENCLIENT("https://www.example.com")
+PRINT h&
 
-length~& = LOF(h&)
+length&& = LOF(h&)
 
 result$ = ""
-While Not Eof(h&)
-    _Limit 100
+WHILE NOT EOF(h&)
+    _LIMIT 20
     GET #h&, , s$
     result$ = result$ + s$
-Wend
+WEND
 
 
 ' Strip off the trailing slash if it's there to make the result consistent
-url$ = _ConnectionAddress$(h&)
-If MID$(url$, LEN(url$), 1) = "/" Then
-    url$ = Left$(Url$, LEN(url$) - 1)
-End If
+url$ = _CONNECTIONADDRESS$(h&)
+IF MID$(url$, LEN(url$), 1) = "/" THEN
+    url$ = LEFT$(url$, LEN(url$) - 1)
+END IF
 
-Print "Content-Length: "; length~&
-Print "Url: "; url$
-Print "Status Code: "; _StatusCode(h&)
-Print
-Print result$
+PRINT "Content-Length: "; _IIF(length&& >= 0, length&&, LEN(result$))
+PRINT "Url: "; url$
+PRINT "Status Code: "; _STATUSCODE(h&)
+PRINT
+PRINT result$
 
-Close h&
+CLOSE h&
 
-System
+SYSTEM
