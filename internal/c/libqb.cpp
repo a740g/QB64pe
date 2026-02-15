@@ -5446,11 +5446,11 @@ uint32 frame = 0;
 extern uint8 cmem[1114099]; // 16*65535+65535+3 (enough for highest referencable dword in conv memory)
 
 struct mouse_message {
-    int x;
-    int y;
+    double x;
+    double y;
     uint32_t buttons;
-    float movementx;
-    float movementy;
+    double movementx;
+    double movementy;
 };
 
 // Mouse message queue
@@ -13628,7 +13628,7 @@ uintptr_t func__handle() {
 #ifdef QB64_GUI
     OPTIONAL_GLUT(0);
 
-    generic_window_handle = GLUTEmu_WindowGetNativeHandle();
+    generic_window_handle = GLUTEmu_WindowGetNativeHandle(0);
 
     return reinterpret_cast<uintptr_t>(generic_window_handle);
 #else
@@ -18205,6 +18205,7 @@ int32 func_freefile() {
 }
 
 void sub__mousehide() {
+    // GLFW_TODO: We should extend sub__mousehide to accept a parameter to show/hide the cursor instead of always hiding it
 #ifdef QB64_GUI
 #    ifdef QB64_GLUT
     OPTIONAL_GLUT();
@@ -18220,6 +18221,7 @@ void sub__mouseshow(qbs *qbsStyle, int32 passed) {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT();
 
+    // GLFW_TODO: We should extend sub__mouseshow to accept a parameter to show/hide the cursor instead of always showing it
     libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode::Normal);
 
     std::string style;
@@ -18260,6 +18262,7 @@ int32_t func__mousehidden() {
 #ifdef QB64_GUI
 #    ifdef QB64_GLUT
     OPTIONAL_GLUT(QB_FALSE);
+    // GLFW_TODO: We need a better way to query the current cursor mode
     auto cursor_mode = libqb_glut_get_cursor_mode();
     return QB_BOOL(cursor_mode == GLUTEnum_MouseCursorMode::Hidden || cursor_mode == GLUTEnum_MouseCursorMode::Disabled);
 #    endif
@@ -21634,23 +21637,25 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 } // sub__icon
 #endif // DEPENDENCY_ICON
 
-int32_t func_desktopwidth() {
+int32_t func_screenwidth() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return libqb_glut_get_screen_size().first;
+    return std::get<0>(libqb_glut_get_screen_mode());
 #else
     return 0;
 #endif
 }
 
-int32_t func_desktopheight() {
+int32_t func_screenheight() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return libqb_glut_get_screen_size().second;
+    return std::get<1>(libqb_glut_get_screen_mode());
 #else
     return 0;
 #endif
 }
+
+// GLFW_TODO: Implement a func_screenrefreshrate() function
 
 void sub_screenicon() {
 #ifdef QB64_GLUT
@@ -25001,17 +25006,13 @@ void sub__screenmove(int32 x, int32 y, int32 passed) {
         libqb_glut_move_window(x, y);
     } else {
         // Center the window
-        auto ss = libqb_glut_get_screen_size();
-        auto ws = libqb_glut_get_window_size();
-        x = (ss.first - ws.first) / 2;
-        y = (ss.second - ws.second) / 2;
-        libqb_glut_move_window(x, y);
+        libqb_glut_center_window();
     }
 #endif
     return;
 
 error:
-    error(5);
+    error(QB_ERROR_ILLEGAL_FUNCTION_CALL);
 }
 
 void key_update() {
@@ -25662,15 +25663,17 @@ error:
     return b;
 }
 
-void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action) {
+void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action, int modifiers) {
 #ifdef QB64_GLUT
-    bool isShift = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Shift);
-    // bool isControl = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Control);
-    // bool isAlt = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Alt);
-    // bool isSuper = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Super);
-    bool isCapsLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::CapsLock);
-    // bool isNumLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::NumLock);
-    // bool isScrollLock = GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::ScrollLock);
+    // fprintf(stderr, "key: %d, scancode: %d, action: %d, modifiers: %d\n", key, scancode, action, modifiers);
+
+    bool isShift = modifiers & GLUTEmu_KeyboardKeyModifier::Shift;
+    // bool isControl = modifiers & GLUTEmu_KeyboardKeyModifier::Control;
+    // bool isAlt = modifiers & GLUTEmu_KeyboardKeyModifier::Alt;
+    // bool isSuper = modifiers & GLUTEmu_KeyboardKeyModifier::Super;
+    bool isCapsLock = modifiers & GLUTEmu_KeyboardKeyModifier::CapsLock;
+    // bool isNumLock = modifiers & GLUTEmu_KeyboardKeyModifier::NumLock;
+    // bool isScrollLock = modifiers & GLUTEmu_KeyboardKeyModifier::ScrollLock;
     int qbKey = -1;
 
     switch (key) {
@@ -25835,93 +25838,67 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_Bu
         break;
 
     default:
-        qbKey = int(key) < 128 ? int(key) : -1;
-
-        if (isShift) {
-            switch (qbKey) {
-            case '1':
-                qbKey = '!';
-                break;
-
-            case '2':
-                qbKey = '@';
-                break;
-
-            case '3':
-                qbKey = '#';
-                break;
-
-            case '4':
-                qbKey = '$';
-                break;
-
-            case '5':
-                qbKey = '%';
-                break;
-
-            case '6':
-                qbKey = '^';
-                break;
-
-            case '7':
-                qbKey = '&';
-                break;
-
-            case '8':
-                qbKey = '*';
-                break;
-
-            case '9':
-                qbKey = '(';
-                break;
-
-            case '0':
-                qbKey = ')';
-                break;
-
-            case '-':
-                qbKey = '_';
-                break;
-
-            case '=':
-                qbKey = '+';
-                break;
-
-            case '[':
-                qbKey = '{';
-                break;
-
-            case ']':
-                qbKey = '}';
-                break;
-
-            case '\\':
-                qbKey = '|';
-                break;
-
-            case ';':
-                qbKey = ':';
-                break;
-
-            case '\'':
-                qbKey = '"';
-                break;
-
-            case ',':
-                qbKey = '<';
-                break;
-
-            case '.':
-                qbKey = '>';
-                break;
-
-            case '/':
-                qbKey = '?';
-                break;
+        // handle printable keys
+        if (key >= GLUTEmu_KeyboardKey::A && key <= GLUTEmu_KeyboardKey::Z) {
+            qbKey = 'a' + (int(key) - int(GLUTEmu_KeyboardKey::A));
+            if (isShift)
+                qbKey -= 32;
+        } else if (key >= GLUTEmu_KeyboardKey::Zero && key <= GLUTEmu_KeyboardKey::Nine) {
+            qbKey = '0' + (int(key) - int(GLUTEmu_KeyboardKey::Zero));
+            if (isShift) {
+                const char shifted[] = ")!@#$%^&*(";
+                qbKey = shifted[qbKey - '0'];
             }
-        } else if (!isCapsLock && qbKey >= 'A' && qbKey <= 'Z') {
-            qbKey = qbKey + 32;
+        } else if (key == GLUTEmu_KeyboardKey::Space) {
+            qbKey = ' ';
+        } else if (key == GLUTEmu_KeyboardKey::Minus) {
+            qbKey = '-';
+            if (isShift)
+                qbKey = '_';
+        } else if (key == GLUTEmu_KeyboardKey::Equal) {
+            qbKey = '=';
+            if (isShift)
+                qbKey = '+';
+        } else if (key == GLUTEmu_KeyboardKey::LeftBracket) {
+            qbKey = '[';
+            if (isShift)
+                qbKey = '{';
+        } else if (key == GLUTEmu_KeyboardKey::RightBracket) {
+            qbKey = ']';
+            if (isShift)
+                qbKey = '}';
+        } else if (key == GLUTEmu_KeyboardKey::Backslash) {
+            qbKey = '\\';
+            if (isShift)
+                qbKey = '|';
+        } else if (key == GLUTEmu_KeyboardKey::Semicolon) {
+            qbKey = ';';
+            if (isShift)
+                qbKey = ':';
+        } else if (key == GLUTEmu_KeyboardKey::Apostrophe) {
+            qbKey = '\'';
+            if (isShift)
+                qbKey = '"';
+        } else if (key == GLUTEmu_KeyboardKey::Comma) {
+            qbKey = ',';
+            if (isShift)
+                qbKey = '<';
+        } else if (key == GLUTEmu_KeyboardKey::Period) {
+            qbKey = '.';
+            if (isShift)
+                qbKey = '>';
+        } else if (key == GLUTEmu_KeyboardKey::Slash) {
+            qbKey = '/';
+            if (isShift)
+                qbKey = '?';
+        } else if (key == GLUTEmu_KeyboardKey::GraveAccent) {
+            qbKey = '`';
+            if (isShift)
+                qbKey = '~';
+        } else {
+            fprintf(stderr, "Unhandled key = %d\n", key);
         }
+        break;
     }
 
     if (qbKey != -1) {
@@ -26062,7 +26039,7 @@ void sub__glrender(int32 method) {
 
 #else // end stubs
 
-void GLUT_RESHAPE_FUNC(int width, int height) {
+void GLUT_RESIZE_FUNC(int width, int height) {
     resize_event_x = width;
     resize_event_y = height;
     resize_event = -1;
@@ -26072,8 +26049,6 @@ void GLUT_RESHAPE_FUNC(int width, int height) {
     resize_pending = 0;
     os_resize_event = 1;
     set_view(VIEW_MODE__UNKNOWN);
-    //***glutReshapeWindow(...) has no effect if called
-    //   within GLUT_RESHAPE_FUNC***
 }
 
 // displaycall is the window of time to update our display
@@ -27801,10 +27776,8 @@ void GLUT_MouseButton_Down(int button, int x, int y) {
 #    endif
 }
 
-void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action) {
+void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action, GLUTEnum_MouseCursorMode mode, int modifiers) {
 #    ifdef QB64_GLUT
-    auto pos = GLUTEmu_MouseGetPosition();
-
     int qbMouseButton;
 
     if (button == GLUTEmu_MouseButton::Left) {
@@ -27816,18 +27789,14 @@ void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction act
     } else {
         qbMouseButton = int(button) + 3; // Extended buttons 6+ (4 and 5 are mouse wheel)
     }
-
     switch (action) {
     case GLUTEmu_ButtonAction::Pressed:
-        GLUT_MouseButton_Down(qbMouseButton, pos.first, pos.second);
+    case GLUTEmu_ButtonAction::Repeated:
+        GLUT_MouseButton_Down(qbMouseButton, x, y);
         break;
 
     case GLUTEmu_ButtonAction::Released:
-        GLUT_MouseButton_Up(qbMouseButton, pos.first, pos.second);
-        break;
-
-    default:
-        // Repeat action is not supported
+        GLUT_MouseButton_Up(qbMouseButton, x, y);
         break;
     }
 #    else
@@ -27837,34 +27806,33 @@ void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction act
 #    endif
 }
 
-void GLUT_MOUSE_SCROLL_FUNC(double xOffset, double yOffset) {
+void GLUT_MOUSE_WHEEL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode) {
 #    ifdef QB64_GLUT
     (void)xOffset; // GLFW_TODO: xOffset is not used currently, but we should make use of it in the future.
-
-    // GLFW_TODO: yOffset gives fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
-    auto scroll = int(yOffset);
-    auto pos = GLUTEmu_MouseGetPosition();
-
-    if (scroll > 0) {
-        while (scroll) {
-            GLUT_MouseButton_Down(4, pos.first, pos.second);
-            GLUT_MouseButton_Up(4, pos.first, pos.second);
-            --scroll;
+    // RGFW_TODO: scroll provide scroll x and y fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
+    auto iScroll = int(yOffset);
+    if (iScroll > 0) {
+        while (iScroll) {
+            GLUT_MouseButton_Down(4, x, y);
+            GLUT_MouseButton_Up(4, x, y);
+            --iScroll;
         }
-    } else if (scroll < 0) {
-        while (scroll) {
-            GLUT_MouseButton_Down(5, pos.first, pos.second);
-            GLUT_MouseButton_Up(5, pos.first, pos.second);
-            ++scroll;
+    } else if (iScroll < 0) {
+        while (iScroll) {
+            GLUT_MouseButton_Down(5, x, y);
+            GLUT_MouseButton_Up(5, x, y);
+            ++iScroll;
         }
     }
 #    else
-    (void)xOffset;
-    (void)yOffset;
+    (void)x;
+    (void)y;
+    (void)offsetX;
+    (void)offsetY;
 #    endif
 }
 
-void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw) {
+void GLUT_MOUSE_MOTION_FUNC(double x, double y, GLUTEnum_MouseCursorMode mode) {
     int32 i, last_i;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
@@ -27881,7 +27849,7 @@ void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw) {
         queue->current = nextIndex;
     }
 
-    if (isRaw) {
+    if (GLUTEnum_MouseCursorMode::Disabled == mode) {
         queue->queue[i].x = 0;
         queue->queue[i].y = 0;
         queue->queue[i].movementx = x;
@@ -27896,7 +27864,7 @@ void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw) {
     queue->queue[i].buttons = queue->queue[last_i].buttons;
     queue->last = i;
 
-    if (isRaw) {
+    if (GLUTEnum_MouseCursorMode::Disabled == mode) {
         // message #2 (clears movement values to avoid confusion)
         last_i = queue->last;
         i = queue->last + 1;
@@ -27917,7 +27885,7 @@ void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw) {
     }
 
     if (device_last) { // core devices required?
-        if (isRaw) {
+        if (GLUTEnum_MouseCursorMode::Disabled == mode) {
             static device_struct *d;
             d = &devices[2]; // mouse
 
@@ -28442,33 +28410,31 @@ int main(int argc, char *argv[]) {
 
     command_initialize(argc, argv);
 
-    /*
-    GLFW_TODO: Check if we really need this at startup
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SHIFT) {
+    // GLFW_TODO: Check if we really need these at startup
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Shift)) {
         bindkey = QBVK_LSHIFT;
         keydown(VK + QBVK_LSHIFT);
     }
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CONTROL) {
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Control)) {
         bindkey = QBVK_LCTRL;
         keydown(VK + QBVK_LCTRL);
     }
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_ALT) {
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::Alt)) {
         bindkey = QBVK_LALT;
         keydown(VK + QBVK_LALT);
     }
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_CAPS_LOCK) {
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::CapsLock)) {
         bindkey = QBVK_CAPSLOCK;
         keydown(VK + QBVK_CAPSLOCK);
     }
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_NUM_LOCK) {
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::NumLock)) {
         bindkey = QBVK_NUMLOCK;
         keydown(VK + QBVK_NUMLOCK);
     }
-    if (glutGetKeyModifiers() & GLUT_KEY_MODIFIER_SCROLL_LOCK) {
+    if (GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier::ScrollLock)) {
         bindkey = QBVK_SCROLLOCK;
         keydown(VK + QBVK_SCROLLOCK);
     }
-    */
     update_shift_state();
     keyhit_next = keyhit_nextfree; // skip hitkey events generated by above code
 

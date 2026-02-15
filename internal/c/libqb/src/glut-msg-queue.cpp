@@ -57,7 +57,7 @@ static libqb_mutex *glut_msg_queue_lock = libqb_mutex_new();
 static std::queue<glut_message *> glut_msg_queue;
 
 // Queues a glut_message to be processed. Returns false if the message was not queued.
-bool libqb_queue_glut_message(glut_message *msg) {
+static bool libqb_queue_glut_message(glut_message *msg) {
     if (!libqb_is_glut_up()) {
         msg->finish();
         return false;
@@ -128,7 +128,7 @@ class glut_message_fullscreen : public glut_message {
   public:
     bool fullscreen;
 
-    glut_message_fullscreen(bool _fullscreen) : glut_message(false), fullscreen(_fullscreen) {}
+    glut_message_fullscreen(bool fullscreen) : glut_message(false), fullscreen(fullscreen) {}
 
     void execute() {
         GLUTEmu_WindowFullScreen(fullscreen);
@@ -243,7 +243,7 @@ class glut_message_show_window : public glut_message {
     glut_message_show_window() : glut_message(false) {}
 
     void execute() {
-        GLUTEmu_ShowWindow();
+        GLUTEmu_WindowHide(false);
     }
 };
 
@@ -256,7 +256,7 @@ class glut_message_hide_window : public glut_message {
     glut_message_hide_window() : glut_message(false) {}
 
     void execute() {
-        GLUTEmu_HideWindow();
+        GLUTEmu_WindowHide(true);
     }
 };
 
@@ -271,7 +271,7 @@ class glut_message_is_window_visible : public glut_message {
     glut_message_is_window_visible() : glut_message(true), response_value(false) {}
 
     void execute() {
-        response_value = GLUTEmu_WindowIsVisible();
+        response_value = !GLUTEmu_WindowIsHidden();
     }
 };
 
@@ -304,7 +304,7 @@ class glut_message_window_has_focus : public glut_message {
     glut_message_window_has_focus() : glut_message(true), response_value(false) {}
 
     void execute() {
-        response_value = GLUTEmu_WindowHasFocus();
+        response_value = GLUTEmu_WindowIsFocused();
     }
 };
 
@@ -321,7 +321,7 @@ class glut_message_resize_window : public glut_message {
   public:
     int width, height;
 
-    glut_message_resize_window(int _width, int _height) : glut_message(false), width(_width), height(_height) {}
+    glut_message_resize_window(int width, int height) : glut_message(false), width(width), height(height) {}
 
     void execute() {
         GLUTEmu_WindowResize(width, height);
@@ -356,7 +356,7 @@ class glut_message_move_window : public glut_message {
   public:
     int x, y;
 
-    glut_message_move_window(int _x, int _y) : glut_message(false), x(_x), y(_y) {}
+    glut_message_move_window(int x, int y) : glut_message(false), x(x), y(y) {}
 
     void execute() {
         GLUTEmu_WindowMove(x, y);
@@ -387,11 +387,24 @@ std::pair<int, int> libqb_glut_get_window_position() {
     return msg.response_value;
 }
 
+class glut_message_center_window : public glut_message {
+  public:
+    glut_message_center_window() : glut_message(false) {}
+
+    void execute() {
+        GLUTEmu_WindowCenter();
+    }
+};
+
+void libqb_glut_center_window() {
+    libqb_queue_glut_message(new glut_message_center_window());
+}
+
 class glut_message_set_window_aspect_ratio : public glut_message {
   public:
     int width, height;
 
-    glut_message_set_window_aspect_ratio(int _width, int _height) : glut_message(false), width(_width), height(_height) {}
+    glut_message_set_window_aspect_ratio(int width, int height) : glut_message(false), width(width), height(height) {}
 
     void execute() {
         GLUTEmu_WindowSetAspectRatio(width, height);
@@ -406,8 +419,8 @@ class glut_message_set_window_size_limits : public glut_message {
   public:
     int minWidth, minHeight, maxWidth, maxHeight;
 
-    glut_message_set_window_size_limits(int _minWidth, int _minHeight, int _maxWidth, int _maxHeight)
-        : glut_message(false), minWidth(_minWidth), minHeight(_minHeight), maxWidth(_maxWidth), maxHeight(_maxHeight) {}
+    glut_message_set_window_size_limits(int minWidth, int minHeight, int maxWidth, int maxHeight)
+        : glut_message(false), minWidth(minWidth), minHeight(minHeight), maxWidth(maxWidth), maxHeight(maxHeight) {}
 
     void execute() {
         GLUTEmu_WindowSetSizeLimits(minWidth, minHeight, maxWidth, maxHeight);
@@ -422,7 +435,7 @@ class glut_message_set_cursor : public glut_message {
   public:
     GLUTEmu_MouseStandardCursor style;
 
-    glut_message_set_cursor(GLUTEmu_MouseStandardCursor _style) : glut_message(false), style(_style) {}
+    glut_message_set_cursor(GLUTEmu_MouseStandardCursor style) : glut_message(false), style(style) {}
 
     void execute() {
         GLUTEmu_MouseSetStandardCursor(style);
@@ -437,7 +450,7 @@ class glut_message_set_cursor_mode : public glut_message {
   public:
     GLUTEnum_MouseCursorMode mode;
 
-    glut_message_set_cursor_mode(GLUTEnum_MouseCursorMode _mode) : glut_message(false), mode(_mode) {}
+    glut_message_set_cursor_mode(GLUTEnum_MouseCursorMode mode) : glut_message(false), mode(mode) {}
 
     void execute() {
         GLUTEmu_MouseSetCursorMode(mode);
@@ -472,7 +485,7 @@ class glut_message_move_mouse : public glut_message {
   public:
     double x, y;
 
-    glut_message_move_mouse(double _x, double _y) : glut_message(false), x(_x), y(_y) {}
+    glut_message_move_mouse(double x, double y) : glut_message(false), x(x), y(y) {}
 
     void execute() {
         GLUTEmu_MouseMove(x, y);
@@ -483,39 +496,19 @@ void libqb_glut_move_mouse(double x, double y) {
     libqb_queue_glut_message(new glut_message_move_mouse(x, y));
 }
 
-class glut_message_get_mouse_position : public glut_message {
+class glut_message_get_screen_mode : public glut_message {
   public:
-    std::pair<double, double> response_value;
+    std::tuple<int, int, int> response_value;
 
-    glut_message_get_mouse_position() : glut_message(true), response_value(0.0, 0.0) {}
+    glut_message_get_screen_mode() : glut_message(true), response_value(0, 0, 0) {}
 
     void execute() {
-        response_value = GLUTEmu_MouseGetPosition();
+        response_value = GLUTEmu_ScreenGetMode();
     }
 };
 
-std::pair<double, double> libqb_glut_get_mouse_position() {
-    glut_message_get_mouse_position msg;
-
-    libqb_queue_glut_message(&msg);
-    msg.wait_for_response();
-
-    return msg.response_value;
-}
-
-class glut_message_get_screen_size : public glut_message {
-  public:
-    std::pair<int, int> response_value;
-
-    glut_message_get_screen_size() : glut_message(true), response_value(0, 0) {}
-
-    void execute() {
-        response_value = GLUTEmu_ScreenGetSize();
-    }
-};
-
-std::pair<int, int> libqb_glut_get_screen_size() {
-    glut_message_get_screen_size msg;
+std::tuple<int, int, int> libqb_glut_get_screen_mode() {
+    glut_message_get_screen_mode msg;
 
     libqb_queue_glut_message(&msg);
     msg.wait_for_response();

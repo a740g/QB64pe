@@ -5,14 +5,20 @@
 
 #pragma once
 
-#include <GL/glew.h>
+#include <glad/gl.h>
+
 #include <GLFW/glfw3.h>
+
+#include <cstdint>
+#include <cuchar>
+#include <tuple>
 #include <utility>
 
 enum class GLUTEmu_WindowHint : int {
     WindowResizable = GLFW_RESIZABLE,
     WindowVisible = GLFW_VISIBLE,
     WindowDecorated = GLFW_DECORATED,
+    WindowFocused = GLFW_FOCUSED,
     WindowAutoIconify = GLFW_AUTO_ICONIFY,
     WindowFloating = GLFW_FLOATING,
     WindowMaximized = GLFW_MAXIMIZED,
@@ -162,7 +168,7 @@ enum class GLUTEmu_KeyboardKey : int {
     Menu = GLFW_KEY_MENU
 };
 
-enum class GLUTEmu_KeyboardKeyModifier : int {
+enum GLUTEmu_KeyboardKeyModifier : int {
     Shift = GLFW_MOD_SHIFT,
     Control = GLFW_MOD_CONTROL,
     Alt = GLFW_MOD_ALT,
@@ -174,14 +180,14 @@ enum class GLUTEmu_KeyboardKeyModifier : int {
 
 enum class GLUTEmu_MouseStandardCursor : int {
     Arrow = GLFW_ARROW_CURSOR,
-    PointingHand = GLFW_POINTING_HAND_CURSOR,
     IBeam = GLFW_IBEAM_CURSOR,
     Crosshair = GLFW_CROSSHAIR_CURSOR,
-    ResizeNESW = GLFW_RESIZE_NESW_CURSOR,
-    ResizeNWSE = GLFW_RESIZE_NWSE_CURSOR,
-    ResizeAll = GLFW_RESIZE_ALL_CURSOR,
-    ResizeNS = GLFW_RESIZE_NS_CURSOR,
+    PointingHand = GLFW_POINTING_HAND_CURSOR,
     ResizeEW = GLFW_RESIZE_EW_CURSOR,
+    ResizeNS = GLFW_RESIZE_NS_CURSOR,
+    ResizeNWSE = GLFW_RESIZE_NWSE_CURSOR,
+    ResizeNESW = GLFW_RESIZE_NESW_CURSOR,
+    ResizeAll = GLFW_RESIZE_ALL_CURSOR,
     NotAllowed = GLFW_NOT_ALLOWED_CURSOR
 };
 
@@ -196,9 +202,6 @@ enum class GLUTEmu_MouseButton : int {
     Left = GLFW_MOUSE_BUTTON_LEFT,
     Right = GLFW_MOUSE_BUTTON_RIGHT,
     Middle = GLFW_MOUSE_BUTTON_MIDDLE,
-    One = GLFW_MOUSE_BUTTON_1,
-    Two = GLFW_MOUSE_BUTTON_2,
-    Three = GLFW_MOUSE_BUTTON_3,
     Four = GLFW_MOUSE_BUTTON_4,
     Five = GLFW_MOUSE_BUTTON_5,
     Six = GLFW_MOUSE_BUTTON_6,
@@ -206,24 +209,32 @@ enum class GLUTEmu_MouseButton : int {
     Eight = GLFW_MOUSE_BUTTON_8
 };
 
-enum class GLUTEmu_ButtonAction : int { Pressed = GLFW_PRESS, Released = GLFW_RELEASE, Repeated = GLFW_REPEAT };
+enum class GLUTEmu_ButtonAction : int { Released = GLFW_RELEASE, Pressed = GLFW_PRESS, Repeated = GLFW_REPEAT };
 
 typedef void (*GLUTEmu_CallbackWindowClose)();
-typedef void (*GLUTEmu_CallbackWindowResized)(int /*width*/, int /*height*/);
-typedef void (*GLUTEmu_CallbackWindowMaximized)(bool /*isMaximized*/);
+typedef void (*GLUTEmu_CallbackWindowResized)(int width, int height);
+typedef void (*GLUTEmu_CallbackWindowFramebufferResized)(int width, int height);
+typedef void (*GLUTEmu_CallbackWindowMaximized)(int width, int height, bool maximized);
+typedef void (*GLUTEmu_CallbackWindowMinimized)(int width, int height, bool minimized);
+typedef void (*GLUTEmu_CallbackWindowFocused)(bool focused);
 typedef void (*GLUTEmu_CallbackWindowRefresh)();
 typedef void (*GLUTEmu_CallbackWindowIdle)();
-typedef void (*GLUTEmu_CallbackKeyboardButton)(GLUTEmu_KeyboardKey /*key*/, int /*scancode*/, GLUTEmu_ButtonAction /*action*/);
-typedef void (*GLUTEmu_CallbackKeyboardChar)(unsigned int /*codepoint*/);
-typedef void (*GLUTEmu_CallbackMouseButton)(GLUTEmu_MouseButton /*button*/, GLUTEmu_ButtonAction /*action*/);
-typedef void (*GLUTEmu_CallbackMouseMotion)(double /*x*/, double /*y*/, bool /*isRaw*/);
-typedef void (*GLUTEmu_CallbackMouseScroll)(double /*xoffset*/, double /*yoffset*/);
+typedef void (*GLUTEmu_CallbackKeyboardButton)(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action, int modifiers);
+typedef void (*GLUTEmu_CallbackKeyboardCharacter)(char32_t codepoint);
+typedef void (*GLUTEmu_CallbackMousePosition)(double x, double y, GLUTEnum_MouseCursorMode mode);
+typedef void (*GLUTEmu_CallbackMouseButton)(double x, double y, GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action, GLUTEnum_MouseCursorMode mode,
+                                            int modifiers);
+typedef void (*GLUTEmu_CallbackMouseNotify)(double x, double y, bool entered, GLUTEnum_MouseCursorMode mode);
+typedef void (*GLUTEmu_CallbackMouseScroll)(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode);
+typedef void (*GLUTEmu_CallbackDropFiles)(int count, const char *paths[]);
 
+std::tuple<int, int, int> GLUTEmu_ScreenGetMode();
 template <typename T> void GLUTEmu_WindowSetHint(GLUTEmu_WindowHint hint, const T value);
-bool GLUTEmu_WindowInitialize(int width, int height, const char *title);
+bool GLUTEmu_WindowCreate(const char *title, int width, int height);
 bool GLUTEmu_WindowIsCreated();
 void GLUTEmu_WindowSetTitle(const char *title);
 const char *GLUTEmu_WindowGetTitle();
+void GLUTEmu_WindowSetIcon(int32_t imageHandle);
 void GLUTEmu_WindowFullScreen(bool fullscreen);
 bool GLUTEmu_WindowIsFullscreen();
 void GLUTEmu_WindowMaximize();
@@ -231,36 +242,50 @@ bool GLUTEmu_WindowIsMaximized();
 void GLUTEmu_WindowMinimize();
 bool GLUTEmu_WindowIsMinimized();
 void GLUTEmu_WindowRestore();
-void GLUTEmu_ShowWindow();
-void GLUTEmu_HideWindow();
-bool GLUTEmu_WindowIsVisible();
+bool GLUTEmu_WindowIsRestored();
+void GLUTEmu_WindowHide(bool hide);
+bool GLUTEmu_WindowIsHidden();
 void GLUTEmu_WindowFocus();
-bool GLUTEmu_WindowHasFocus();
+bool GLUTEmu_WindowIsFocused();
+void GLUTEmu_WindowSetFloating(bool floating);
+bool GLUTEmu_WindowIsFloating();
+void GLUTEmu_WindowSetOpacity(float opacity);
+float GLUTEmu_WindowGetOpacity();
+void GLUTEmu_WindowSetBordered(bool bordered);
+bool GLUTEmu_WindowIsBordered();
+void GLUTEmu_WindowSetMousePassthrough(bool passthrough);
+bool GLUTEmu_WindowAllowsMousePassthrough();
 void GLUTEmu_WindowResize(int width, int height);
 std::pair<int, int> GLUTEmu_WindowGetSize();
+std::pair<int, int> GLUTEmu_WindowGetFramebufferSize();
 void GLUTEmu_WindowMove(int x, int y);
 std::pair<int, int> GLUTEmu_WindowGetPosition();
+void GLUTEmu_WindowCenter();
 void GLUTEmu_WindowSetAspectRatio(int width, int height);
 void GLUTEmu_WindowSetSizeLimits(int minWidth, int minHeight, int maxWidth, int maxHeight);
 void GLUTEmu_WindowSetShouldClose(bool shouldClose);
 void GLUTEmu_WindowSwapBuffers();
 void GLUTEmu_WindowRefresh();
-const void *GLUTEmu_WindowGetNativeHandle();
+const void *GLUTEmu_WindowGetNativeHandle(int32_t type);
 void GLUTEmu_WindowSetCloseFunction(GLUTEmu_CallbackWindowClose func);
 void GLUTEmu_WindowSetResizedFunction(GLUTEmu_CallbackWindowResized func);
+void GLUTEmu_WindowSetFramebufferResizedFunction(GLUTEmu_CallbackWindowFramebufferResized func);
 void GLUTEmu_WindowSetMaximizedFunction(GLUTEmu_CallbackWindowMaximized func);
+void GLUTEmu_WindowSetMinimizedFunction(GLUTEmu_CallbackWindowMinimized func);
+void GLUTEmu_WindowSetFocusedFunction(GLUTEmu_CallbackWindowFocused func);
 void GLUTEmu_WindowSetRefreshFunction(GLUTEmu_CallbackWindowRefresh func);
 void GLUTEmu_WindowSetIdleFunction(GLUTEmu_CallbackWindowIdle func);
 void GLUTEmu_KeyboardSetButtonFunction(GLUTEmu_CallbackKeyboardButton func);
+void GLUTEmu_KeyboardSetCharacterFunction(GLUTEmu_CallbackKeyboardCharacter func);
 bool GLUTEmu_KeyboardIsKeyModifierSet(GLUTEmu_KeyboardKeyModifier modifier);
-void GLUTEmu_KeyboardSetCharFunction(GLUTEmu_CallbackKeyboardChar func);
-void GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor style);
+bool GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor style);
+bool GLUTEmu_MouseSetCustomCursor(int32_t imageHandle);
 void GLUTEmu_MouseSetCursorMode(GLUTEnum_MouseCursorMode mode);
 GLUTEnum_MouseCursorMode GLUTEmu_MouseGetCursorMode();
 void GLUTEmu_MouseMove(double x, double y);
-std::pair<double, double> GLUTEmu_MouseGetPosition();
-void GLUTEmu_MouseSetMotionFunction(GLUTEmu_CallbackMouseMotion func);
+void GLUTEmu_MouseSetPositionFunction(GLUTEmu_CallbackMousePosition func);
 void GLUTEmu_MouseSetButtonFunction(GLUTEmu_CallbackMouseButton func);
+void GLUTEmu_MouseSetNotifyFunction(GLUTEmu_CallbackMouseNotify func);
 void GLUTEmu_MouseSetScrollFunction(GLUTEmu_CallbackMouseScroll func);
-std::pair<int, int> GLUTEmu_ScreenGetSize();
+void GLUTEmu_DropSetFilesFunction(GLUTEmu_CallbackDropFiles func);
 void GLUTEmu_MainLoop();

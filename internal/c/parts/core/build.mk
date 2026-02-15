@@ -69,9 +69,9 @@ ifneq ($(OS),win)
 		posix_thread.c
 endif
 
-GLEW_SRCS := $(PATH_INTERNAL_C)/parts/core/glew/glew.c
+GLAD_SRCS := $(PATH_INTERNAL_C)/parts/core/glad/src/gl.c
 
-CORE_INCLUDE := -I$(PATH_INTERNAL_C)/parts/core/glew/include -I$(PATH_INTERNAL_C)/parts/core/glfw/include
+CORE_INCLUDE := -I$(PATH_INTERNAL_C)/parts/core/glad/include -I$(PATH_INTERNAL_C)/parts/core/glfw/include
 
 GLFW_OBJS := $(patsubst %.c,$(PATH_INTERNAL_C)/parts/core/glfw/src/%.o,$(GLFW_SRCS))
 
@@ -79,14 +79,14 @@ ifeq ($(OS),osx)
 	GLFW_OBJS += $(patsubst %.m,$(PATH_INTERNAL_C)/parts/core/glfw/src/%.o,$(GLFW_OSX_SRCS))
 endif
 
-GLEW_OBJS := $(GLEW_SRCS:.c=.o)
+GLAD_OBJS := $(GLAD_SRCS:.c=.o)
 
-GLEW_DEFS := -DGLEW_STATIC
+#GLAD_DEFS :=
 
 CORE_LIB := $(PATH_INTERNAL_C)/parts/core/core.a
 
-$(PATH_INTERNAL_C)/parts/core/glew/%.o: $(PATH_INTERNAL_C)/parts/core/glew/%.c
-	$(CC) -O1 $(CFLAGS) $(CORE_INCLUDE) $(GLEW_DEFS) -w $< -c -o $@
+$(PATH_INTERNAL_C)/parts/core/glad/src/%.o: $(PATH_INTERNAL_C)/parts/core/glad/src/%.c
+	$(CC) -O3 $(CFLAGS) $(CORE_INCLUDE) $(GLAD_DEFS) -w $< -c -o $@
 
 $(PATH_INTERNAL_C)/parts/core/glfw/src/%.o: $(PATH_INTERNAL_C)/parts/core/glfw/src/%.c
 	$(CC) -O3 $(CFLAGS) $(CORE_INCLUDE) $(GLFW_DEFS) -w $< -c -o $@
@@ -96,11 +96,11 @@ $(PATH_INTERNAL_C)/parts/core/glfw/src/%.o: $(PATH_INTERNAL_C)/parts/core/glfw/s
 	$(CC) -O3 $(CFLAGS) $(CORE_INCLUDE) $(GLFW_DEFS) -w $< -c -o $@
 endif
 
-$(CORE_LIB): $(GLFW_OBJS) $(GLEW_OBJS)
-	$(AR) rcs $@ $(GLFW_OBJS) $(GLEW_OBJS)
+$(CORE_LIB): $(GLFW_OBJS) $(GLAD_OBJS)
+	$(AR) rcs $@ $(GLFW_OBJS) $(GLAD_OBJS)
 
 QB_CORE_LIB := $(CORE_LIB)
 
-CXXFLAGS += $(CORE_INCLUDE) $(GLEW_DEFS) $(GLFW_DEFS)
+CXXFLAGS += $(CORE_INCLUDE) $(GLAD_DEFS) $(GLFW_DEFS)
 
-CLEAN_LIST += $(CORE_LIB) $(GLFW_OBJS) $(GLEW_OBJS)
+CLEAN_LIST += $(CORE_LIB) $(GLFW_OBJS) $(GLAD_OBJS)

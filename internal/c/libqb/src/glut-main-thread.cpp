@@ -16,36 +16,36 @@ extern int32_t framebufferobjects_supported;
 extern int32_t screen_hide;
 extern const void *generic_window_handle;
 
-void MAIN_LOOP(void *);
-void GLUT_EXIT_FUNC();
-void GLUT_RESHAPE_FUNC(int width, int height);
-void GLUT_DISPLAY_REQUEST();
-void GLUT_IDLE_FUNC();
-void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action);
-void GLUT_MOUSE_BUTTON_FUNC(GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action);
-void GLUT_MOUSE_MOTION_FUNC(double x, double y, bool isRaw);
-void GLUT_MOUSE_SCROLL_FUNC(double xOffset, double yOffset);
+extern void MAIN_LOOP(void *);
+extern void GLUT_EXIT_FUNC();
+extern void GLUT_RESIZE_FUNC(int width, int height);
+extern void GLUT_DISPLAY_REQUEST();
+extern void GLUT_IDLE_FUNC();
+extern void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_ButtonAction action, int modifiers);
+extern void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action, GLUTEnum_MouseCursorMode mode, int modifiers);
+extern void GLUT_MOUSE_WHEEL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode);
+extern void GLUT_MOUSE_MOTION_FUNC(double x, double y, GLUTEnum_MouseCursorMode mode);
 
 // Performs all of the FreeGLUT initialization except for calling glutMainLoop()
 static void initialize_glut() {
-    if (screen_hide) {
-        GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::WindowVisible, false);
-    }
     GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::FramebufferSamples, 4);
     GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::FramebufferDoubleBuffer, true);
+    GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::WindowScaleToMonitor, true);
+    GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::WindowScaleFramebuffer, true);
+    GLUTEmu_WindowSetHint(GLUTEmu_WindowHint::WindowVisible, !screen_hide);
 
-    if (!GLUTEmu_WindowInitialize(640, 400, window_title ? reinterpret_cast<const char *>(window_title) : "Untitled")) {
+    if (!GLUTEmu_WindowCreate(window_title ? reinterpret_cast<const char *>(window_title) : "Untitled", 640, 400)) {
         gui_alert("Failed to initialize window");
         exit(EXIT_FAILURE);
     }
 
-    if (GLEW_EXT_framebuffer_object) {
+    if (GLAD_GL_EXT_framebuffer_object) {
         framebufferobjects_supported = 1;
 
-        libqb_log_trace("GLEW_EXT_framebuffer_object supported");
+        libqb_log_trace("GLAD_GL_EXT_framebuffer_object supported");
     }
 
-    generic_window_handle = GLUTEmu_WindowGetNativeHandle();
+    generic_window_handle = GLUTEmu_WindowGetNativeHandle(0);
 
     // GLFW_TODO: check implementation - glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
     glEnable(GL_MULTISAMPLE);
@@ -54,14 +54,22 @@ static void initialize_glut() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     GLUTEmu_WindowSetCloseFunction(GLUT_EXIT_FUNC);
-    GLUTEmu_WindowSetResizedFunction(GLUT_RESHAPE_FUNC);
-    // GLFW_TODO: Maximize handling
+    GLUTEmu_WindowSetResizedFunction(GLUT_RESIZE_FUNC);
+    // GLFW_TODO: Framebuffer resize handling
+    // GLFW_TODO: Maximize/Minimize handling
+    // GLFW_TODO: Focus handling
     GLUTEmu_WindowSetRefreshFunction(GLUT_DISPLAY_REQUEST);
     GLUTEmu_WindowSetIdleFunction(GLUT_IDLE_FUNC);
+
     GLUTEmu_KeyboardSetButtonFunction(GLUT_KEYBOARD_BUTTON_FUNC);
+    // GLFW_TODO: Character input handling?
+
     GLUTEmu_MouseSetButtonFunction(GLUT_MOUSE_BUTTON_FUNC);
-    GLUTEmu_MouseSetMotionFunction(GLUT_MOUSE_MOTION_FUNC);
-    GLUTEmu_MouseSetScrollFunction(GLUT_MOUSE_SCROLL_FUNC);
+    GLUTEmu_MouseSetPositionFunction(GLUT_MOUSE_MOTION_FUNC);
+    GLUTEmu_MouseSetScrollFunction(GLUT_MOUSE_WHEEL_FUNC);
+    // GLFW_TODO: Mouse enter/leave handling
+
+    // GLFW_TODO: File drop handling
 }
 
 static bool glut_is_started;

@@ -43,14 +43,14 @@ void libqb_glut_resize_window(int width, int height);
 std::pair<int, int> libqb_glut_get_window_size();
 void libqb_glut_move_window(int x, int y);
 std::pair<int, int> libqb_glut_get_window_position();
+void libqb_glut_center_window();
 void libqb_glut_set_window_aspect_ratio(int width, int height);
 void libqb_glut_set_window_size_limits(int minWidth, int minHeight, int maxWidth, int maxHeight);
 void libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor style);
 void libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode mode);
 GLUTEnum_MouseCursorMode libqb_glut_get_cursor_mode();
 void libqb_glut_move_mouse(double x, double y);
-std::pair<double, double> libqb_glut_get_mouse_position();
-std::pair<int, int> libqb_glut_get_screen_size();
+std::tuple<int, int, int> libqb_glut_get_screen_mode();
 void libqb_glut_exit_program(int exitcode);
 
 // Convenience macros, exists a function depending on the state of GLUT

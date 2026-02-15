@@ -31,7 +31,7 @@
 // core
 #    ifdef QB64_GUI
 #        ifdef QB64_GLUT
-#            include <GL/glew.h>
+#            include <glad/gl.h>
 #            ifdef QB64_MACOSX
 #                include <OpenGL/gl.h>
 #                include <OpenGL/glext.h>
