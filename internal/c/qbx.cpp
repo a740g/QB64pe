@@ -22,7 +22,7 @@
 #include "image.h"
 #include "libqb.h"
 #include "logging.h"
-#include "mem.h"
+#include "memblock.h"
 #include "qbmath.h"
 #include "qbs-mk-cv.h"
 #include "qbs.h"
@@ -46,35 +46,6 @@ extern int32 vWatchHandle();
 #ifdef QB64_MACOSX
 #    include <ApplicationServices/ApplicationServices.h>
 #endif
-
-/* testing only
-    #ifdef QB64_WINDOWS
-
-    HWND FindMyTopMostWindow()
-    {
-    DWORD dwProcID = GetCurrentProcessId();
-    HWND hWnd = GetTopWindow(GetDesktopWindow());
-    while(hWnd)
-    {
-    DWORD dwWndProcID = 0;
-    GetWindowThreadProcessId(hWnd, &dwWndProcID);
-    if(dwWndProcID == dwProcID)
-    return hWnd;
-    hWnd = GetNextWindow(hWnd, GW_HWNDNEXT);
-    }
-    return NULL;
-    }
-
-    void SetMidiVolume(int32 vol){
-    //DWORD vol = MAKELONG(((volume*65535L)/100), ((volume*65535L)/100));
-    MIDIOUTCAPS midiCaps;
-    midiOutGetDevCaps(0, &midiCaps, sizeof(midiCaps));
-    if (midiCaps.dwSupport & MIDICAPS_VOLUME)
-    midiOutSetVolume(0, vol);
-    }
-
-    #endif
-*/
 
 #ifdef QB64_WINDOWS
 int _CRT_glob = -1; // enable globbing on llvm-mingw by default
@@ -149,8 +120,8 @@ extern void sub__screenhide();
 extern int32 func__screenhide();
 extern int32 func_windowexists();
 extern int32 func_screenicon();
-extern int32 func_screenwidth();
-extern int32 func_screenheight();
+extern int32_t func__desktopwidth();
+extern int32_t func__desktopheight();
 extern void sub_screenicon();
 extern void sub__console(int32);
 extern int32 func__console();
@@ -161,7 +132,7 @@ extern int32 func__blink();
 extern int32 func__hasfocus();
 extern void set_foreground_window(ptrszint i);
 extern qbs *func__title();
-extern int32 func__handle();
+extern uintptr_t func__windowhandle();
 extern int32 func_stick(int32 i, int32 axis_group, int32 passed);
 extern int32 func_strig(int32 i, int32 controller, int32 passed);
 extern void sub_paletteusing(void *element, int32 bits);

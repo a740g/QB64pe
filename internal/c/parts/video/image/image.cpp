@@ -7,12 +7,12 @@
 //
 //  Powered by:
 //      stb_image & stb_image_write (https://github.com/nothings/stb)
-//      dr_pcx (https://github.com/mackron/dr_pcx)
+//      jo_gif (https://www.jonolick.com/code)
 //      nanosvg (https://github.com/memononen/nanosvg)
 //      qoi (https://qoiformat.org)
 //      pixelscalers (https://github.com/janert/pixelscalers)
 //      mmpx (https://github.com/ITotalJustice/mmpx)
-//      jo_gif (https://www.jonolick.com)
+//      sg_curico & sg_pcx (https://github.com/a740g)
 //
 //-----------------------------------------------------------------------------------------------------
 
@@ -20,6 +20,7 @@
 #include "../../../libqb.h"
 #include "error_handle.h"
 #include "filepath.h"
+#include "graphics.h"
 #include "jo_gif/jo_gif.h"
 #include "libqb-common.h"
 #include "nanosvg/nanosvg.h"
@@ -297,23 +298,23 @@ static uint32_t *image_decode_from_file(const char *fileName, int32_t *xOut, int
     image_log_info("Loading image from file %s", fileName);
 
     auto pixels = reinterpret_cast<uint32_t *>(stbi_load(fileName, xOut, yOut, &compOut, 4));
-    image_log_info("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
+    image_log_trace("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
 
     if (!pixels) {
         pixels = pcx_load_file(fileName, xOut, yOut, &compOut);
-        image_log_info("Image dimensions (sg_pcx) = (%i, %i)", *xOut, *yOut);
+        image_log_trace("Image dimensions (sg_pcx) = (%i, %i)", *xOut, *yOut);
 
         if (!pixels) {
             pixels = image_qoi_load_from_file(fileName, xOut, yOut, &compOut);
-            image_log_info("Image dimensions (qoi) = (%i, %i)", *xOut, *yOut);
+            image_log_trace("Image dimensions (qoi) = (%i, %i)", *xOut, *yOut);
 
             if (!pixels) {
                 pixels = curico_load_file(fileName, xOut, yOut, &compOut);
-                image_log_info("Image dimensions (sg_curico) = (%i, %i)", *xOut, *yOut);
+                image_log_trace("Image dimensions (sg_curico) = (%i, %i)", *xOut, *yOut);
 
                 if (!pixels) {
                     pixels = image_svg_load_from_file(fileName, xOut, yOut, scaler, &compOut, &isVG);
-                    image_log_info("Image dimensions (nanosvg) = (%i, %i)", *xOut, *yOut);
+                    image_log_trace("Image dimensions (nanosvg) = (%i, %i)", *xOut, *yOut);
 
                     if (!pixels)
                         return nullptr; // Return NULL if all attempts failed
@@ -344,23 +345,23 @@ static uint32_t *image_decode_from_memory(const uint8_t *data, size_t size, int3
     image_log_info("Loading image from memory");
 
     auto pixels = reinterpret_cast<uint32_t *>(stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data), size, xOut, yOut, &compOut, 4));
-    image_log_info("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
+    image_log_trace("Image dimensions (stb_image) = (%i, %i)", *xOut, *yOut);
 
     if (!pixels) {
         pixels = pcx_load_memory(data, size, xOut, yOut, &compOut);
-        image_log_info("Image dimensions (sg_pcx) = (%i, %i)", *xOut, *yOut);
+        image_log_trace("Image dimensions (sg_pcx) = (%i, %i)", *xOut, *yOut);
 
         if (!pixels) {
             pixels = image_qoi_load_from_memory(data, size, xOut, yOut, &compOut);
-            image_log_info("Image dimensions (qoi) = (%i, %i)", *xOut, *yOut);
+            image_log_trace("Image dimensions (qoi) = (%i, %i)", *xOut, *yOut);
 
             if (!pixels) {
                 pixels = curico_load_memory(data, size, xOut, yOut, &compOut);
-                image_log_info("Image dimensions (sg_curico) = (%i, %i)", *xOut, *yOut);
+                image_log_trace("Image dimensions (sg_curico) = (%i, %i)", *xOut, *yOut);
 
                 if (!pixels) {
                     pixels = image_svg_load_from_memory(data, size, xOut, yOut, scaler, &compOut, &isVG);
-                    image_log_info("Image dimensions (nanosvg) = (%i, %i)", *xOut, *yOut);
+                    image_log_trace("Image dimensions (nanosvg) = (%i, %i)", *xOut, *yOut);
 
                     if (!pixels)
                         return nullptr; // Return NULL if all attempts failed
@@ -378,146 +379,256 @@ static uint32_t *image_decode_from_memory(const uint8_t *data, size_t size, int3
 }
 
 /// @brief This takes in a 32bpp (BGRA) image raw data and spits out an 8bpp raw image along with it's 256 color (BGRA) palette.
-/// @param src32 The source raw image data. This must be in BGRA format and not NULL
-/// @param w The width of the image in pixels
-/// @param h The height of the image in pixels
-/// @param paletteOut A 256 color palette if the operation was successful. This cannot be NULL
-/// @return A pointer to a 8bpp raw image or NULL if operation failed
-static uint8_t *image_convert_8bpp(const uint32_t *src32, int32_t w, int32_t h, uint32_t *paletteOut) {
-    static struct {
-        uint32_t r, g, b;
-        uint32_t count;
-    } cubes[256];
-
-    // https://en.wikipedia.org/wiki/Ordered_dithering
-    static const uint8_t bayerMatrix[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
-
+/// @param src32 The source raw image data. This must be in BGRA format and not NULL.
+/// @param srcPalette An optional source palette to use (256 colors in BGRA format). If NULL, an adaptive palette is generated.
+/// @param w The width of the image in pixels.
+/// @param h The height of the image in pixels.
+/// @param dst A pointer to the destination 8bpp raw image data. This cannot be NULL.
+/// @param dstPalette A 256 color palette if the operation was successful. This cannot be NULL.
+static void image_convert_8bpp(const uint32_t *src32, const uint32_t *srcPalette, int32_t w, int32_t h, uint8_t *dst, uint32_t *dstPalette) {
     image_log_info("Converting 32bpp image (%i, %i) to 8bpp", w, h);
 
-    // Allocate memory for new image (8-bit indexed)
-    auto pixels = (uint8_t *)malloc(w * h);
-    if (!pixels) {
-        return nullptr;
-    }
+    if (srcPalette) {
+        image_log_trace("Using provided palette");
 
-    ::memset(cubes, 0, sizeof(cubes));
+        memcpy(dstPalette, srcPalette, IMAGE_8BPP_MAX_COLORS * sizeof(uint32_t));
+    } else {
+        image_log_trace("Generating adaptive palette");
 
-    // Quantization phase
-    auto src = reinterpret_cast<const uint8_t *>(src32);
-    auto dst = pixels;
-    for (auto y = 0; y < h; y++) {
-        for (auto x = 0; x < w; x++) {
-            int32_t t = bayerMatrix[((y & 3) << 2) + (x & 3)];
-            int32_t b = image_clamp_color_component((*src++) + (t << 1));
-            int32_t g = image_clamp_color_component((*src++) + (t << 1));
-            int32_t r = image_clamp_color_component((*src++) + (t << 1));
-            ++src; // Ignore alpha
+        const size_t maxUnique = 4096u;
+        std::vector<uint32_t> histColors;
+        histColors.reserve(maxUnique);
+        std::vector<size_t> histCounts;
+        histCounts.reserve(maxUnique);
+        std::unordered_map<uint32_t, size_t> uniqueColorMap;
 
-            // Quantize
-            uint8_t k = ((r >> 5) << 5) + ((g >> 5) << 2) + (b >> 6);
-            (*dst++) = k;
+        auto stepX = std::max(w / 64, 1);
+        auto stepY = std::max(h / 64, 1);
 
-            // Prepare RGB cubes for CLUT
-            cubes[k].r += r;
-            cubes[k].g += g;
-            cubes[k].b += b;
-            cubes[k].count++;
+        for (int32_t y = 0; y < h; y += stepY) {
+            for (int32_t x = 0; x < w; x += stepX) {
+                auto c = src32[size_t(y) * size_t(w) + size_t(x)];
+                auto it = uniqueColorMap.find(c);
+                if (it != uniqueColorMap.end()) {
+                    histCounts[it->second]++;
+                } else if (uniqueColorMap.size() < maxUnique) {
+                    auto newIndex = uniqueColorMap.size();
+                    uniqueColorMap[c] = newIndex;
+                    histColors.push_back(c);
+                    histCounts.push_back(1);
+                }
+            }
         }
-    }
 
-    // Generate a uniform CLUT based on the quantized colors
-    for (auto i = 0; i < 256; i++) {
-        if (cubes[i].count) {
-            paletteOut[i] = image_make_bgra(cubes[i].r / cubes[i].count, cubes[i].g / cubes[i].count, cubes[i].b / cubes[i].count, 0xFF);
+        auto uniqueCount = uniqueColorMap.size();
+        if (uniqueCount == 0) {
+            for (size_t i = 0; i < IMAGE_8BPP_MAX_COLORS; i++) {
+                auto gray = uint8_t((255u * i) / (IMAGE_8BPP_MAX_COLORS - 1u));
+                dstPalette[i] = image_make_bgr_gray(gray);
+            }
         } else {
-            paletteOut[i] = image_make_bgra(0, 0, 0, 0xFF);
+            size_t maxCount = 1;
+            for (size_t i = 0; i < uniqueCount; i++) {
+                if (histCounts[i] > maxCount) {
+                    maxCount = histCounts[i];
+                }
+            }
+
+            std::vector<bool> chosen(uniqueCount, false);
+            std::vector<float> minDist2(uniqueCount, -1.0f);
+
+            size_t firstIdx = 0;
+            for (size_t i = 1; i < uniqueCount; i++) {
+                if (histCounts[i] > histCounts[firstIdx]) {
+                    firstIdx = i;
+                }
+            }
+
+            dstPalette[0] = histColors[firstIdx];
+            chosen[firstIdx] = true;
+            size_t paletteUsed = 1;
+
+            auto r1 = image_get_bgra_red(histColors[firstIdx]);
+            auto g1 = image_get_bgra_green(histColors[firstIdx]);
+            auto b1 = image_get_bgra_blue(histColors[firstIdx]);
+
+            for (size_t j = 0; j < uniqueCount; j++) {
+                if (!chosen[j]) {
+                    minDist2[j] = image_get_rgb_redmean_dist_sq(r1, g1, b1, image_get_bgra_red(histColors[j]), image_get_bgra_green(histColors[j]),
+                                                                image_get_bgra_blue(histColors[j]));
+                }
+            }
+
+            while (paletteUsed < IMAGE_8BPP_MAX_COLORS) {
+                auto bestScore = -1.0f;
+                int32_t bestIdx = -1;
+
+                for (size_t j = 0; j < uniqueCount; j++) {
+                    if (!chosen[j]) {
+                        auto popWeight = 1 + (histCounts[j] * 255) / maxCount;
+                        auto d2 = minDist2[j] < 0.0f ? 0.0f : minDist2[j];
+                        auto score = d2 * popWeight;
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestIdx = int32_t(j);
+                        }
+                    }
+                }
+
+                if (bestIdx < 0) {
+                    break;
+                }
+
+                dstPalette[paletteUsed] = histColors[bestIdx];
+                chosen[bestIdx] = true;
+                ++paletteUsed;
+
+                r1 = image_get_bgra_red(histColors[bestIdx]);
+                g1 = image_get_bgra_green(histColors[bestIdx]);
+                b1 = image_get_bgra_blue(histColors[bestIdx]);
+
+                for (size_t j = 0; j < uniqueCount; j++) {
+                    if (!chosen[j]) {
+                        float d2 = image_get_rgb_redmean_dist_sq(r1, g1, b1, image_get_bgra_red(histColors[j]), image_get_bgra_green(histColors[j]),
+                                                                 image_get_bgra_blue(histColors[j]));
+                        if (minDist2[j] < 0 || d2 < minDist2[j]) {
+                            minDist2[j] = d2;
+                        }
+                    }
+                }
+            }
+
+            for (size_t i = paletteUsed; i < IMAGE_8BPP_MAX_COLORS; i++) {
+                dstPalette[i] = dstPalette[paletteUsed - 1];
+            }
         }
     }
 
-    return pixels;
+    image_log_trace("Applying Floyd-Steinberg dithering");
+
+    struct ErrorPixel {
+        float r, g, b;
+    };
+
+    std::vector<ErrorPixel> err(w, {0.0f, 0.0f, 0.0f});
+    std::vector<ErrorPixel> nextErr(w, {0.0f, 0.0f, 0.0f});
+
+    for (int32_t y = 0; y < h; y++) {
+        std::fill(nextErr.begin(), nextErr.end(), ErrorPixel{0.0f, 0.0f, 0.0f});
+
+        auto isSerpentine = (y & 1) != 0;
+        int32_t xStart = isSerpentine ? (w - 1) : 0;
+        int32_t xEnd = isSerpentine ? -1 : w;
+        int32_t xStep = isSerpentine ? -1 : 1;
+
+        for (int32_t x = xStart; x != xEnd; x += xStep) {
+            auto i = size_t(y) * size_t(w) + size_t(x);
+            auto srcPixel = src32[i];
+
+            auto r = std::clamp(float(image_get_bgra_red(srcPixel)) + err[x].r, 0.0f, 255.0f);
+            auto g = std::clamp(float(image_get_bgra_green(srcPixel)) + err[x].g, 0.0f, 255.0f);
+            auto b = std::clamp(float(image_get_bgra_blue(srcPixel)) + err[x].b, 0.0f, 255.0f);
+
+            auto closestIndex = image_find_closest_palette_color(uint8_t(r), uint8_t(g), uint8_t(b), dstPalette, image_get_rgb_redmean_dist_sq);
+
+            dst[i] = uint8_t(closestIndex);
+
+            auto qPixel = dstPalette[closestIndex];
+            auto qR = float(image_get_bgra_red(qPixel));
+            auto qG = float(image_get_bgra_green(qPixel));
+            auto qB = float(image_get_bgra_blue(qPixel));
+
+            auto er = r - qR;
+            auto eg = g - qG;
+            auto eb = b - qB;
+
+            auto distribute = [&](int32_t xOffset, std::vector<ErrorPixel> &errorRow, float factor) {
+                auto j = x + xOffset;
+                if (j >= 0 && j < w) {
+                    errorRow[j].r += er * factor;
+                    errorRow[j].g += eg * factor;
+                    errorRow[j].b += eb * factor;
+                }
+            };
+
+            if (xStep == 1) {
+                distribute(1, err, 7.0f / 16.0f);
+                if (y + 1 < h) {
+                    distribute(-1, nextErr, 3.0f / 16.0f);
+                    distribute(0, nextErr, 5.0f / 16.0f);
+                    distribute(1, nextErr, 1.0f / 16.0f);
+                }
+            } else {
+                distribute(-1, err, 7.0f / 16.0f);
+                if (y + 1 < h) {
+                    distribute(1, nextErr, 3.0f / 16.0f);
+                    distribute(0, nextErr, 5.0f / 16.0f);
+                    distribute(-1, nextErr, 1.0f / 16.0f);
+                }
+            }
+        }
+        err.swap(nextErr);
+    }
 }
 
 /// @brief This takes in a 32bpp (BGRA) image raw data and spits out an 8bpp raw image along with it's 256 color (BGRA) palette.
-/// If the number of unique colors in the 32bpp image > 256, then the functions returns a NULL.
 /// Unlike image_convert_8bpp(), no 'real' conversion takes place.
-/// @param src The source raw image data. This must be in BGRA format and not NULL
-/// @param w The width of the image in pixels
-/// @param h The height of the image in pixels
-/// @param paletteOut A 256 color palette if the operation was successful. This cannot be NULL
-/// @return A pointer to a 8bpp raw image or NULL if operation failed
-static uint8_t *image_extract_8bpp(const uint32_t *src, int32_t w, int32_t h, uint32_t *paletteOut) {
+/// @param src32 The source raw image data. This must be in BGRA format and not NULL.
+/// @param srcPalette An optional source palette to map colors from (256 colors in BGRA format). If NULL, no mapping is done.
+/// @param w The width of the image in pixels.
+/// @param h The height of the image in pixels.
+/// @param dst A pointer to the destination 8bpp raw image data. This cannot be NULL.
+/// @param dstPalette A 256 color palette if the operation was successful. This cannot be NULL.
+/// @return true if successful, or false if the image has more than 256 unique colors.
+static bool image_extract_8bpp(const uint32_t *src32, const uint32_t *srcPalette, int32_t w, int32_t h, uint8_t *dst, uint32_t *dstPalette) {
     image_log_info("Extracting 8bpp image (%i, %i) from 32bpp", w, h);
 
-    std::unordered_map<uint32_t, int> colorMap;
+    auto imageSize = size_t(w) * size_t(h);
 
-    // Allocate memory for new image (8-bit indexed)
-    auto pixels = (uint8_t *)malloc(w * h);
-    if (!pixels)
-        return nullptr;
+    std::unordered_map<uint32_t, uint8_t> colorMap;
+    size_t uniqueColors = 0;
 
-    auto uniqueColors = 0; // as long as this is < 256 we will keep going until we are done
-    size_t size = w * h;
-    for (size_t i = 0; i < size; i++) {
-        auto srcColor = src[i]; // get the 32bpp pixel
+    for (size_t i = 0; i < imageSize; i++) {
+        auto c = src32[i];
+        auto it = colorMap.find(c);
 
-        // Check if the src color exists in our palette
-        if (colorMap.count(srcColor) == 0) {
-            // If we reached here, then the color is not in our table
-            if (uniqueColors > 255) {
-                image_log_trace("Image has more than %i unique colors", uniqueColors);
-                free(pixels);
-                return nullptr; // Exit with failure if we have > 256 colors
+        if (it == colorMap.end()) {
+            if (uniqueColors >= IMAGE_8BPP_MAX_COLORS) {
+                image_log_info("Image has more than %i unique colors", uniqueColors);
+                return false;
             }
 
-            paletteOut[uniqueColors] = srcColor; // Store the color as unique
-            colorMap[srcColor] = uniqueColors;   // Add this color to the map
-            pixels[i] = uniqueColors;            // set the pixel to the color index
-            ++uniqueColors;                      // increment unique colors
-        } else {
-            // If we reached here, then the color is in our table
-            pixels[i] = colorMap[srcColor]; // Simply fetch the index from the map
+            dstPalette[uniqueColors] = c;
+            it = colorMap.emplace_hint(it, c, uniqueColors);
+            ++uniqueColors;
         }
+
+        dst[i] = it->second;
     }
 
-    image_log_info("Unique colors = %i", uniqueColors);
+    image_log_trace("Unique colors = %i", uniqueColors);
 
-    return pixels;
-}
+    if (srcPalette) {
+        image_log_trace("Remapping 8bpp image (%i, %i) palette", w, h);
 
-/// @brief This modifies an *8bpp* image 'src' to use 'dst_pal' instead of 'src_pal'
-/// @param src A pointer to the 8bpp image pixel data. This modifies data 'src' points to and cannot be NULL
-/// @param w The width of the image in pixels
-/// @param h The height of the image in pixels
-/// @param src_pal The image's original palette. This cannot be NULL
-/// @param dst_pal The destination palette. This cannot be NULL
-static void image_remap_palette(uint8_t *src, int32_t w, int32_t h, const uint32_t *src_pal, const uint32_t *dst_pal) {
-    static uint32_t palMap[256];
+        std::vector<uint8_t> palMap(IMAGE_8BPP_MAX_COLORS, 0);
 
-    const auto maxRGBDelta = image_get_color_delta(0, 0, 0, 255, 255, 255);
-
-    ::memset(palMap, 0, sizeof(palMap));
-
-    image_log_info("Remapping 8bpp image (%i, %i) palette", w, h);
-
-    // Match the palette
-    for (auto x = 0; x < 256; x++) {
-        auto oldDelta = maxRGBDelta;
-
-        for (auto y = 0; y < 256; y++) {
-            auto newDelta = image_get_color_delta(image_get_bgra_red(src_pal[x]), image_get_bgra_green(src_pal[x]), image_get_bgra_blue(src_pal[x]),
-                                                  image_get_bgra_red(dst_pal[y]), image_get_bgra_green(dst_pal[y]), image_get_bgra_blue(dst_pal[y]));
-
-            if (oldDelta > newDelta) {
-                oldDelta = newDelta;
-                palMap[x] = y;
-            }
+        for (size_t i = 0; i < uniqueColors; i++) {
+            palMap[i] = uint8_t(image_find_closest_palette_color(dstPalette[i], srcPalette, image_get_rgb_euclidean_dist_sq));
         }
+
+        auto p = dst;
+        auto pEnd = dst + imageSize;
+        while (p < pEnd) {
+            *p = palMap[*p];
+            ++p;
+        }
+
+        memcpy(dstPalette, srcPalette, IMAGE_8BPP_MAX_COLORS * sizeof(uint32_t));
     }
 
-    // Update the bitmap to use the matched palette
-    for (auto c = 0; c < (w * h); c++) {
-        src[c] = palMap[src[c]];
-    }
+    return true;
 }
 
 /// @brief This function loads an image into memory and returns valid LONG image handle values that are less than -1
@@ -532,34 +643,34 @@ int32_t func__loadimage(qbs *qbsFileName, int32_t bpp, qbs *qbsRequirements, int
 
     auto isLoadFromMemory = false;   // should the image be loaded from memory?
     auto isHardwareImage = false;    // should the image be converted to a hardware image?
-    auto isRemapPalette = true;      // should the palette be re-mapped to the QB64 default palette?
+    auto srcPalette = palette_256;   // use the QB64 256 color palette by default for 8bpp images
     auto scaler = ImageScaler::NONE; // default to no scaling
 
     // Handle special cases and set the above flags if required
-    image_log_info("bpp = %i, passed = 0x%X", bpp, passed);
+    image_log_trace("bpp = %i, passed = 0x%X", bpp, passed);
     if (passed & 1) {
         if (bpp == 33) { // hardware image?
             isHardwareImage = true;
             bpp = 32;
-            image_log_info("bpp = 0x%X", bpp);
+            image_log_trace("bpp = %i", bpp);
         } else if (bpp == 257) { // adaptive palette?
-            isRemapPalette = false;
+            srcPalette = nullptr;
             bpp = 256;
-            image_log_info("bpp = 0x%X", bpp);
+            image_log_trace("bpp = %i", bpp);
         }
 
         if ((bpp != 32) && (bpp != 256)) { // invalid BPP?
-            image_log_error("Invalid bpp (0x%X)", bpp);
+            image_log_error("Invalid bpp (%i)", bpp);
             error(QB_ERROR_ILLEGAL_FUNCTION_CALL);
             return INVALID_IMAGE_HANDLE;
         }
     } else {
         if (write_page->bits_per_pixel < 32) { // default to 8bpp for all legacy screen modes
             bpp = 256;
-            image_log_info("Defaulting to 8bpp");
+            image_log_trace("Defaulting to 8bpp");
         } else { // default to 32bpp for everything else
             bpp = 32;
-            image_log_info("Defaulting to 32bpp");
+            image_log_trace("Defaulting to 32bpp");
         }
     }
 
@@ -567,29 +678,29 @@ int32_t func__loadimage(qbs *qbsFileName, int32_t bpp, qbs *qbsRequirements, int
     if ((passed & 2) && qbsRequirements->len) {
         // Parse the requirements string and setup save settings
         std::string requirements(reinterpret_cast<char *>(qbsRequirements->chr), qbsRequirements->len);
-        std::transform(requirements.begin(), requirements.end(), requirements.begin(), [](unsigned char c) { return std::toupper(c); });
+        std::transform(requirements.begin(), requirements.end(), requirements.begin(), ::toupper);
 
-        image_log_info("Parsing requirements string: %s", requirements.c_str());
+        image_log_trace("Parsing requirements string: %s", requirements.c_str());
 
         if (requirements.find("HARDWARE") != std::string::npos && bpp == 32) {
             isHardwareImage = true;
-            image_log_info("Hardware image selected");
+            image_log_trace("Hardware image selected");
         } else if (requirements.find("ADAPTIVE") != std::string::npos && bpp == 256) {
-            isRemapPalette = false;
-            image_log_info("Adaptive palette selected");
+            srcPalette = nullptr;
+            image_log_trace("Adaptive palette selected");
         }
 
         if (requirements.find("MEMORY") != std::string::npos) {
             isLoadFromMemory = true;
-            image_log_info("Loading image from memory");
+            image_log_trace("Loading image from memory");
         }
 
         // Parse scaler string
         for (size_t i = 0; i < _countof(g_ImageScalerName); i++) {
-            image_log_info("Checking for: %s", g_ImageScalerName[i]);
+            image_log_trace("Checking for: %s", g_ImageScalerName[i]);
             if (requirements.find(g_ImageScalerName[i]) != std::string::npos) {
                 scaler = (ImageScaler)i;
-                image_log_info("%s scaler selected", g_ImageScalerName[size_t(scaler)]);
+                image_log_trace("%s scaler selected", g_ImageScalerName[size_t(scaler)]);
                 break;
             }
         }
@@ -610,81 +721,37 @@ int32_t func__loadimage(qbs *qbsFileName, int32_t bpp, qbs *qbsRequirements, int
 
     // Convert RGBA to BGRA
     size_t size = x * y;
-    for (size_t i = 0; i < size; i++)
-        pixels[i] = image_swap_red_blue(pixels[i]);
+    image_swap_red_blue_buffer(pixels, size);
 
-    int32_t i; // Image handle to be returned
+    auto i = func__newimage(x, y, bpp, 1);
+    if (i == INVALID_IMAGE_HANDLE) {
+        free(pixels);
+        return INVALID_IMAGE_HANDLE;
+    }
 
     // Convert image to 8bpp if requested by the user
     if (bpp == 256) {
-        image_log_info("Entering 8bpp path");
-
-        i = func__newimage(x, y, 256, 1);
-        if (i == INVALID_IMAGE_HANDLE) {
-            free(pixels);
-            return INVALID_IMAGE_HANDLE;
-        }
-
-        auto palette = (uint32_t *)malloc(256 * sizeof(uint32_t)); // 3 bytes for bgr + 1 for alpha (basically a uint32_t)
-        if (!palette) {
-            free(pixels);
-            return INVALID_IMAGE_HANDLE;
-        }
-
-        auto pixels256 = image_extract_8bpp(pixels, x, y, palette); // Try to simply 'extract' the 8bpp image first
-        if (!pixels256) {
-            pixels256 = image_convert_8bpp(pixels, x, y, palette); // If that fails, then 'convert' it to 8bpp
-            if (!pixels256) {
-                free(palette);
-                free(pixels);
-                return INVALID_IMAGE_HANDLE;
-            }
-        }
-
-        if (isRemapPalette) {
-            // Remap the image indexes to QB64 default palette and then free our palette
-            image_remap_palette(pixels256, x, y, palette, palette_256);
-            free(palette);
-
-            // Copy the 8bpp pixel data and then free it
-            memcpy(img[-i].offset, pixels256, x * y);
-            free(pixels256);
-
-            // Copy the default QB64 palette
-            memcpy(img[-i].pal, palette_256, 256 * sizeof(uint32_t));
-        } else {
-            // Copy the 8bpp pixel data and then free it
-            memcpy(img[-i].offset, pixels256, x * y);
-            free(pixels256);
-
-            // Copy the palette and then free it
-            memcpy(img[-i].pal, palette, 256 * sizeof(uint32_t));
-            free(palette);
+        // Try to simply 'extract' the 8bpp image first. If that fails, then 'convert' it to 8bpp
+        if (!image_extract_8bpp(pixels, srcPalette, x, y, img[-i].offset, img[-i].pal)) {
+            image_convert_8bpp(pixels, srcPalette, x, y, img[-i].offset, img[-i].pal);
         }
     } else {
-        image_log_info("Entering 32bpp path");
-
-        i = func__newimage(x, y, 32, 1);
-        if (i == INVALID_IMAGE_HANDLE) {
-            free(pixels);
-            return INVALID_IMAGE_HANDLE;
-        }
         memcpy(img[-i].offset32, pixels, size * sizeof(uint32_t));
     }
 
-    // Free pixel memory. We can do this because both dr_pcx and stb_image uses free()
+    // Free pixel memory. We can do this because all image loader as know to use malloc()
     free(pixels);
 
     // This only executes if bpp is 32
     if (isHardwareImage) {
-        image_log_info("Making hardware image");
+        image_log_trace("Making hardware image");
 
         auto iHardware = func__copyimage(i, 33, 1);
         sub__freeimage(i, 1);
         i = iHardware;
     }
 
-    image_log_info("Returning handle value = %i", i);
+    image_log_trace("Returning handle value = %i", i);
 
     return i;
 }
@@ -709,7 +776,7 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
 
     if (passed & 1) {
         // Check and validate image handle
-        image_log_info("Validating handle %i", imageHandle);
+        image_log_trace("Validating handle %i", imageHandle);
 
         if (imageHandle >= 0) {
             validatepage(imageHandle);
@@ -728,7 +795,7 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
         }
     } else {
         // Use default image handle
-        image_log_info("Using default handle");
+        image_log_trace("Using default handle");
 
         imageHandle = -func__display();
 
@@ -743,28 +810,28 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
         }
     }
 
-    image_log_info("Using image handle %i", imageHandle);
+    image_log_trace("Using image handle %i", imageHandle);
 
     auto format = SaveFormat::PNG; // we always default to PNG
 
     if ((passed & 2) && qbsRequirements->len) {
         // Parse the requirements string and setup save settings
         std::string requirements(reinterpret_cast<char *>(qbsRequirements->chr), qbsRequirements->len);
-        std::transform(requirements.begin(), requirements.end(), requirements.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(requirements.begin(), requirements.end(), requirements.begin(), ::tolower);
 
-        image_log_info("Parsing requirements string: %s", requirements.c_str());
+        image_log_trace("Parsing requirements string: %s", requirements.c_str());
 
         for (size_t i = 0; i < _countof(formatName); i++) {
-            image_log_info("Checking for: %s", formatName[i]);
+            image_log_trace("Checking for: %s", formatName[i]);
             if (requirements.find(formatName[i]) != std::string::npos) {
                 format = (SaveFormat)i;
-                image_log_info("Found: %s", formatName[size_t(format)]);
+                image_log_trace("Found: %s", formatName[size_t(format)]);
                 break;
             }
         }
     }
 
-    image_log_info("Format selected: %s", formatName[size_t(format)]);
+    image_log_trace("Format selected: %s", formatName[size_t(format)]);
 
     std::string fileName(reinterpret_cast<char *>(qbsFileName->chr), qbsFileName->len);
     filepath_fix_directory(fileName);
@@ -772,9 +839,9 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
     // Check if fileName has a valid extension and add one if it does not have one
     if (fileName.length() > 4) { // must be at least n.ext
         auto fileExtension = fileName.substr(fileName.length() - 4);
-        std::transform(fileExtension.begin(), fileExtension.end(), fileExtension.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(fileExtension.begin(), fileExtension.end(), fileExtension.begin(), ::tolower);
 
-        image_log_info("File extension: %s", fileExtension.c_str());
+        image_log_trace("File extension: %s", fileExtension.c_str());
 
         size_t i;
         for (i = 0; i < _countof(formatName); i++) {
@@ -783,25 +850,25 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
             formatExtension = ".";
             formatExtension.append(formatName[i]);
 
-            image_log_info("Check extension name: %s", formatExtension.c_str());
+            image_log_trace("Check extension name: %s", formatExtension.c_str());
 
             if (fileExtension == formatExtension) {
-                image_log_info("Extension (%s) matches with format %i", formatExtension.c_str(), i);
+                image_log_trace("Extension (%s) matches with format %i", formatExtension.c_str(), i);
                 format = (SaveFormat)i;
-                image_log_info("Format selected by extension: %s", formatName[size_t(format)]);
+                image_log_trace("Format selected by extension: %s", formatName[size_t(format)]);
                 break;
             }
         }
 
         if (i >= _countof(formatName)) { // no matches
-            image_log_info("No matching extension. Adding .%s", formatName[size_t(format)]);
+            image_log_trace("No matching extension. Adding .%s", formatName[size_t(format)]);
 
             fileName.append(".");
             fileName.append(formatName[size_t(format)]);
         }
     } else {
         // Simply add the selected format's extension
-        image_log_info("Adding extension: .%s", formatName[size_t(format)]);
+        image_log_trace("Adding extension: .%s", formatName[size_t(format)]);
 
         fileName.append(".");
         fileName.append(formatName[size_t(format)]);
@@ -812,7 +879,7 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
     int32_t width, height;
 
     if (img[imageHandle].text) {
-        image_log_info("Rendering text surface to RGBA");
+        image_log_trace("Rendering text surface to RGBA");
 
         auto const fontWidth = 8;
         auto fontHeight = 16;
@@ -865,7 +932,7 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
         pixels.resize(width * height);
 
         if (img[imageHandle].bits_per_pixel == 32) { // BGRA pixels
-            image_log_info("Converting BGRA surface to RGBA");
+            image_log_trace("Converting BGRA surface to RGBA");
 
             auto p = img[imageHandle].offset32;
 
@@ -874,7 +941,7 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
                 ++p;
             }
         } else { // indexed pixels
-            image_log_info("Converting BGRA indexed surface to RGBA");
+            image_log_trace("Converting BGRA indexed surface to RGBA");
             auto p = img[imageHandle].offset;
 
             for (size_t i = 0; i < pixels.size(); i++) {
@@ -930,25 +997,25 @@ void sub__saveimage(qbs *qbsFileName, int32_t imageHandle, qbs *qbsRequirements,
     } break;
 
     case SaveFormat::HDR: {
-        image_log_info("Converting RGBA to linear float data");
+        image_log_trace("Converting RGBA to linear float data");
 
-        const auto HDRComponents = 4;
+        const auto hdrComponents = 4;
 
-        std::vector<float> HDRPixels;
-        HDRPixels.resize(pixels.size() * HDRComponents);
+        std::vector<float> hdrPixels;
+        hdrPixels.resize(pixels.size() * hdrComponents);
 
         for (size_t j = 0, i = 0; i < pixels.size(); i++) {
-            HDRPixels[j] = pow((pixels[i] & 0xFFu) / 255.0f, 2.2f);
+            hdrPixels[j] = pow((pixels[i] & 0xFFu) / 255.0f, 2.2f);
             ++j;
-            HDRPixels[j] = pow(((pixels[i] >> 8) & 0xFFu) / 255.0f, 2.2f);
+            hdrPixels[j] = pow(((pixels[i] >> 8) & 0xFFu) / 255.0f, 2.2f);
             ++j;
-            HDRPixels[j] = pow(((pixels[i] >> 16) & 0xFFu) / 255.0f, 2.2f);
+            hdrPixels[j] = pow(((pixels[i] >> 16) & 0xFFu) / 255.0f, 2.2f);
             ++j;
-            HDRPixels[j] = (pixels[i] >> 24) / 255.0f;
+            hdrPixels[j] = (pixels[i] >> 24) / 255.0f;
             ++j;
         }
 
-        if (!stbi_write_hdr(fileName.c_str(), width, height, HDRComponents, HDRPixels.data())) {
+        if (!stbi_write_hdr(fileName.c_str(), width, height, hdrComponents, hdrPixels.data())) {
             image_log_error("stbi_write_hdr() failed");
             error(QB_ERROR_ILLEGAL_FUNCTION_CALL);
         }
