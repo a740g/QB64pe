@@ -183,7 +183,7 @@ class GLUTEmu {
                 glfwSetKeyCallback(window, [](GLFWwindow *win, int key, int scancode, int action, int mods) {
                     auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
 #if defined(QB64_MACOSX) || defined(QB64_LINUX)
-                    if (key == GLUTEmu_KeyboardKey::ScrollLock && action == GLFW_RELEASE) {
+                    if (key == int(GLUTEmu_KeyboardKey::ScrollLock) && action == GLFW_RELEASE) {
                         instance->keyboardScrollLockState = !instance->keyboardScrollLockState;
                     }
 #endif
@@ -955,7 +955,7 @@ class GLUTEmu {
           windowIdleFunction(nullptr), keyboardButtonFunction(nullptr), keyboardCharacterFunction(nullptr), mousePositionFunction(nullptr),
           mouseButtonFunction(nullptr), mouseNotifyFunction(nullptr), mouseScrollFunction(nullptr), dropFilesFunction(nullptr) {
 #if defined(QB64_MACOSX) || defined(QB64_LINUX)
-        bool keyboardScrollLockState = false;
+        keyboardScrollLockState = false;
 #endif
         // Listen for GLFW error messages and route them to libqb logging
         glfwSetErrorCallback([](int error_code, const char *description) { libqb_log_error("GLFW error %d: %s", error_code, description); });
@@ -1055,15 +1055,10 @@ class GLUTEmu {
 
                 for (int i = 0; i < count; i++) {
                     int mx, my, mw, mh;
-
-                    if (glfwGetMonitorWorkarea) {
-                        glfwGetMonitorWorkarea(monitors[i], &mx, &my, &mw, &mh);
-                    } else {
-                        glfwGetMonitorPos(monitors[i], &mx, &my);
-                        auto mode = glfwGetVideoMode(monitors[i]);
-                        mw = mode->width;
-                        mh = mode->height;
-                    }
+                    glfwGetMonitorPos(monitors[i], &mx, &my);
+                    auto mode = glfwGetVideoMode(monitors[i]);
+                    mw = mode->width;
+                    mh = mode->height;
 
                     auto overlapW = std::max(0, std::min(wx + ww, mx + mw) - std::max(wx, mx));
                     auto overlapH = std::max(0, std::min(wy + wh, my + mh) - std::max(wy, my));
