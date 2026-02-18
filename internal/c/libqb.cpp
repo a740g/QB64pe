@@ -33,12 +33,12 @@
 #include "graphics.h"
 #include "gui.h"
 #include "hashing.h"
-#include "http.h"
 #include "image.h"
 #include "keyhandler.h"
 #include "logging.h"
 #include "memblock.h"
 #include "mutex.h"
+#include "qb_http.h"
 #include "qblist.h"
 #include "qbs.h"
 #include "rounding.h"
@@ -5641,8 +5641,8 @@ uint16 *reg16[8];
 uint32 *reg32[8];
 uint16 *segreg[8];
 
-int32 emu_a32;
-int32 emu_b32; // size of data to read/write in bits is 32
+int32_t emu_a32;
+int32_t emu_b32; // size of data to read/write in bits is 32
 
 uint32 sib() {
     static uint32 i; // sib byte
@@ -7376,24 +7376,25 @@ void qbg_sub_color(uint32 col1, uint32 col2, uint32 bordercolor, int32 i, int32 
         return;
     }
 
-    int32 opi = -1;         // originally passed image
-    int32 sod = -1;         // saved old destination
+    int32 opi = -1; // originally passed image
+    int32 sod = -1; // saved old destination
     if (passed & 8) {
         opi = i;
-        if (i >= 0) {       // validate i
+        if (i >= 0) { // validate i
             validatepage(i);
-        }
-        else {
+        } else {
             i = -i;
             if (i >= nextimg) {
-                error(258); return;
+                error(258);
+                return;
             }
-            if (!img[i].valid){
-                error(258); return;
+            if (!img[i].valid) {
+                error(258);
+                return;
             }
         }
     }
-    if (opi != -1) {        // set given image as destination
+    if (opi != -1) { // set given image as destination
         sod = func__dest();
         sub__dest(opi);
     }
@@ -7611,7 +7612,8 @@ void qbg_sub_color(uint32 col1, uint32 col2, uint32 bordercolor, int32 i, int32 
 error:
     error(5);
 done:
-    if (opi != -1) sub__dest(sod);  // reset old destination, if required
+    if (opi != -1)
+        sub__dest(sod); // reset old destination, if required
     return;
 }
 
@@ -13636,7 +13638,7 @@ int32 func__blink() {
     return -H3C0_blink_enable;
 }
 
-uintptr_t func__handle() {
+uintptr_t func__windowhandle() {
 #ifdef QB64_WINDOWS
 #    ifdef DEPENDENCY_CONSOLE_ONLY
     if (!generic_window_handle) {
@@ -21557,7 +21559,7 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
     }
 
 #        ifdef QB64_WINDOWS
-    HWND win = (HWND)func__handle();
+    HWND win = (HWND)func__windowhandle();
     if (!win) {
         return;
     }
@@ -21660,7 +21662,7 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 } // sub__icon
 #endif // DEPENDENCY_ICON
 
-int32_t func_screenwidth() {
+int32_t func__desktopwidth() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return std::get<0>(libqb_glut_get_screen_mode());
@@ -21669,7 +21671,7 @@ int32_t func_screenwidth() {
 #endif
 }
 
-int32_t func_screenheight() {
+int32_t func__desktopheight() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
     return std::get<1>(libqb_glut_get_screen_mode());
@@ -23727,8 +23729,8 @@ int32 func__screenimage(int32 x1, int32 y1, int32 x2, int32 y2, int32 passed) {
     ReleaseDC(NULL, hdc);
     return i;
 #    else
-    // TODO: Implement screenimage for other platforms
-    return func__newimage(func_desktopwidth(), func_desktopheight(), 32, 1);
+    // GLFW_TODO: Implement screenimage for other platforms
+    return func__newimage(func__desktopwidth(), func__desktopheight(), 32, 1);
 #    endif
 }
 #endif // DEPENDENCY_SCREENIMAGE
@@ -28046,7 +28048,7 @@ void sub__writefile(qbs *filespec, qbs *contents) {
 
 void sub__filedrop(int32 on_off = NULL) {
 #ifdef QB64_WINDOWS
-    HWND win = (HWND)func__handle();
+    HWND win = (HWND)func__windowhandle();
     if (!win)
         return;
 

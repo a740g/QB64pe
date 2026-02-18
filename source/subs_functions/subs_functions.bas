@@ -643,7 +643,7 @@ SUB reginternal
     clearid
     id.n = "_WindowHandle"
     id.subfunc = 1
-    id.callname = "func__handle"
+    id.callname = "func__windowhandle"
     id.ret = UOFFSETTYPE - ISPOINTER
     id.hr_syntax = "_WINDOWHANDLE"
     regid
@@ -3732,7 +3732,7 @@ SUB reginternal
     clearid
     id.n = "_DesktopHeight"
     id.subfunc = 1
-    id.callname = "func_screenheight"
+    id.callname = "func__desktopheight"
     id.args = 0
     id.ret = LONGTYPE - ISPOINTER
     id.hr_syntax = "_DESKTOPHEIGHT"
@@ -3741,7 +3741,7 @@ SUB reginternal
     clearid
     id.n = "_DesktopWidth"
     id.subfunc = 1
-    id.callname = "func_screenwidth"
+    id.callname = "func__desktopwidth"
     id.args = 0
     id.ret = LONGTYPE - ISPOINTER
     id.hr_syntax = "_DESKTOPWIDTH"
