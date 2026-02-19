@@ -1031,9 +1031,9 @@ FUNCTION EvaluateFunction$ (p, args AS STRING)
             typ& = STRINGTYPE
 
         CASE "ASC":
-            IF argCount < 1 OR argCount > 2 THEN EvaluateFunction$ = "ERROR - Wrong number of arguments provided to ASC$": EXIT FUNCTION
+            IF argCount < 1 OR argCount > 2 THEN EvaluateFunction$ = "ERROR - Wrong number of arguments provided to ASC": EXIT FUNCTION
             IF (args(1).typ AND ISSTRING) = 0 THEN EvaluateFunction$ = "ERROR - Unexpected argument: '" + origArgs(1) + "'": EXIT FUNCTION
-            IF LEN(args(1).s) < 1 THEN EvaluateFunction$ = "ERROR - ASC$ cannot apply to empty string": EXIT FUNCTION
+            IF LEN(args(1).s) < 1 THEN EvaluateFunction$ = "ERROR - ASC cannot apply to empty string": EXIT FUNCTION
 
             IF argCount = 1 THEN
                 n1 = ASC(args(1).s)
