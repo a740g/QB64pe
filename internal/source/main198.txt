@@ -827,7 +827,7 @@ S_35921:;
 if (((-(*_FUNC_EVALUATEFUNCTION_LONG_ARGCOUNT< 1 ))|(-(*_FUNC_EVALUATEFUNCTION_LONG_ARGCOUNT> 2 )))||is_error_pending()){
 if(qbevent){evnt(24222,1034,"const_eval.bas");if(r)goto S_35921;}
 do{
-qbs_set(_FUNC_EVALUATEFUNCTION_STRING_EVALUATEFUNCTION,qbs_new_txt_len("ERROR - Wrong number of arguments provided to ASC$",50));
+qbs_set(_FUNC_EVALUATEFUNCTION_STRING_EVALUATEFUNCTION,qbs_new_txt_len("ERROR - Wrong number of arguments provided to ASC",49));
 qbs_cleanup(qbs_tmp_base,0);
 if(!qbevent)break;evnt(24222,1034,"const_eval.bas");}while(r);
 do{
@@ -849,7 +849,7 @@ S_35929:;
 if ((qbs_cleanup(qbs_tmp_base,-((*(qbs**)(((char*)_FUNC_EVALUATEFUNCTION_ARRAY_UDT_ARGS[0])+((array_check(( 1 )-_FUNC_EVALUATEFUNCTION_ARRAY_UDT_ARGS[4],_FUNC_EVALUATEFUNCTION_ARRAY_UDT_ARGS[5]))*60+48)))->len< 1 )))||is_error_pending()){
 if(qbevent){evnt(24222,1036,"const_eval.bas");if(r)goto S_35929;}
 do{
-qbs_set(_FUNC_EVALUATEFUNCTION_STRING_EVALUATEFUNCTION,qbs_new_txt_len("ERROR - ASC$ cannot apply to empty string",41));
+qbs_set(_FUNC_EVALUATEFUNCTION_STRING_EVALUATEFUNCTION,qbs_new_txt_len("ERROR - ASC cannot apply to empty string",40));
 qbs_cleanup(qbs_tmp_base,0);
 if(!qbevent)break;evnt(24222,1036,"const_eval.bas");}while(r);
 do{
