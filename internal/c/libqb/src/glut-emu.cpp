@@ -72,7 +72,8 @@ class GLUTEmu {
                     return false;
                 }
 
-                libqb_log_trace("Loaded OpenGL %d.%d", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
+                libqb_log_trace("GLAD %s initialized", GLAD_GENERATOR_VERSION);
+                libqb_log_trace("OpenGL %d.%d loaded", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
                 glfwSwapInterval(1);
 
@@ -102,6 +103,8 @@ class GLUTEmu {
 
                 // If the window size is not the same as requested, we are likely on a high-DPI display, so we need to adjust our size using the scale factor
                 if (windowWidth != width || windowHeight != height) {
+                    libqb_log_trace("Window size (%dx%d) does not match requested size (%dx%d) due to %fx%f content scale, adjusting", windowWidth,
+                                    windowHeight, width, height, windowScaleX, windowScaleY);
                     windowWidth = width;
                     windowHeight = height;
                     glfwSetWindowSize(window, ToScreenCoordsX(width), ToScreenCoordsY(height));
@@ -970,7 +973,7 @@ class GLUTEmu {
 #endif
 
         if (glfwInit()) {
-            libqb_log_trace("GLFW (%s) initialized", glfwGetVersionString());
+            libqb_log_trace("GLFW %s initialized", glfwGetVersionString());
         } else {
             // This will get caught outside because the window creation will fail
             libqb_log_error("Failed to initialize GLFW");
@@ -1091,6 +1094,9 @@ class GLUTEmu {
         case GLUTEmu_KeyboardKey::NumLock:
             mods = (GetKeyState(VK_NUMLOCK) & 0x0001) ? (mods | GLUTEmu_KeyboardKeyModifier::NumLock) : (mods & ~GLUTEmu_KeyboardKeyModifier::NumLock);
             break;
+
+        default:
+            break;
         }
 #elif defined(QB64_LINUX)
         unsigned int n = 0;
@@ -1106,6 +1112,9 @@ class GLUTEmu {
 
             case GLUTEmu_KeyboardKey::NumLock:
                 mods = (n & 0x02) ? (mods | GLUTEmu_KeyboardKeyModifier::NumLock) : (mods & ~GLUTEmu_KeyboardKeyModifier::NumLock);
+                break;
+
+            default:
                 break;
             }
         } else // note the else here
