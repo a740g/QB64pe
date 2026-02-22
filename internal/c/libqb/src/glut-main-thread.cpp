@@ -139,5 +139,5 @@ void libqb_exit(int exitcode) {
     if (!libqb_is_glut_up())
         exit(exitcode);
 
-    libqb_glut_exit_program(exitcode);
+    GLUTEmu_ExitProgram(exitcode);
 }

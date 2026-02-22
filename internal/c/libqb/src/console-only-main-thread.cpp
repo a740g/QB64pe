@@ -1,18 +1,13 @@
+// This file is for Console-Only programs. They never invoke GLUT so the setup here is much simpler.
 
 #include "libqb-common.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #include "glut-thread.h"
 
-// This file is for Console-Only programs. They never invoke GLUT so the setup
-// here is much simpler.
+#include <cstdlib>
 
 // FIXME: Put this definition somewhere else
-void MAIN_LOOP(void *);
+extern void MAIN_LOOP(void *);
 
 void libqb_glut_presetup() {}
 
@@ -26,41 +21,6 @@ void libqb_start_glut_thread() {}
 
 bool libqb_is_glut_up() {
     return false;
-}
-
-void libqb_process_glut_queue() {}
-
-void libqb_glut_set_cursor(int style) {
-    (void)style;
-}
-
-void libqb_glut_warp_pointer(int x, int y) {
-    (void)x;
-    (void)y;
-}
-
-int libqb_glut_get(int id) {
-    (void)id;
-    return 0;
-}
-
-void libqb_glut_iconify_window() {}
-
-void libqb_glut_position_window(int x, int y) {
-    (void)x;
-    (void)y;
-}
-
-void libqb_glut_show_window() {}
-
-void libqb_glut_hide_window() {}
-
-void libqb_glut_set_window_title(const char *title) {
-    (void)title;
-}
-
-void libqb_glut_exit_program(int exitcode) {
-    libqb_exit(exitcode);
 }
 
 // Since there's no GLUT thread to deal with we can just exit() like normal

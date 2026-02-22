@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <cuchar>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
@@ -44,6 +45,7 @@ enum class GLUTEmu_WindowHint : int {
     LinuxX11InstanceName = GLFW_X11_INSTANCE_NAME
 };
 
+// GLFW_TODO: We need QB64 compatible keycodes here which should be mapped to/from GLFW keycodes
 enum class GLUTEmu_KeyboardKey : int {
     Unknown = GLFW_KEY_UNKNOWN,
     Space = GLFW_KEY_SPACE,
@@ -233,7 +235,7 @@ template <typename T> void GLUTEmu_WindowSetHint(GLUTEmu_WindowHint hint, const 
 bool GLUTEmu_WindowCreate(const char *title, int width, int height);
 bool GLUTEmu_WindowIsCreated();
 void GLUTEmu_WindowSetTitle(const char *title);
-const char *GLUTEmu_WindowGetTitle();
+std::string_view GLUTEmu_WindowGetTitle();
 void GLUTEmu_WindowSetIcon(int32_t imageHandle);
 void GLUTEmu_WindowFullScreen(bool fullscreen);
 bool GLUTEmu_WindowIsFullscreen();
@@ -289,3 +291,4 @@ void GLUTEmu_MouseSetNotifyFunction(GLUTEmu_CallbackMouseNotify func);
 void GLUTEmu_MouseSetScrollFunction(GLUTEmu_CallbackMouseScroll func);
 void GLUTEmu_DropSetFilesFunction(GLUTEmu_CallbackDropFiles func);
 void GLUTEmu_MainLoop();
+void GLUTEmu_ExitProgram(int exitcode);

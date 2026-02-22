@@ -13678,7 +13678,7 @@ void set_foreground_window(ptrszint i) {
 int32_t func__hasfocus() {
 #ifdef QB64_GUI
     OPTIONAL_GLUT(QB_FALSE);
-    return QB_BOOL(libqb_glut_window_has_focus());
+    return QB_BOOL(GLUTEmu_WindowIsFocused());
 #endif
     return QB_TRUE;
 }
@@ -18234,7 +18234,7 @@ void sub__mousehide() {
 #ifdef QB64_GUI
 #    ifdef QB64_GLUT
     OPTIONAL_GLUT();
-    libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode::Hidden);
+    GLUTEmu_MouseSetCursorMode(GLUTEnum_MouseCursorMode::Hidden);
 #    endif
 #endif
 }
@@ -18247,7 +18247,7 @@ void sub__mouseshow(qbs *qbsStyle, int32 passed) {
     OPTIONAL_GLUT();
 
     // GLFW_TODO: We should extend sub__mouseshow to accept a parameter to show/hide the cursor instead of always showing it
-    libqb_glut_set_cursor_mode(GLUTEnum_MouseCursorMode::Normal);
+    GLUTEmu_MouseSetCursorMode(GLUTEnum_MouseCursorMode::Normal);
 
     std::string style;
     if (passed && qbsStyle) {
@@ -18258,25 +18258,25 @@ void sub__mouseshow(qbs *qbsStyle, int32 passed) {
     }
 
     if (style == "DEFAULT" || style == "ARROW") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::Arrow);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::Arrow);
     } else if (style == "LINK" || style == "HELP" || style == "POINTINGHAND") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::PointingHand);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::PointingHand);
     } else if (style == "TEXT" || style == "IBEAM") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::IBeam);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::IBeam);
     } else if (style == "CROSSHAIR") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::Crosshair);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::Crosshair);
     } else if (style == "VERTICAL" || style == "RESIZENS") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNS);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::ResizeNS);
     } else if (style == "HORIZONTAL" || style == "RESIZEEW") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeEW);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::ResizeEW);
     } else if (style == "TOPLEFT_BOTTOMRIGHT" || style == "RESIZENESW") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNESW);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::ResizeNESW);
     } else if (style == "TOPRIGHT_BOTTOMLEFT" || style == "RESIZENWSE") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeNWSE);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::ResizeNWSE);
     } else if (style == "WAIT" || style == "NOTALLOWED") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::NotAllowed);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::NotAllowed);
     } else if (style == "CYCLE" || style == "MOVE" || style == "RESIZEALL") {
-        libqb_glut_set_cursor(GLUTEmu_MouseStandardCursor::ResizeAll);
+        GLUTEmu_MouseSetStandardCursor(GLUTEmu_MouseStandardCursor::ResizeAll);
     } else {
         error(QB_ERROR_ILLEGAL_FUNCTION_CALL);
     }
@@ -18288,7 +18288,7 @@ int32_t func__mousehidden() {
 #    ifdef QB64_GLUT
     OPTIONAL_GLUT(QB_FALSE);
     // GLFW_TODO: We need a better way to query the current cursor mode
-    auto cursor_mode = libqb_glut_get_cursor_mode();
+    auto cursor_mode = GLUTEmu_MouseGetCursorMode();
     return QB_BOOL(cursor_mode == GLUTEnum_MouseCursorMode::Hidden || cursor_mode == GLUTEnum_MouseCursorMode::Disabled);
 #    endif
 #else
@@ -18358,7 +18358,7 @@ void sub__mousemove(float x, float y) {
     x2 += environment_2d__screen_x1;
     y2 += environment_2d__screen_y1;
 
-    libqb_glut_move_mouse(x2, y2);
+    GLUTEmu_MouseMove(x2, y2);
     return;
 
 error:
@@ -21665,7 +21665,7 @@ void sub__icon(int32 handle_icon, int32 handle_window_icon, int32 passed) {
 int32_t func__desktopwidth() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return std::get<0>(libqb_glut_get_screen_mode());
+    return std::get<0>(GLUTEmu_ScreenGetMode());
 #else
     return 0;
 #endif
@@ -21674,7 +21674,7 @@ int32_t func__desktopwidth() {
 int32_t func__desktopheight() {
 #ifdef QB64_GLUT
     OPTIONAL_GLUT(0);
-    return std::get<1>(libqb_glut_get_screen_mode());
+    return std::get<1>(GLUTEmu_ScreenGetMode());
 #else
     return 0;
 #endif
@@ -21685,7 +21685,7 @@ int32_t func__desktopheight() {
 void sub_screenicon() {
 #ifdef QB64_GLUT
     NEEDS_GLUT();
-    libqb_glut_minimize_window();
+    GLUTEmu_WindowMinimize();
 #endif
 }
 
@@ -21700,7 +21700,7 @@ int32 func_windowexists() {
 int32 func_screenicon() {
 #ifdef QB64_GLUT
     NEEDS_GLUT(0);
-    return QB_BOOL(libqb_glut_is_window_minimized());
+    return QB_BOOL(GLUTEmu_WindowIsMinimized());
 #else
     return 0;
 #endif
@@ -25002,7 +25002,7 @@ qbs *func__os() {
 int32_t func__screenx() {
 #if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
-    return libqb_glut_get_window_position().first;
+    return GLUTEmu_WindowGetPosition().first;
 #endif
     return 0;
 }
@@ -25010,7 +25010,7 @@ int32_t func__screenx() {
 int32_t func__screeny() {
 #if defined(QB64_GUI) && defined(QB64_GLUT)
     NEEDS_GLUT(0);
-    return libqb_glut_get_window_position().second;
+    return GLUTEmu_WindowGetPosition().second;
 #endif
     return 0;
 }
@@ -25028,10 +25028,9 @@ void sub__screenmove(int32 x, int32 y, int32 passed) {
     NEEDS_GLUT();
 
     if (passed == 2) {
-        libqb_glut_move_window(x, y);
+        GLUTEmu_WindowMove(x, y);
     } else {
-        // Center the window
-        libqb_glut_center_window();
+        GLUTEmu_WindowCenter();
     }
 #endif
     return;
@@ -25589,7 +25588,7 @@ void sub__screenshow() {
     screen_hide = 0;
     // $SCREENHIDE programs will not have the window running
     libqb_start_glut_thread();
-    libqb_glut_show_window();
+    GLUTEmu_WindowHide(false);
 #endif
 }
 
@@ -25601,7 +25600,7 @@ void sub__screenhide() {
     // This is probably unnecessary, no conditions allow for screen_hide==0
     // without GLUT running, but it doesn't hurt anything.
     libqb_start_glut_thread();
-    libqb_glut_hide_window();
+    GLUTEmu_WindowHide(true);
 #endif
 
     screen_hide = 1;
@@ -25945,8 +25944,6 @@ static int64_t lastTick = 0;
 static double deltaTick = 0;
 
 void GLUT_IDLE_FUNC() {
-    libqb_process_glut_queue();
-
 #ifdef QB64_MACOSX
 #    ifdef DEPENDENCY_DEVICEINPUT
     // must be in same thread as GLUT for OSX
@@ -27277,7 +27274,7 @@ void GLUT_DISPLAY_REQUEST() {
                 }
                 resize_auto_accept_aspect = (float)x / (float)y;
                 resize_pending = 1;
-                libqb_glut_resize_window(x, y);
+                GLUTEmu_WindowResize(x, y);
                 GLUTEmu_WindowRefresh();
 
                 goto auto_resized;
@@ -27286,7 +27283,7 @@ void GLUT_DISPLAY_REQUEST() {
 
         if ((display_required_x != display_x) || (display_required_y != display_y)) {
             if (resize_snapback || framesize_changed) {
-                libqb_glut_resize_window(display_required_x, display_required_y);
+                GLUTEmu_WindowResize(display_required_x, display_required_y);
                 GLUTEmu_WindowRefresh();
                 resize_pending = 1;
             }
@@ -27304,14 +27301,14 @@ void GLUT_DISPLAY_REQUEST() {
                 if (full_screen != 0) {
                     // exit full screen
                     resize_pending = 1;
-                    libqb_glut_resize_window(display_frame[i].w, display_frame[i].h);
+                    GLUTEmu_WindowResize(display_frame[i].w, display_frame[i].h);
                     GLUTEmu_WindowRefresh();
                 }
                 full_screen = 0;
                 full_screen_set = -1;
             } else {
                 if (full_screen == 0) {
-                    libqb_glut_set_fullscreen(true);
+                    GLUTEmu_WindowFullScreen(true);
                 }
                 full_screen = full_screen_set;
                 full_screen_set = -1;
@@ -27833,8 +27830,9 @@ void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUT
 
 void GLUT_MOUSE_WHEEL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode) {
 #    ifdef QB64_GLUT
-    (void)xOffset; // GLFW_TODO: xOffset is not used currently, but we should make use of it in the future.
-    // RGFW_TODO: scroll provide scroll x and y fractional values, so this needs to be fixed in a way where we can pass the exact value to the user.
+    (void)xOffset;
+    // GLFW_TODO: xOffset is not used currently, but we should make use of it in the future. xOffset and yOffset provides fractional values, so this needs to be
+    // fixed in a way where we can pass the exact values to the user.
     auto iScroll = int(yOffset);
     if (iScroll > 0) {
         while (iScroll) {
@@ -27982,7 +27980,7 @@ void sub__title(qbs *title) {
 
     OPTIONAL_GLUT();
 
-    libqb_glut_set_window_title((char *)window_title);
+    GLUTEmu_WindowSetTitle((char *)window_title);
 } // title
 
 void sub__echo(qbs *message) {

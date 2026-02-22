@@ -161,8 +161,11 @@ CXXFLAGS += -fno-strict-aliasing
 # the warning list actually usable.
 CXXFLAGS += -Wno-conversion-null
 
+# After we moved to LLVM-MingW, libpthread is available on all platforms
+CXXLIBS += -lpthread
+
 ifeq ($(OS),lnx)
-	CXXLIBS += -lGL -lGLU -lX11 -lXrandr -lxcb -lpthread -ldl -lrt
+	CXXLIBS += -lGL -lGLU -lX11 -lXrandr -lxcb -ldl -lrt
 endif
 
 ifeq ($(OS),win)
@@ -329,10 +332,10 @@ ifneq ($(filter y,$(DEP_AUDIO_MINIAUDIO)),)
 		CXXLIBS += -lm -lasound
 	endif
 	ifeq ($(OS),win)
-		CXXLIBS += -lksguid -ldxguid
+		CXXLIBS += -lm -lksguid -ldxguid
 	endif
 	ifeq ($(OS),osx)
-		CXXLIBS += -lpthread -lm -framework CoreAudio -framework CoreMIDI -framework AudioUnit -framework AudioToolbox
+		CXXLIBS += -lm -framework CoreAudio -framework CoreMIDI -framework AudioUnit -framework AudioToolbox
 	endif
 
 	LICENSE_IN_USE += miniaudio stb_vorbis libxmp-lite radv2 hivelytracker qoa foo_midi ymfmidi primesynth tinysoundfont
