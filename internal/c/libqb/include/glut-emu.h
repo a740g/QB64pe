@@ -291,4 +291,4 @@ void GLUTEmu_MouseSetNotifyFunction(GLUTEmu_CallbackMouseNotify func);
 void GLUTEmu_MouseSetScrollFunction(GLUTEmu_CallbackMouseScroll func);
 void GLUTEmu_DropSetFilesFunction(GLUTEmu_CallbackDropFiles func);
 void GLUTEmu_MainLoop();
-void GLUTEmu_ExitProgram(int exitcode);
+void GLUTEmu_ProgramExit(int exitcode);

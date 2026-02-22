@@ -409,6 +409,18 @@ class GLUTEmu {
         }
     };
 
+    class MessageProgramExit : public Message {
+      public:
+        int exitCode;
+
+        MessageProgramExit(int exitCode) : Message(false), exitCode(exitCode) {}
+
+        void Execute() override {
+            GLUTEmu::Instance().WindowSetShouldClose(true);
+            exit(exitCode);
+        }
+    };
+
     std::tuple<int, int, int> ScreenGetMode() {
         monitor = WindowGetCurrentMonitor();
         if (monitor) {
@@ -584,6 +596,7 @@ class GLUTEmu {
                         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
                         libqb_log_trace("Raw mouse motion supported and enabled");
                     } else {
+                        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE); // try it anyway
                         libqb_log_warn("Raw mouse motion not supported");
                     }
 
@@ -1971,7 +1984,11 @@ void GLUTEmu_MainLoop() {
     GLUTEmu::Instance().MainLoop();
 }
 
-void GLUTEmu_ExitProgram(int exitcode) {
-    GLUTEmu::Instance().WindowSetShouldClose(true);
-    exit(exitcode);
+void GLUTEmu_ProgramExit(int exitcode) {
+    if (GLUTEmu::Instance().MessageIsMainThread()) {
+        GLUTEmu::Instance().WindowSetShouldClose(true);
+        exit(exitcode);
+    } else {
+        GLUTEmu::Instance().MessageQueue(new GLUTEmu::MessageProgramExit(exitcode));
+    }
 }
