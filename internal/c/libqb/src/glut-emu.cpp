@@ -645,6 +645,10 @@ class GLUTEmu {
                 } else {
                     libqb_log_trace("Entering fullscreen mode");
 
+                    if (isWindowMaximized || isWindowMinimized) {
+                        glfwRestoreWindow(window);
+                    }
+
                     glfwGetWindowPos(window, &windowedX, &windowedY);
                     glfwGetWindowSize(window, &windowedWidth, &windowedHeight);
                     auto mode = glfwGetVideoMode(monitor);
@@ -657,6 +661,10 @@ class GLUTEmu {
 
                     glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
                     isWindowFullscreen = glfwGetWindowMonitor(window) != nullptr;
+
+                    if (!isWindowFullscreen && isWindowMaximized) {
+                        glfwMaximizeWindow(window);
+                    }
                 } else {
                     libqb_log_trace("Window already in windowed mode, ignoring request");
                 }
