@@ -3,11 +3,11 @@
 #include "glut-thread.h"
 #include "gui.h"
 #include "logging.h"
-#include "thread.h"
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <latch>
+#include <thread>
 
 // FIXME: These extern variable and function definitions should probably go
 // somewhere more global so that they can be referenced by libqb.cpp
@@ -105,8 +105,7 @@ void libqb_glut_presetup() {
 void libqb_start_main_thread() {
     // Start the 'MAIN_LOOP' in a separate thread, as GLUT has to run on the
     // initial thread.
-    struct libqb_thread *main_loop = libqb_thread_new();
-    libqb_thread_start(main_loop, MAIN_LOOP, NULL);
+    std::thread(MAIN_LOOP, nullptr).detach();
 
     // This happens for $SCREENHIDE programs. This thread waits on the
     // `glut_thread_starter` completion, which will get completed if a
