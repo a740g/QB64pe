@@ -63,7 +63,7 @@ class GLUTEmu {
         virtual void Execute() = 0;
 
       private:
-        bool hasCompletion;
+        const bool hasCompletion;
         std::latch done;
     };
 
