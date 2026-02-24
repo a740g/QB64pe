@@ -582,7 +582,7 @@ class GLUTEmu {
                         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
                         libqb_log_trace("Raw mouse motion supported and enabled");
                     } else {
-                        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE); // try it anyway
+                        // GLFW_TODO: Currently this fails only on macOS. So, we'll need some kind of fallback (GCMouseInput?)
                         libqb_log_warn("Raw mouse motion not supported");
                     }
 
