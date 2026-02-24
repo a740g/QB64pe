@@ -4,6 +4,7 @@
 #include "gui.h"
 #include "logging.h"
 #include "thread.h"
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <latch>
@@ -71,28 +72,31 @@ static void initialize_glut() {
     // GLFW_TODO: File drop handling
 }
 
-static bool glut_is_started = false;
+static std::atomic<bool> glut_is_started{false};
 static std::latch glut_thread_starter{1};
 static std::latch glut_thread_initialized{1};
 
 void libqb_start_glut_thread() {
-    if (glut_is_started)
+    if (glut_is_started.load())
         return;
 
-    glut_thread_starter.count_down();
+    static std::atomic_flag starter_flag = ATOMIC_FLAG_INIT;
+    if (!starter_flag.test_and_set()) {
+        glut_thread_starter.count_down();
+    }
 
     glut_thread_initialized.wait();
 }
 
 // Checks whether the GLUT thread is running
 bool libqb_is_glut_up() {
-    return glut_is_started;
+    return glut_is_started.load();
 }
 
 void libqb_glut_presetup() {
     if (!screen_hide) {
         initialize_glut(); // Initialize GLUT if the screen isn't hidden
-        glut_is_started = true;
+        glut_is_started.store(true);
 
         glut_thread_initialized.count_down();
     }
@@ -107,11 +111,11 @@ void libqb_start_main_thread() {
     // This happens for $SCREENHIDE programs. This thread waits on the
     // `glut_thread_starter` completion, which will get completed if a
     // _ScreenShow is used.
-    if (!glut_is_started) {
+    if (!glut_is_started.load()) {
         glut_thread_starter.wait();
 
         initialize_glut();
-        glut_is_started = true;
+        glut_is_started.store(true);
 
         glut_thread_initialized.count_down();
     }

@@ -26,11 +26,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <latch>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
+#include <type_traits>
 
 class GLUTEmu {
   public:
@@ -1338,8 +1340,11 @@ class GLUTEmu {
     }
 
     void MessageQueue(Message *msg) {
-        std::lock_guard guard(msgQueueMutex);
-        msgQueue.push(msg);
+        {
+            std::lock_guard guard(msgQueueMutex);
+            msgQueue.push(msg);
+        }
+        glfwPostEmptyEvent();
     }
 
   private:
@@ -1531,11 +1536,15 @@ class GLUTEmu {
     }
 
     void MessageProcess() {
-        std::lock_guard guard(msgQueueMutex);
+        std::queue<Message *> localQueue;
+        {
+            std::lock_guard guard(msgQueueMutex);
+            std::swap(msgQueue, localQueue);
+        }
 
-        while (!msgQueue.empty()) {
-            auto msg = msgQueue.front();
-            msgQueue.pop();
+        while (!localQueue.empty()) {
+            auto msg = localQueue.front();
+            localQueue.pop();
             msg->Execute();
             msg->Finish();
         }
