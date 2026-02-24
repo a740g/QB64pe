@@ -2209,7 +2209,7 @@ FUNCTION ide2 (ignore)
                 IF LEN(K$) = 1 THEN k = ASC(K$)
                 IF (KSHIFT AND KB = _KEY_INSERT) OR (KCONTROL AND UCASE$(K$) = "V") THEN 'paste from clipboard
                     pasteIntoSearchField:
-                    clip$ = _CLIPBOARD$ 'read clipboard
+                    clip$ = StripDiscordANSI$(_CLIPBOARD$) 'read clipboard
                     x = INSTR(clip$, CHR$(13))
                     IF x THEN clip$ = LEFT$(clip$, x - 1)
                     x = INSTR(clip$, CHR$(10))
@@ -3723,7 +3723,7 @@ FUNCTION ide2 (ignore)
         IF (KSHIFT AND KB = _KEY_INSERT) OR (KCONTROL AND UCASE$(K$) = "V") THEN 'paste from clipboard
             idempaste:
 
-            clip$ = _CLIPBOARD$ 'read clipboard
+            clip$ = StripDiscordANSI$(_CLIPBOARD$) 'read clipboard
 
             IF LEN(clip$) THEN
                 IF INSTR(clip$, CHR$(13)) OR INSTR(clip$, CHR$(10)) THEN
@@ -14442,7 +14442,7 @@ SUB ideobjupdate (o AS idedbotype, focus, f, focusoffset, kk$, altletter$, mb, m
             IF LEN(kk$) = 1 OR KB <> 0 THEN
                 IF LEN(kk$) = 1 THEN k = ASC(kk$)
                 IF (KSHIFT AND KB = _KEY_INSERT) OR (KCONTROL AND UCASE$(kk$) = "V") THEN 'paste from clipboard
-                    clip$ = _CLIPBOARD$ 'read clipboard
+                    clip$ = StripDiscordANSI$(_CLIPBOARD$) 'read clipboard
                     x = INSTR(clip$, CHR$(13))
                     IF x THEN clip$ = LEFT$(clip$, x - 1)
                     x = INSTR(clip$, CHR$(10))

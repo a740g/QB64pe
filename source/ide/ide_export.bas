@@ -259,9 +259,16 @@ SUB ExportCodeAs (docFormat$)
             PRINT #151, LEFT$(eTxt$, ePos& - 1);
             CLOSE #151
             ok% = idemessagebox("Export As...", "Export to " + pNam$ + ext$ + " completed.", "")
-        CASE "disc", "foru", "wiki"
+        CASE "disc"
             _CLIPBOARD$ = LEFT$(eTxt$, ePos& - 1)
-            ok% = idemessagebox("Export As...", "Discord/Forum/Wiki export to Clipboard completed.", "")
+            ok% = idemessagebox("Export As...", "Discord export to Clipboard completed.\n" +_
+                                                "Codeblock size is " + _TOSTR$(ePos& - 1) + " chars.\n" +_
+                                                "Note that codeblocks count into the Discord Message Limit,\n" +_
+                                                "which is usually 2000 for regulars and 4000 for Nitro users.\n" +_
+                                                "Big code is better dropped to Discord as file attachement.", "")
+        CASE "foru", "wiki"
+            _CLIPBOARD$ = LEFT$(eTxt$, ePos& - 1)
+            ok% = idemessagebox("Export As...", "Forum/Wiki export to Clipboard completed.", "")
     END SELECT
     EXIT SUB
     '------------------------------
@@ -620,6 +627,29 @@ SUB ExportCodeAs (docFormat$)
     rtc$ = rtc$ + "\red" + _TOSTR$(_RED32(IDEBackgroundColor)) + "\green" + _TOSTR$(_GREEN32(IDEBackgroundColor)) + "\blue" + _TOSTR$(_BLUE32(IDEBackgroundColor)) + ";"
     RETURN
 END SUB
+
+FUNCTION StripDiscordANSI$ (clip$)
+    'BASIC code can't contain ESC chars except in strings. But to avoid any
+    'copy'n'paste errors and also the IDE from getting upset, we usually add it
+    'as CHR$(27) rather than entering it directly. Hence it's safe to assume
+    'that every ESC is part of ANSI sequences we've added during Discord export.
+    'I.e. we don't need to check for quoted strings and can rather directly
+    'remove those sequences again when pasting.
+    temp$ = clip$
+    '--- strip block start (if any) ---
+    IF LEFT$(temp$, 9) = "```ansi"  + CHR$(13) + CHR$(10) THEN temp$ = MID$(temp$, 10)
+    IF LEFT$(temp$, 8) = "```ansi"  + CHR$(10) THEN temp$ = MID$(temp$, 9)
+    '--- strip all ANSI sequences we use for Discord exports (if any) ---
+    temp$ = StrRemove$(temp$, CHR$(27) + "[0;0;1;37m")
+    FOR i% = 0 TO 7
+        temp$ = StrRemove$(temp$, CHR$(27) + "[3" + _TOSTR$(i%) + "m")
+    NEXT i%
+    '--- strip block end (if any) ---
+    IF RIGHT$(temp$, 5) = "```" + CHR$(13) + CHR$(10) THEN temp$ = LEFT$(temp$, LEN(temp$) - 5)
+    IF RIGHT$(temp$, 4) = "```" + CHR$(10) THEN temp$ = LEFT$(temp$, LEN(temp$) - 4)
+    '--- set clean result ---
+    StripDiscordANSI$ = temp$
+END FUNCTION
 
 FUNCTION UnicodeToUtf8Char$ (unicode&)
     '--- UTF-8 encoding ---
