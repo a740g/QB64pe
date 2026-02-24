@@ -1,13 +1,12 @@
-
 #include "libqb-common.h"
 
-#include "completion.h"
 #include "glut-thread.h"
 #include "gui.h"
 #include "logging.h"
 #include "thread.h"
 #include <cstdint>
 #include <cstdlib>
+#include <latch>
 
 // FIXME: These extern variable and function definitions should probably go
 // somewhere more global so that they can be referenced by libqb.cpp
@@ -72,23 +71,17 @@ static void initialize_glut() {
     // GLFW_TODO: File drop handling
 }
 
-static bool glut_is_started;
-static struct completion glut_thread_starter;
-static struct completion *glut_thread_initialized;
+static bool glut_is_started = false;
+static std::latch glut_thread_starter{1};
+static std::latch glut_thread_initialized{1};
 
 void libqb_start_glut_thread() {
     if (glut_is_started)
         return;
 
-    struct completion init;
-    completion_init(&init);
+    glut_thread_starter.count_down();
 
-    glut_thread_initialized = &init;
-
-    completion_finish(&glut_thread_starter);
-
-    completion_wait(&init);
-    completion_clear(&init);
+    glut_thread_initialized.wait();
 }
 
 // Checks whether the GLUT thread is running
@@ -100,8 +93,8 @@ void libqb_glut_presetup() {
     if (!screen_hide) {
         initialize_glut(); // Initialize GLUT if the screen isn't hidden
         glut_is_started = true;
-    } else {
-        completion_init(&glut_thread_starter);
+
+        glut_thread_initialized.count_down();
     }
 }
 
@@ -115,13 +108,12 @@ void libqb_start_main_thread() {
     // `glut_thread_starter` completion, which will get completed if a
     // _ScreenShow is used.
     if (!glut_is_started) {
-        completion_wait(&glut_thread_starter);
+        glut_thread_starter.wait();
 
         initialize_glut();
         glut_is_started = true;
 
-        if (glut_thread_initialized)
-            completion_finish(glut_thread_initialized);
+        glut_thread_initialized.count_down();
     }
 
     GLUTEmu_MainLoop();

@@ -11,9 +11,7 @@
 
 #include "libqb-common.h"
 
-#include "completion.h"
 #include "logging.h"
-#include "mutex.h"
 
 #include "glut-emu.h"
 #if defined(QB64_WINDOWS)
@@ -28,6 +26,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <latch>
+#include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
@@ -35,43 +35,34 @@
 class GLUTEmu {
   public:
     class Message {
-      private:
-        completion *finished = nullptr;
-
-        void InitCompletion() {
-            finished = new completion();
-            completion_init(finished);
-        }
-
-      protected:
-        Message(bool withCompletion) {
-            if (withCompletion) {
-                InitCompletion();
-            }
-        }
-
       public:
+        Message(bool withCompletion) : hasCompletion(withCompletion), done(withCompletion ? 1 : 0) {}
+
         void Finish() {
-            if (finished) {
-                completion_finish(finished);
+            if (hasCompletion) {
+                done.count_down();
             } else {
                 delete this;
             }
         }
 
         void WaitForResponse() {
-            completion_wait(finished);
+            if (hasCompletion) {
+                done.wait();
+            }
         }
 
         virtual ~Message() {
-            if (finished) {
-                completion_wait(finished);
-                completion_clear(finished);
-                delete finished;
+            if (hasCompletion) {
+                done.wait();
             }
         }
 
         virtual void Execute() = 0;
+
+      private:
+        bool hasCompletion;
+        std::latch done;
     };
 
     class MessageScreenGetMode : public Message {
@@ -1347,7 +1338,7 @@ class GLUTEmu {
     }
 
     void MessageQueue(Message *msg) {
-        libqb_mutex_guard guard(msgQueueMutex);
+        std::lock_guard guard(msgQueueMutex);
         msgQueue.push(msg);
     }
 
@@ -1362,7 +1353,6 @@ class GLUTEmu {
           keyboardButtonFunction(nullptr), keyboardCharacterFunction(nullptr), mousePositionFunction(nullptr), mouseButtonFunction(nullptr),
           mouseNotifyFunction(nullptr), mouseScrollFunction(nullptr), dropFilesFunction(nullptr) {
         mainThreadId = std::this_thread::get_id();
-        msgQueueMutex = libqb_mutex_new();
 
 #if defined(QB64_MACOSX) || defined(QB64_LINUX)
         keyboardScrollLockState = false;
@@ -1402,8 +1392,6 @@ class GLUTEmu {
 
         glfwTerminate();
         libqb_log_trace("GLFW terminated");
-
-        libqb_mutex_free(msgQueueMutex);
     }
 
     GLUTEmu(const GLUTEmu &) = delete;
@@ -1543,14 +1531,12 @@ class GLUTEmu {
     }
 
     void MessageProcess() {
-        libqb_mutex_guard guard(msgQueueMutex);
+        std::lock_guard guard(msgQueueMutex);
 
         while (!msgQueue.empty()) {
             auto msg = msgQueue.front();
             msgQueue.pop();
-
             msg->Execute();
-
             msg->Finish();
         }
     }
@@ -1597,7 +1583,7 @@ class GLUTEmu {
     GLUTEmu_CallbackMouseScroll mouseScrollFunction;
     GLUTEmu_CallbackDropFiles dropFilesFunction;
     std::thread::id mainThreadId;
-    libqb_mutex *msgQueueMutex;
+    std::mutex msgQueueMutex;
     std::queue<Message *> msgQueue;
 };
 
