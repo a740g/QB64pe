@@ -471,7 +471,6 @@ class GLUTEmu {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                         instance->windowScaleX = xScale;
                         instance->windowScaleY = yScale;
-                        instance->windowShouldRefresh = true;
                     });
 
                     // Get the window size and set a callback to track changes
@@ -482,7 +481,6 @@ class GLUTEmu {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                         instance->windowWidth = instance->ToPixelCoordsX(width);
                         instance->windowHeight = instance->ToPixelCoordsY(height);
-                        instance->windowShouldRefresh = true;
 
                         if (instance->windowResizedFunction) {
                             instance->windowResizedFunction(instance->windowWidth, instance->windowHeight);
@@ -509,7 +507,6 @@ class GLUTEmu {
                         instance->windowX = instance->ToPixelCoordsX(x);
                         instance->windowY = instance->ToPixelCoordsY(y);
                         instance->monitor = instance->WindowGetCurrentMonitor();
-                        instance->windowShouldRefresh = true;
                     });
 
                     // Get the framebuffer size (already in pixels) and set a callback to track changes
@@ -518,7 +515,6 @@ class GLUTEmu {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                         instance->framebufferWidth = width;
                         instance->framebufferHeight = height;
-                        instance->windowShouldRefresh = true;
 
                         if (instance->windowFramebufferResizedFunction) {
                             instance->windowFramebufferResizedFunction(instance->framebufferWidth, instance->framebufferHeight);
@@ -528,7 +524,6 @@ class GLUTEmu {
                     // Set a hook into the maximization callback to track restore events
                     glfwSetWindowMaximizeCallback(window, [](GLFWwindow *win, int maximized) {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
-                        instance->windowShouldRefresh = true;
                         glfwGetWindowSize(instance->window, &instance->windowWidth, &instance->windowHeight);
                         instance->windowWidth = instance->ToPixelCoordsX(instance->windowWidth);
                         instance->windowHeight = instance->ToPixelCoordsY(instance->windowHeight);
@@ -542,7 +537,6 @@ class GLUTEmu {
                     // Set a hook into the minimization callback to track restore events
                     glfwSetWindowIconifyCallback(window, [](GLFWwindow *win, int iconified) {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
-                        instance->windowShouldRefresh = !iconified;
                         instance->isWindowMinimized = bool(iconified);
                         if (instance->windowMinimizedFunction) {
                             if (iconified) {
@@ -560,7 +554,6 @@ class GLUTEmu {
                     isWindowFocused = bool(glfwGetWindowAttrib(window, GLFW_FOCUSED));
                     glfwSetWindowFocusCallback(window, [](GLFWwindow *win, int focused) {
                         auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
-                        instance->windowShouldRefresh = true;
                         instance->isWindowFocused = bool(focused);
                         if (instance->windowFocusedFunction) {
                             instance->windowFocusedFunction(bool(focused));
@@ -657,7 +650,6 @@ class GLUTEmu {
                     auto mode = glfwGetVideoMode(monitor);
                     glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
                     isWindowFullscreen = glfwGetWindowMonitor(window) != nullptr;
-                    windowShouldRefresh = true;
                 }
             } else {
                 if (isWindowFullscreen) {
@@ -665,7 +657,6 @@ class GLUTEmu {
 
                     glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
                     isWindowFullscreen = glfwGetWindowMonitor(window) != nullptr;
-                    windowShouldRefresh = true;
                 } else {
                     libqb_log_trace("Window already in windowed mode, ignoring request");
                 }
@@ -684,8 +675,6 @@ class GLUTEmu {
             glfwMaximizeWindow(window);
             isWindowMaximized = bool(glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window maximized");
         } else {
             libqb_log_error("Window not created, cannot maximize");
@@ -700,8 +689,6 @@ class GLUTEmu {
         if (window) {
             glfwIconifyWindow(window);
             isWindowMinimized = bool(glfwGetWindowAttrib(window, GLFW_ICONIFIED));
-
-            windowShouldRefresh = false;
 
             libqb_log_trace("Window minimized");
         } else {
@@ -719,8 +706,6 @@ class GLUTEmu {
             isWindowMaximized = bool(glfwGetWindowAttrib(window, GLFW_MAXIMIZED));
             isWindowMinimized = bool(glfwGetWindowAttrib(window, GLFW_ICONIFIED));
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window restored");
         } else {
             libqb_log_error("Window not created, cannot restore");
@@ -735,10 +720,8 @@ class GLUTEmu {
         if (window) {
             if (hide) {
                 glfwHideWindow(window);
-                windowShouldRefresh = false;
             } else {
                 glfwShowWindow(window);
-                windowShouldRefresh = true;
             }
 
             isWindowHidden = !glfwGetWindowAttrib(window, GLFW_VISIBLE);
@@ -764,8 +747,6 @@ class GLUTEmu {
             glfwFocusWindow(window);
             isWindowFocused = bool(glfwGetWindowAttrib(window, GLFW_FOCUSED));
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window focused");
         } else {
             libqb_log_error("Window not created, cannot focus");
@@ -780,8 +761,6 @@ class GLUTEmu {
         if (window) {
             glfwSetWindowAttrib(window, GLFW_FLOATING, floating ? GLFW_TRUE : GLFW_FALSE);
             isWindowFloating = bool(glfwGetWindowAttrib(window, GLFW_FLOATING));
-
-            windowShouldRefresh = true;
 
             libqb_log_trace("Window floating state set to %s", isWindowFloating ? "true" : "false");
         } else {
@@ -798,8 +777,6 @@ class GLUTEmu {
             glfwSetWindowOpacity(window, opacity);
             windowOpacity = glfwGetWindowOpacity(window);
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window opacity set to %f", windowOpacity);
         } else {
             libqb_log_error("Window not created, cannot set opacity");
@@ -814,8 +791,6 @@ class GLUTEmu {
         if (window) {
             glfwSetWindowAttrib(window, GLFW_DECORATED, bordered ? GLFW_TRUE : GLFW_FALSE);
             isWindowBordered = bool(glfwGetWindowAttrib(window, GLFW_DECORATED));
-
-            windowShouldRefresh = true;
 
             libqb_log_trace("Window border state set to %s", isWindowBordered ? "true" : "false");
         } else {
@@ -846,8 +821,6 @@ class GLUTEmu {
         if (window) {
             glfwSetWindowSize(window, ToScreenCoordsX(width), ToScreenCoordsY(height));
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window resized to (%d x %d)", width, height);
         } else {
             libqb_log_error("Window not created, cannot resize");
@@ -865,8 +838,6 @@ class GLUTEmu {
     void WindowMove(int x, int y) {
         if (window) {
             glfwSetWindowPos(window, ToScreenCoordsX(x), ToScreenCoordsY(y));
-
-            windowShouldRefresh = true;
 
             libqb_log_trace("Window moved to (%d, %d)", x, y);
         } else {
@@ -893,8 +864,6 @@ class GLUTEmu {
             auto y = my + (mh - wh) / 2;
             glfwSetWindowPos(window, x, y);
 
-            windowShouldRefresh = true;
-
             libqb_log_trace("Window centered");
         } else {
             libqb_log_error("Window not created, cannot center");
@@ -906,8 +875,6 @@ class GLUTEmu {
             width = (width < 0 ? GLFW_DONT_CARE : width);
             height = (height < 0 ? GLFW_DONT_CARE : height);
             glfwSetWindowAspectRatio(window, width, height);
-
-            windowShouldRefresh = true;
 
             libqb_log_trace("Window aspect ratio set to %d:%d", width, height);
         } else {
@@ -949,7 +916,9 @@ class GLUTEmu {
     }
 
     void WindowRefresh() {
-        windowShouldRefresh = true;
+        if (windowRefreshFunction) {
+            windowRefreshFunction();
+        }
     }
 
     const void *WindowGetNativeHandle(int32_t type) const {
@@ -1064,12 +1033,9 @@ class GLUTEmu {
 
             glfwSetWindowRefreshCallback(window, [](GLFWwindow *win) {
                 auto instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
-                instance->windowShouldRefresh = true;
-                /*
                 if (instance->windowRefreshFunction) {
                     instance->windowRefreshFunction();
                 }
-                */
             });
 
             libqb_log_trace("Display function set: %p", function);
@@ -1307,14 +1273,6 @@ class GLUTEmu {
             while (!glfwWindowShouldClose(window)) {
                 MessageProcess();
 
-                if (windowShouldRefresh) {
-                    windowShouldRefresh = false;
-
-                    if (windowRefreshFunction) {
-                        windowRefreshFunction();
-                    }
-                }
-
                 if (windowIdleFunction) {
                     windowIdleFunction();
 
@@ -1349,10 +1307,10 @@ class GLUTEmu {
 
   private:
     GLUTEmu()
-        : monitor(nullptr), window(nullptr), windowShouldRefresh(true), windowX(0), windowY(0), windowWidth(0), windowHeight(0), windowScaleX(1.0f),
-          windowScaleY(1.0f), isWindowFullscreen(false), isWindowMaximized(false), isWindowMinimized(false), isWindowFocused(false), isWindowHidden(false),
-          isWindowFloating(false), windowOpacity(1.0f), isWindowBordered(true), isWindowMousePassthrough(false), windowedX(0), windowedY(0), windowedWidth(0),
-          windowedHeight(0), framebufferWidth(0), framebufferHeight(0), cursor(nullptr), cursorMode(GLUTEnum_MouseCursorMode::Normal), keyboardModifiers(0),
+        : monitor(nullptr), window(nullptr), windowX(0), windowY(0), windowWidth(0), windowHeight(0), windowScaleX(1.0f), windowScaleY(1.0f),
+          isWindowFullscreen(false), isWindowMaximized(false), isWindowMinimized(false), isWindowFocused(false), isWindowHidden(false), isWindowFloating(false),
+          windowOpacity(1.0f), isWindowBordered(true), isWindowMousePassthrough(false), windowedX(0), windowedY(0), windowedWidth(0), windowedHeight(0),
+          framebufferWidth(0), framebufferHeight(0), cursor(nullptr), cursorMode(GLUTEnum_MouseCursorMode::Normal), keyboardModifiers(0),
           windowCloseFunction(nullptr), windowResizedFunction(nullptr), windowFramebufferResizedFunction(nullptr), windowMaximizedFunction(nullptr),
           windowMinimizedFunction(nullptr), windowFocusedFunction(nullptr), windowRefreshFunction(nullptr), windowIdleFunction(nullptr),
           keyboardButtonFunction(nullptr), keyboardCharacterFunction(nullptr), mousePositionFunction(nullptr), mouseButtonFunction(nullptr),
@@ -1554,7 +1512,6 @@ class GLUTEmu {
     GLFWmonitor *monitor;                    // current monitor
     GLFWwindow *window;                      // current window
     std::string windowTitle;                 // current window title
-    bool windowShouldRefresh;                // whether the window contents should be refreshed
     int windowX, windowY;                    // current window position (in pixel coordinates)
     int windowWidth, windowHeight;           // current window size (in pixel coordinates)
     float windowScaleX, windowScaleY;        // window scaling factors
