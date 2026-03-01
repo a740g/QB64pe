@@ -1501,7 +1501,7 @@ uint32 *keyheld_bind_buffer = (uint32 *)malloc(1);
 int32 keyheld_n = 0;
 int32 keyheld_size = 0;
 
-int32 keyheld(uint32 x) {
+int32_t keyheld(uint32_t x) {
     static int32 i;
     for (i = 0; i < keyheld_n; i++) {
         if (keyheld_buffer[i] == x)
@@ -25678,30 +25678,23 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_Bu
 #ifdef QB64_GLUT
     // fprintf(stderr, "key: %d, scancode: %d, action: %d, modifiers: %d\n", key, scancode, action, modifiers);
 
-    bool isShift = modifiers & GLUTEmu_KeyboardKeyModifier::Shift;
-    // bool isControl = modifiers & GLUTEmu_KeyboardKeyModifier::Control;
-    // bool isAlt = modifiers & GLUTEmu_KeyboardKeyModifier::Alt;
-    // bool isSuper = modifiers & GLUTEmu_KeyboardKeyModifier::Super;
-    bool isCapsLock = modifiers & GLUTEmu_KeyboardKeyModifier::CapsLock;
-    // bool isNumLock = modifiers & GLUTEmu_KeyboardKeyModifier::NumLock;
-    // bool isScrollLock = modifiers & GLUTEmu_KeyboardKeyModifier::ScrollLock;
     int qbKey = -1;
 
     switch (key) {
     case GLUTEmu_KeyboardKey::Escape:
-        qbKey = 27;
+        qbKey = QBVK_ESCAPE;
         break;
 
     case GLUTEmu_KeyboardKey::Enter:
-        qbKey = 13;
+        qbKey = QBVK_RETURN;
         break;
 
     case GLUTEmu_KeyboardKey::Tab:
-        qbKey = 9;
+        qbKey = QBVK_TAB;
         break;
 
     case GLUTEmu_KeyboardKey::Backspace:
-        qbKey = 8;
+        qbKey = QBVK_BACKSPACE;
         break;
 
     case GLUTEmu_KeyboardKey::Insert:
@@ -25849,7 +25842,15 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_Bu
         break;
 
     default:
-        // handle printable keys
+        // Handle printable keys
+        bool isShift = modifiers & GLUTEmu_KeyboardKeyModifier::Shift;
+        // bool isControl = modifiers & GLUTEmu_KeyboardKeyModifier::Control;
+        // bool isAlt = modifiers & GLUTEmu_KeyboardKeyModifier::Alt;
+        // bool isSuper = modifiers & GLUTEmu_KeyboardKeyModifier::Super;
+        bool isCapsLock = modifiers & GLUTEmu_KeyboardKeyModifier::CapsLock;
+        // bool isNumLock = modifiers & GLUTEmu_KeyboardKeyModifier::NumLock;
+        // bool isScrollLock = modifiers & GLUTEmu_KeyboardKeyModifier::ScrollLock;
+
         if (key >= GLUTEmu_KeyboardKey::A && key <= GLUTEmu_KeyboardKey::Z) {
             qbKey = 'a' + (int(key) - int(GLUTEmu_KeyboardKey::A));
             if (isShift)
@@ -25907,7 +25908,7 @@ void GLUT_KEYBOARD_BUTTON_FUNC(GLUTEmu_KeyboardKey key, int scancode, GLUTEmu_Bu
             if (isShift)
                 qbKey = '~';
         } else {
-            fprintf(stderr, "Unhandled key = %d\n", key);
+            libqb_log_error("Unhandled key: %d (%d)", int(key), scancode);
         }
         break;
     }
@@ -27815,7 +27816,7 @@ void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUT
 #    endif
 }
 
-void GLUT_MOUSE_WHEEL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode) {
+void GLUT_MOUSE_SCROLL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode) {
 #    ifdef QB64_GLUT
     (void)xOffset;
     // GLFW_TODO: xOffset is not used currently, but we should make use of it in the future. xOffset and yOffset provides fractional values, so this needs to be
@@ -27842,7 +27843,7 @@ void GLUT_MOUSE_WHEEL_FUNC(double x, double y, double xOffset, double yOffset, G
 #    endif
 }
 
-void GLUT_MOUSE_MOTION_FUNC(double x, double y, GLUTEnum_MouseCursorMode mode) {
+void GLUT_MOUSE_POSITION_FUNC(double x, double y, GLUTEnum_MouseCursorMode mode) {
     int32 i, last_i;
 
     mouse_message_queue_struct *queue = &mouse_message_queue;
