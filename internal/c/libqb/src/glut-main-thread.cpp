@@ -129,10 +129,10 @@ void libqb_start_main_thread() {
 //
 // This is accomplished by simply queuing a GLUT message that calls exit() for us.
 void libqb_exit(int exitcode) {
-    libqb_log_info("Program exiting with code: %d", exitcode);
-    // If GLUT isn't running then we're free to do the exit() call from here
-    if (!libqb_is_glut_up())
+    if (libqb_is_glut_up()) {
+        GLUTEmu_ProgramExit(exitcode);
+    } else {
+        // If GLUT isn't running then we're free to do the exit() call from here
         exit(exitcode);
-
-    GLUTEmu_ProgramExit(exitcode);
+    }
 }

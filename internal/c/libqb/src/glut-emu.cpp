@@ -406,9 +406,13 @@ class GLUTEmu {
       public:
         int exitCode;
 
-        MessageProgramExit(int exitCode) : Message(false), exitCode(exitCode) {}
+        MessageProgramExit(int exitCode) : Message(false), exitCode(exitCode) {
+            libqb_log_trace("Program exit requested with code: %d", exitCode);
+        }
 
         void Execute() override {
+            libqb_log_trace("Program exiting with code %d", exitCode);
+            GLUTEmu::Instance().WindowSetCloseFunction(nullptr);
             GLUTEmu::Instance().WindowSetShouldClose(true);
             exit(exitCode);
         }
@@ -1944,11 +1948,13 @@ void GLUTEmu_MainLoop() {
     GLUTEmu::Instance().MainLoop();
 }
 
-void GLUTEmu_ProgramExit(int exitcode) {
+void GLUTEmu_ProgramExit(int exitCode) {
     if (GLUTEmu::Instance().MessageIsMainThread()) {
+        libqb_log_trace("Program exiting with code %d", exitCode);
+        GLUTEmu::Instance().WindowSetCloseFunction(nullptr);
         GLUTEmu::Instance().WindowSetShouldClose(true);
-        exit(exitcode);
+        exit(exitCode);
     } else {
-        GLUTEmu::Instance().MessageQueue(new GLUTEmu::MessageProgramExit(exitcode));
+        GLUTEmu::Instance().MessageQueue(new GLUTEmu::MessageProgramExit(exitCode));
     }
 }
