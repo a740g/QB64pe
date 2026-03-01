@@ -1,6 +1,9 @@
 
-# When updating the GLFW library, remove everything except the "include" directory and the "src" directory.
+# When updating the GLFW library, remove everything except the "include" and "src" directories.
 # In the "src" directory, remove everything except *.c, *.m, and *.h files.
+
+# GLAD can be updated simply by copying the generated files into the "glad" directory.
+# Make sure to copy both the "include" and "src" directories.
 
 GLFW_SRCS := \
 	context.c \
