@@ -182,7 +182,6 @@ SUB reginternal
     id.hr_syntax = "_SCALEDHEIGHT"
     regid
 
-
     clearid
     id.n = "_GLRender"
     id.subfunc = 2

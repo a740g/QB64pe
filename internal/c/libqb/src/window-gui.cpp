@@ -29,22 +29,22 @@ int32_t ScreenResize = 0;
 int32_t full_screen = 0;      // 0,1(stretched/closest),2(1:1)
 int32_t full_screen_set = -1; // 0(windowed),1(stretched/closest),2(1:1)
 
-static int32_t display_x = 640;
-static int32_t display_y = 400;
+static int32_t display_x = Window_DefaultWidth;
+static int32_t display_y = Window_DefaultHeight;
 static bool resize_pending = true;
-static int32_t resize_snapback_x = 640;
-static int32_t resize_snapback_y = 400;
+static int32_t resize_snapback_x = Window_DefaultWidth;
+static int32_t resize_snapback_y = Window_DefaultHeight;
 static bool resize_event = false;
 static int32_t resize_event_x = 0;
 static int32_t resize_event_y = 0;
-static int32_t display_required_x = 640;
-static int32_t display_required_y = 400;
+static int32_t display_required_x = Window_DefaultWidth;
+static int32_t display_required_y = Window_DefaultHeight;
 static int32_t acceptFileDrop = 0;
 static int32_t droppedFileIndex = -1;
 static std::vector<std::string> droppedFiles;
 
 static std::pair<int32_t, int32_t> window_size_for_frame(int32_t frame_width, int32_t frame_height) {
-    if (ScreenResize && !resize_auto) {
+    if (!resize_auto) {
         return {frame_width, frame_height};
     }
 

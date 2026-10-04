@@ -3,6 +3,9 @@
 #include "qbs.h"
 #include <cstdint>
 
+inline constexpr auto Window_DefaultWidth = 640;
+inline constexpr auto Window_DefaultHeight = 400;
+
 extern int32_t environment__window_width;
 extern int32_t environment__window_height;
 extern int32_t os_resize_event;
