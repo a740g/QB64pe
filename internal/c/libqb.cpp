@@ -84,8 +84,8 @@ int32 environment_2d__screen_x1 = 0; // offsets of 'screen' within the window
 int32 environment_2d__screen_y1 = 0;
 int32 environment_2d__screen_x2 = 0;
 int32 environment_2d__screen_y2 = 0;
-int32 environment_2d__screen_scaled_width = Window_DefaultWidth; // initial values prevent _SCALEDWIDTH/_SCALEDHEIGHT returning 0
-int32 environment_2d__screen_scaled_height = Window_DefaultHeight;
+int32_t environment_2d__screen_scaled_width = Window_DefaultWidth; // initial values prevent _SCALEDWIDTH/_SCALEDHEIGHT returning 0
+int32_t environment_2d__screen_scaled_height = Window_DefaultHeight;
 float environment_2d__screen_x_scale = 1.0f;
 float environment_2d__screen_y_scale = 1.0f;
 int32 environment_2d__screen_smooth = 0; // 1(LINEAR) or 0(NEAREST)
@@ -25758,14 +25758,6 @@ void sub__writefile(qbs *filespec, qbs *contents) {
     } else {
         error(QB_ERROR_PATH_NOT_FOUND); // most common when making a new file
     }
-}
-
-int32 func__scaledwidth() {
-    return environment_2d__screen_scaled_width;
-}
-
-int32 func__scaledheight() {
-    return environment_2d__screen_scaled_height;
 }
 
 extern void set_dynamic_info();

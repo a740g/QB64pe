@@ -270,10 +270,6 @@ error:
 }
 
 double func__mousex() {
-    double x;
-    int32_t x2;
-    double f;
-
     if (Image_IsSourceConsolePage()) {
         return func__console_mouse_x();
     }
@@ -290,32 +286,28 @@ double func__mousex() {
             pixelX = environment_2d__screen_width - 1;
 
         // restrict range to the current display page's range to avoid causing errors
-        x2 = display_page->width * fontwidth[display_page->font];
+        int32_t x2 = display_page->width * fontwidth[display_page->font];
         if (pixelX >= x2)
             pixelX = x2 - 1;
 
-        f = pixelX;
+        double f = pixelX;
         x2 = fontwidth[display_page->font];
         f = f / (double)x2 + 0.5;
         x2 = qbr_double_to_long(f);
-        if (x2 > x)
+        if (x2 > pixelX)
             f -= 0.001;
-        if (x2 < x)
+        if (x2 < pixelX)
             f += 0.001;
         return std::floor(f + 0.5);
     }
 
-    x = (((current_gui_state.x - environment_2d__screen_x1) + 0.5) / environment_2d__screen_x_scale) - 0.5;
+    double x = (((current_gui_state.x - environment_2d__screen_x1) + 0.5) / environment_2d__screen_x_scale) - 0.5;
     x = std::clamp(x, 0.0, static_cast<double>(environment_2d__screen_width - 1));
     x = std::min(x, static_cast<double>(display_page->width - 1));
     return x;
 }
 
 double func__mousey() {
-    double y;
-    int32_t y2;
-    double f;
-
     if (Image_IsSourceConsolePage()) {
         return func__console_mouse_y();
     }
@@ -332,22 +324,22 @@ double func__mousey() {
             pixelY = environment_2d__screen_height - 1;
 
         // restrict range to the current display page's range to avoid causing errors
-        y2 = display_page->height * fontheight[display_page->font];
+        int32_t y2 = display_page->height * fontheight[display_page->font];
         if (pixelY >= y2)
             pixelY = y2 - 1;
 
-        f = pixelY;
+        double f = pixelY;
         y2 = fontheight[display_page->font];
         f = f / (double)y2 + 0.5;
         y2 = qbr_double_to_long(f);
-        if (y2 > y)
+        if (y2 > pixelY)
             f -= 0.001;
-        if (y2 < y)
+        if (y2 < pixelY)
             f += 0.001;
         return std::floor(f + 0.5);
     }
 
-    y = (((current_gui_state.y - environment_2d__screen_y1) + 0.5) / environment_2d__screen_y_scale) - 0.5;
+    double y = (((current_gui_state.y - environment_2d__screen_y1) + 0.5) / environment_2d__screen_y_scale) - 0.5;
     y = std::clamp(y, 0.0, static_cast<double>(environment_2d__screen_height - 1));
     y = std::min(y, static_cast<double>(display_page->height - 1));
     return y;

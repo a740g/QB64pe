@@ -35,6 +35,8 @@ void sub__resize(int32_t on_off, int32_t stretch_smooth);
 int32_t func__resize();
 int32_t func__resizewidth();
 int32_t func__resizeheight();
+int32_t func__scaledwidth(int32_t type, int32_t passed);
+int32_t func__scaledheight(int32_t type, int32_t passed);
 
 int32_t func__desktopwidth();
 int32_t func__desktopheight();

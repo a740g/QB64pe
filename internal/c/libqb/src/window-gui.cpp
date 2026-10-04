@@ -15,6 +15,8 @@
 // GLFW_TODO: Cleanup the naming conventions in this file
 
 extern int32_t force_display_update;
+extern int32_t environment_2d__screen_scaled_width;
+extern int32_t environment_2d__screen_scaled_height;
 
 int32_t environment__window_width = 0;
 int32_t environment__window_height = 0;
@@ -42,6 +44,8 @@ static int32_t display_required_y = Window_DefaultHeight;
 static int32_t acceptFileDrop = 0;
 static int32_t droppedFileIndex = -1;
 static std::vector<std::string> droppedFiles;
+static int Window_FramebufferWidth = Window_DefaultWidth;
+static int Window_FramebufferHeight = Window_DefaultHeight;
 
 static std::pair<int32_t, int32_t> window_size_for_frame(int32_t frame_width, int32_t frame_height) {
     if (!resize_auto) {
@@ -102,7 +106,9 @@ void GLUT_RESIZE_FUNC(int width, int height) {
     }
 }
 
-void GLUT_FRAMEBUFFER_RESIZE_FUNC([[maybe_unused]] int width, [[maybe_unused]] int height) {
+void GLUT_FRAMEBUFFER_RESIZE_FUNC(int width, int height) {
+    Window_FramebufferWidth = width;
+    Window_FramebufferHeight = height;
     set_view(VIEW_MODE__UNKNOWN);
 }
 
@@ -244,6 +250,22 @@ int32_t func__resizewidth() {
 
 int32_t func__resizeheight() {
     return resize_event_y;
+}
+
+int32_t func__scaledwidth(int32_t type, int32_t passed) {
+    if (passed && type) {
+        return Window_FramebufferWidth;
+    }
+
+    return environment_2d__screen_scaled_width;
+}
+
+int32_t func__scaledheight(int32_t type, int32_t passed) {
+    if (passed && type) {
+        return Window_FramebufferHeight;
+    }
+
+    return environment_2d__screen_scaled_height;
 }
 
 int32_t func__desktopwidth() {

@@ -11,6 +11,8 @@
 extern void sub__consoletitle(qbs *);
 
 extern int32_t force_display_update;
+extern int32_t environment_2d__screen_scaled_width;
+extern int32_t environment_2d__screen_scaled_height;
 
 int32_t environment__window_width = 0;
 int32_t environment__window_height = 0;
@@ -146,6 +148,14 @@ int32_t func__resizewidth() {
 
 int32_t func__resizeheight() {
     return resize_event_y;
+}
+
+int32_t func__scaledwidth([[maybe_unused]] int32_t type, [[maybe_unused]] int32_t passed) {
+    return environment_2d__screen_scaled_width;
+}
+
+int32_t func__scaledheight([[maybe_unused]] int32_t type, [[maybe_unused]] int32_t passed) {
+    return environment_2d__screen_scaled_height;
 }
 
 int32_t func__desktopwidth() {
