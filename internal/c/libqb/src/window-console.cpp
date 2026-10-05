@@ -37,8 +37,7 @@ static int32_t resize_event_x = 0;
 static int32_t resize_event_y = 0;
 static int32_t display_required_x = Window_DefaultWidth;
 static int32_t display_required_y = Window_DefaultHeight;
-static int32_t acceptFileDrop = 0;
-static int32_t droppedFileIndex = -1;
+static bool acceptFileDrop = false;
 
 void GLUT_RESIZE_FUNC(int width, int height) {
     if ((display_x != width) || (display_y != height)) {
@@ -232,30 +231,27 @@ void GLUT_DROPFILES_FUNC([[maybe_unused]] int count, [[maybe_unused]] const char
 
 void sub__filedrop(int32_t on_off) {
     if (on_off == 2) {
-        acceptFileDrop = 0;
+        acceptFileDrop = false;
         sub__finishdrop();
         return;
     }
 
     if ((on_off == 0) || (on_off == 1)) {
-        acceptFileDrop = -1;
+        acceptFileDrop = true;
     }
 }
 
 int32_t func__filedrop() {
-    return acceptFileDrop;
+    return QB_BOOL(acceptFileDrop);
 }
 
-void sub__finishdrop() {
-    droppedFileIndex = -1;
-}
+void sub__finishdrop() {}
 
 int32_t func__totaldroppedfiles() {
     return 0;
 }
 
 qbs *func__droppedfile([[maybe_unused]] int32_t fileIndex, [[maybe_unused]] int32_t passed) {
-    droppedFileIndex = -1;
     return qbs_new_txt("");
 }
 

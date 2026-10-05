@@ -7,6 +7,7 @@
 #include "window.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -41,7 +42,7 @@ static int32_t resize_event_x = 0;
 static int32_t resize_event_y = 0;
 static int32_t display_required_x = Window_DefaultWidth;
 static int32_t display_required_y = Window_DefaultHeight;
-static int32_t acceptFileDrop = 0;
+static bool acceptFileDrop = false;
 static int32_t droppedFileIndex = -1;
 static std::vector<std::string> droppedFiles;
 static int Window_FramebufferWidth = Window_DefaultWidth;
@@ -407,18 +408,18 @@ void GLUT_DROPFILES_FUNC(int count, const char *paths[]) {
 
 void sub__filedrop(int32_t on_off) {
     if (on_off == 2) {
-        acceptFileDrop = 0;
+        acceptFileDrop = false;
         sub__finishdrop();
         return;
     }
 
     if ((on_off == 0) || (on_off == 1)) {
-        acceptFileDrop = -1;
+        acceptFileDrop = true;
     }
 }
 
 int32_t func__filedrop() {
-    return acceptFileDrop;
+    return QB_BOOL(acceptFileDrop);
 }
 
 void sub__finishdrop() {
@@ -442,7 +443,9 @@ qbs *func__droppedfile(int32_t fileIndex, int32_t passed) {
         ++droppedFileIndex;
     }
 
-    if ((droppedFileIndex < 0) || (droppedFileIndex >= static_cast<int32_t>(droppedFiles.size()))) {
+    int32_t size = static_cast<int32_t>(droppedFiles.size());
+
+    if ((droppedFileIndex < 0) || (droppedFileIndex >= size)) {
         if (!passed) {
             sub__finishdrop();
         }
@@ -451,9 +454,12 @@ qbs *func__droppedfile(int32_t fileIndex, int32_t passed) {
         return qbs_new_txt("");
     }
 
-    const auto result = qbs_new_txt(droppedFiles[static_cast<std::size_t>(droppedFileIndex)].c_str());
+    size_t index = static_cast<std::size_t>(droppedFileIndex);
+    int32_t length = static_cast<int32_t>(droppedFiles[index].length());
+    auto result = qbs_new(length, 1);
+    std::memcpy(result->chr, droppedFiles[index].data(), length);
 
-    if (!passed && droppedFileIndex == static_cast<int32_t>(droppedFiles.size()) - 1) {
+    if (!passed && droppedFileIndex == size - 1) {
         sub__finishdrop();
     }
 
