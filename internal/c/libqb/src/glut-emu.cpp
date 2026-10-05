@@ -514,14 +514,14 @@ class GLUTEmu {
                     glfwGetWindowContentScale(window, &xScale, &yScale);
                     windowContentScaleX.store(xScale);
                     windowContentScaleY.store(yScale);
-                    libqb_log_trace("Window content scale is (%fx%f)", xScale, yScale);
+                    libqb_log_trace("Window content scale is (%f x %f)", xScale, yScale);
                     glfwSetWindowContentScaleCallback(window, [](GLFWwindow *win, float xScale, float yScale) {
                         auto *instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                         instance->monitor = instance->WindowGetCurrentMonitorInfo();
                         instance->windowContentScaleX.store(xScale);
                         instance->windowContentScaleY.store(yScale);
 
-                        libqb_log_trace("Window content scale changed to (%fx%f)", xScale, yScale);
+                        libqb_log_trace("Window content scale changed to (%f x %f)", xScale, yScale);
                     });
 
                     // QB64 window dimensions use GLFW screen coordinates; the framebuffer is tracked separately in pixels.
@@ -678,7 +678,7 @@ class GLUTEmu {
 
                     return true;
                 } else {
-                    libqb_log_error("Failed to create window (%dx%d)", width, height);
+                    libqb_log_error("Failed to create window (%d x %d)", width, height);
                 }
             } else {
                 libqb_log_error("Window must be created from the main thread");
@@ -1434,7 +1434,6 @@ class GLUTEmu {
 
     void MouseMove(double x, double y) {
         if (window != nullptr) {
-            cursorMode = GLUTEnum_MouseCursorMode(glfwGetInputMode(window, GLFW_CURSOR));
             glfwSetCursorPos(window, x, y);
 
             libqb_log_trace("Mouse moved to (%f, %f)", x, y);
@@ -1449,6 +1448,20 @@ class GLUTEmu {
 
             glfwSetCursorPosCallback(window, [](GLFWwindow *win, double xPos, double yPos) {
                 auto *instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
+
+#ifdef QB64_MACOSX
+                // GLFW_HACK: The position check is needed on macOS because macOS does not report the hover state on startup
+                static bool isFirstMousePositionEvent = true;
+                if (isFirstMousePositionEvent) {
+                    if (instance->mouseNotifyFunction && xPos >= 0.0 && xPos < instance->windowWidth && yPos >= 0.0 && yPos < instance->windowHeight) {
+                        libqb_log_trace("Firing mouse notify function on first mouse position event with current cursor position (%f, %f) and hover state true",
+                                        xPos, yPos);
+                        instance->mouseNotifyFunction(xPos, yPos, true);
+                        isFirstMousePositionEvent = false;
+                    }
+                }
+#endif
+
                 if (instance->mousePositionFunction) {
                     instance->cursorMode = GLUTEnum_MouseCursorMode(glfwGetInputMode(win, GLFW_CURSOR));
                     instance->mousePositionFunction(xPos, yPos, instance->cursorMode);
@@ -1465,15 +1478,13 @@ class GLUTEmu {
         if (window != nullptr) {
             mouseButtonFunction = function;
 
-            glfwSetMouseButtonCallback(window, [](GLFWwindow *win, int button, int action, int mods) {
+            glfwSetMouseButtonCallback(window, [](GLFWwindow *win, int button, int action, [[maybe_unused]] int mods) {
                 auto *instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                 if (instance->mouseButtonFunction) {
                     double xPos;
                     double yPos;
                     glfwGetCursorPos(win, &xPos, &yPos);
-                    instance->cursorMode = GLUTEnum_MouseCursorMode(glfwGetInputMode(win, GLFW_CURSOR));
-                    instance->mouseButtonFunction(xPos, yPos, GLUTEmu_MouseButton(button), GLUTEmu_ButtonAction(action), instance->cursorMode,
-                                                  instance->KeyboardUpdateLockKeyModifier(GLUTEmu_KeyboardKey::ScrollLock, mods));
+                    instance->mouseButtonFunction(xPos, yPos, GLUTEmu_MouseButton(button), GLUTEmu_ButtonAction(action));
                 }
             });
 
@@ -1488,14 +1499,25 @@ class GLUTEmu {
             mouseNotifyFunction = function;
 
             glfwSetCursorEnterCallback(window, [](GLFWwindow *win, int entered) {
+                libqb_log_trace("Mouse notify callback triggered, entered: %d", entered);
                 auto *instance = reinterpret_cast<GLUTEmu *>(glfwGetWindowUserPointer(win));
                 if (instance->mouseNotifyFunction) {
                     double x, y;
                     glfwGetCursorPos(win, &x, &y);
-                    instance->cursorMode = GLUTEnum_MouseCursorMode(glfwGetInputMode(win, GLFW_CURSOR));
-                    instance->mouseNotifyFunction(x, y, bool(entered), instance->cursorMode);
+                    instance->mouseNotifyFunction(x, y, bool(entered));
                 }
             });
+
+            // Fire the notify function immediately with the current cursor position and hover state
+            if (mouseNotifyFunction) {
+                double x, y;
+                glfwGetCursorPos(window, &x, &y);
+                // GLFW_HACK: The position check is needed on macOS because macOS does not report the hover state on startup
+                auto isHovered = (glfwGetWindowAttrib(window, GLFW_HOVERED) == GLFW_TRUE) || (x >= 0.0 && x < windowWidth && y >= 0.0 && y < windowHeight);
+                libqb_log_trace("Firing mouse notify function immediately with current cursor position (%f, %f) and hover state %s", x, y,
+                                isHovered ? "true" : "false");
+                mouseNotifyFunction(x, y, isHovered);
+            }
 
             libqb_log_trace("Mouse notify function set: %p", function);
         } else {
@@ -1512,8 +1534,7 @@ class GLUTEmu {
                 if (instance->mouseScrollFunction) {
                     double x, y;
                     glfwGetCursorPos(win, &x, &y);
-                    instance->cursorMode = GLUTEnum_MouseCursorMode(glfwGetInputMode(win, GLFW_CURSOR));
-                    instance->mouseScrollFunction(x, y, scrollX, scrollY, instance->cursorMode);
+                    instance->mouseScrollFunction(x, y, scrollX, scrollY);
                 }
             });
 

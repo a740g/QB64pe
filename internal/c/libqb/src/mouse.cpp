@@ -60,10 +60,8 @@ static GLUTEnum_MouseCursorMode g_lastRawMouseMode = GLUTEnum_MouseCursorMode::N
 static bool g_mouseWarpPending = false;
 static double g_mouseWarpX = 0.0;
 static double g_mouseWarpY = 0.0;
-
-// Tracks whether the OS cursor is inside the GLFW client area. Used to ignore
-// stray motion/scroll events when the cursor is outside the window.
-static bool g_mouseInsideWindow = false;
+// Tracks whether the OS cursor is inside the GLFW client area. Used to ignore stray motion events when the cursor is outside the window.
+static bool g_mouseInsideWindow = true;
 
 static int32_t MouseCanonicalToDeviceButtonIndex(int32_t buttonNumber) {
     // _BUTTON mouse numbering: 1=left, 2=right, 3=middle.
@@ -589,10 +587,7 @@ void Mouse_QueueScrollEvent(double x, double y, double xOffset, double yOffset) 
     }
 }
 
-void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action, GLUTEnum_MouseCursorMode mode, int modifiers) {
-    (void)mode;
-    (void)modifiers;
-
+void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUTEmu_ButtonAction action) {
     Mouse_Button mouseButton;
     switch (button) {
     case GLUTEmu_MouseButton::Left:
@@ -638,37 +633,17 @@ void GLUT_MOUSE_BUTTON_FUNC(double x, double y, GLUTEmu_MouseButton button, GLUT
     }
 }
 
-void GLUT_MOUSE_SCROLL_FUNC(double x, double y, double xOffset, double yOffset, GLUTEnum_MouseCursorMode mode) {
-    (void)mode;
-
-    // Ignore scroll events from an unfocused window or when the cursor is
-    // outside the client area; otherwise stray wheel events can affect the QB
-    // program while the user is interacting with another window.
-    if (!func__hasfocus())
-        return;
-    if (mode != GLUTEnum_MouseCursorMode::Disabled && !g_mouseInsideWindow)
-        return;
-
+void GLUT_MOUSE_SCROLL_FUNC(double x, double y, double xOffset, double yOffset) {
     Mouse_QueueScrollEvent(x, y, xOffset, yOffset);
 }
 
 void GLUT_MOUSE_POSITION_FUNC(double x, double y, GLUTEnum_MouseCursorMode mode) {
-    // Ignore mouse movement while the window is not focused. For normal/hidden
-    // cursor modes also ignore movement when the cursor has left the window so
-    // the QB cursor stays inside while the user is working in another window.
-    if (!func__hasfocus())
-        return;
-    if (mode != GLUTEnum_MouseCursorMode::Disabled && !g_mouseInsideWindow)
-        return;
-
-    Mouse_QueuePositionEvent(x, y, mode);
+    if (g_mouseInsideWindow || mode == GLUTEnum_MouseCursorMode::Disabled) {
+        Mouse_QueuePositionEvent(x, y, mode);
+    }
 }
 
-void GLUT_MOUSE_NOTIFY_FUNC(double x, double y, bool entered, GLUTEnum_MouseCursorMode mode) {
-    (void)x;
-    (void)y;
-    (void)mode;
-
+void GLUT_MOUSE_NOTIFY_FUNC([[maybe_unused]] double x, [[maybe_unused]] double y, bool entered) {
     g_mouseInsideWindow = entered;
 }
 
