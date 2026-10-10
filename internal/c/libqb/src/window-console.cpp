@@ -149,11 +149,11 @@ int32_t func__resizeheight() {
     return resize_event_y;
 }
 
-int32_t func__scaledwidth([[maybe_unused]] int32_t type, [[maybe_unused]] int32_t passed) {
+int32_t func__scaledwidth() {
     return environment_2d__screen_scaled_width;
 }
 
-int32_t func__scaledheight([[maybe_unused]] int32_t type, [[maybe_unused]] int32_t passed) {
+int32_t func__scaledheight() {
     return environment_2d__screen_scaled_height;
 }
 

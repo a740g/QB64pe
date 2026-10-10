@@ -253,20 +253,12 @@ int32_t func__resizeheight() {
     return resize_event_y;
 }
 
-int32_t func__scaledwidth(int32_t type, int32_t passed) {
-    if (passed && type) {
-        return Window_FramebufferWidth;
-    }
-
-    return environment_2d__screen_scaled_width;
+int32_t func__scaledwidth() {
+    return Window_FramebufferWidth;
 }
 
-int32_t func__scaledheight(int32_t type, int32_t passed) {
-    if (passed && type) {
-        return Window_FramebufferHeight;
-    }
-
-    return environment_2d__screen_scaled_height;
+int32_t func__scaledheight() {
+    return Window_FramebufferHeight;
 }
 
 int32_t func__desktopwidth() {

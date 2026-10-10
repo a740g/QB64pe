@@ -171,10 +171,7 @@ SUB reginternal
     id.subfunc = 1
     id.callname = "func__scaledwidth"
     id.ret = LONGTYPE - ISPOINTER
-    id.args = 1
-    id.arg = MKL$(LONGTYPE - ISPOINTER)
-    id.specialformat = "[?]"
-    id.hr_syntax = "_SCALEDWIDTH[(widthType&)]"
+    id.hr_syntax = "_SCALEDWIDTH"
     regid
 
     clearid
@@ -182,10 +179,7 @@ SUB reginternal
     id.subfunc = 1
     id.callname = "func__scaledheight"
     id.ret = LONGTYPE - ISPOINTER
-    id.args = 1
-    id.arg = MKL$(LONGTYPE - ISPOINTER)
-    id.specialformat = "[?]"
-    id.hr_syntax = "_SCALEDHEIGHT[(heightType&)]"
+    id.hr_syntax = "_SCALEDHEIGHT"
     regid
 
     clearid
