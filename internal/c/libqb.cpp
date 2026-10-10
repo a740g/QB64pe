@@ -84,8 +84,8 @@ int32 environment_2d__screen_x1 = 0; // offsets of 'screen' within the window
 int32 environment_2d__screen_y1 = 0;
 int32 environment_2d__screen_x2 = 0;
 int32 environment_2d__screen_y2 = 0;
-int32 environment_2d__screen_scaled_width = 640; // initial values prevent _SCALEDWIDTH/_SCALEDHEIGHT returning 0
-int32 environment_2d__screen_scaled_height = 400;
+int32_t environment_2d__screen_scaled_width = Window_DefaultWidth; // initial values prevent _SCALEDWIDTH/_SCALEDHEIGHT returning 0
+int32_t environment_2d__screen_scaled_height = Window_DefaultHeight;
 float environment_2d__screen_x_scale = 1.0f;
 float environment_2d__screen_y_scale = 1.0f;
 int32 environment_2d__screen_smooth = 0; // 1(LINEAR) or 0(NEAREST)
@@ -25760,14 +25760,6 @@ void sub__writefile(qbs *filespec, qbs *contents) {
     }
 }
 
-int32 func__scaledwidth() {
-    return environment_2d__screen_scaled_width;
-}
-
-int32 func__scaledheight() {
-    return environment_2d__screen_scaled_height;
-}
-
 extern void set_dynamic_info();
 
 #ifdef QB64_WINDOWS
@@ -27040,78 +27032,6 @@ void display() {
     display_called = 1;
     return;
 }
-
-/*
-    int message_loop(
-    SDL_Event event,
-    SDL_Surface *screen,
-    SDL_Surface *back,
-    int *inputedWidth,
-    Uint16 *inputedString,
-    TTF_Font *font)
-    {
-    SDL_Color fg = {0x66, 0x66, 0xFF};
-    SDL_Color bg = {0x00, 0x00, 0x00};
-    SDL_Rect rect;
-    SDL_Surface *surface;
-    SDL_Event eventExpose;
-
-    switch(event.type){
-    case SDL_QUIT:
-    return 1;
-    case SDL_VIDEOEXPOSE:
-    SDL_BlitSurface(back, NULL, screen, NULL);
-    SDL_UpdateRect(screen, 0, 0, 0, 0);
-    break;
-    case SDL_KEYDOWN:
-
-
-
-
-
-    if (event.key.keysym.sym == QBVK_F1) {
-    InputMethod_Reset();
-    }
-    if (event.key.keysym.sym == QBVK_F2) {
-    *inputedWidth = 0;
-    inputedString[0] = 0x0000;
-    InputMethod_Reset();
-    }
-    if (event.key.keysym.sym == QBVK_F3) {
-    InputMethod_Validate();
-    rect.x = 0;
-    rect.y = 200;
-    rect.w = 640;
-    rect.h = 100;
-    SDL_FillRect(back, &rect, 0x00000000);
-    surface = TTF_RenderUTF8_Shaded(
-    font, "Valid", fg, bg);
-    SDL_BlitSurface(surface, NULL, back, &rect);
-    SDL_FreeSurface(surface);
-    eventExpose.type = SDL_VIDEOEXPOSE;
-    SDL_PushEvent(&eventExpose);
-    }
-    if (event.key.keysym.sym == QBVK_F4) {
-    InputMethod_Invalidate();
-    rect.x = 0;
-    rect.y = 200;
-    rect.w = 640;
-    rect.h = 100;
-    SDL_FillRect(back, &rect, 0x00000000);
-    surface = TTF_RenderUTF8_Shaded(
-    font, "Invalid", fg, bg);
-    SDL_BlitSurface(surface, NULL, back, &rect);
-    SDL_FreeSurface(surface);
-    eventExpose.type = SDL_VIDEOEXPOSE;
-    SDL_PushEvent(&eventExpose);
-    }
-    break;
-    default:
-    break;
-    }
-    return 0;
-    }
-*/
 
 void GLUT_EXIT_FUNC() {
     GLUTEmu_WindowSetShouldClose(false);
