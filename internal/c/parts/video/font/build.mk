@@ -28,6 +28,10 @@ FONT_OBJS := $(patsubst %.cpp,$(PATH_INTERNAL_C)/parts/video/font/%.o,$(FONT_SRC
 
 FONT_LIB := $(PATH_INTERNAL_C)/parts/video/font/font.a
 
+FONT_PSF_SRCS := sg_psf/sg_psf.c
+
+FONT_PSF_OBJS := $(patsubst %.c,$(PATH_INTERNAL_C)/parts/video/font/%.o,$(FONT_PSF_SRCS))
+
 FONT_STUB_SRCS := stub_font.cpp
 
 FONT_STUB_OBJS := $(patsubst %.cpp,$(PATH_INTERNAL_C)/parts/video/font/%.o,$(FONT_STUB_SRCS))
@@ -38,12 +42,15 @@ $(PATH_INTERNAL_C)/parts/video/font/freetype/%.o: $(PATH_INTERNAL_C)/parts/video
 $(PATH_INTERNAL_C)/parts/video/font/%.o: $(PATH_INTERNAL_C)/parts/video/font/%.cpp
 	$(CXX) -O3 $(CXXFLAGS) $(FREETYPE_INCLUDE) -DDEPENDENCY_CONSOLE_ONLY -w $< -c -o $@
 
+$(PATH_INTERNAL_C)/parts/video/font/%.o: $(PATH_INTERNAL_C)/parts/video/font/%.c
+	$(CC) -O3 $(CFLAGS) $(FREETYPE_INCLUDE) -DFT2_BUILD_LIBRARY -w $< -c -o $@
+
 $(FREETYPE_LIB): $(FREETYPE_OBJS)
 	$(AR) rcs $@ $(FREETYPE_OBJS)
 
-$(FONT_LIB): $(FONT_OBJS)
-	$(AR) rcs $@ $(FONT_OBJS)
+$(FONT_LIB): $(FONT_OBJS) $(FONT_PSF_OBJS)
+	$(AR) rcs $@ $(FONT_OBJS) $(FONT_PSF_OBJS)
 
 FREETYPE_EXE_LIBS := $(FONT_LIB) $(FREETYPE_LIB)
 
-CLEAN_LIST += $(FREETYPE_LIB) $(FONT_LIB) $(FREETYPE_OBJS) $(FONT_OBJS) $(FONT_STUB_OBJS)
+CLEAN_LIST += $(FREETYPE_LIB) $(FONT_LIB) $(FREETYPE_OBJS) $(FONT_OBJS) $(FONT_PSF_OBJS) $(FONT_STUB_OBJS)
