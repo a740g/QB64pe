@@ -14,6 +14,7 @@
 #include "image.h"
 #include "mutex.h"
 #include "rounding.h"
+#include "sg_psf/sg_psf.h"
 #include "unicode.h"
 #include <codecvt>
 #include <cstdio>
@@ -24,6 +25,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_MODULE_H
 
 // Note: QB64 expects invalid font handles to be zero
 #define IS_VALID_FONT_HANDLE(_h_) ((_h_) > INVALID_FONT_HANDLE && (_h_) < fontManager.fonts.size() && fontManager.fonts[_h_]->isUsed)
@@ -382,6 +384,12 @@ struct FontManager {
         }
 
         image_log_info("FreeType library v%i.%i.%i initialized", FREETYPE_MAJOR, FREETYPE_MINOR, FREETYPE_PATCH);
+
+        if (FT_Add_Module(library, reinterpret_cast<const FT_Module_Class *>(&psf_driver_class))) {
+            image_log_warn("Failed to add PSF driver");
+        } else {
+            image_log_info("PSF driver added successfully");
+        }
 
         m = libqb_mutex_new();
 
